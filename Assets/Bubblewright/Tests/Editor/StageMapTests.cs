@@ -312,7 +312,12 @@ namespace Bubblewright.Tests
                 Assert.AreEqual(Palette.Dusk, Pixel(1 * 15 + 14, 1 * 15 + 7), "adjacent solids have no internal outline");
                 Assert.AreEqual(Palette.Steel, Pixel(6 * 15 + 3, 1 * 15 + 2));
                 Assert.AreEqual(Palette.SteelLight, Pixel(6 * 15 + 7, 1 * 15 + 4));
-                Assert.AreEqual(Palette.Mix(Palette.Dusk, Palette.Lilac, 0.35f), Pixel(4 * 15 + 7, 1 * 15 + 7));
+                Assert.AreEqual(Palette.CatacombBrick, Pixel(4 * 15 + 7, 1 * 15 + 7));
+
+                map.Damage(4, 1);
+                tick.Invoke(view, null);
+                pixels = texture.GetPixels32();
+                Assert.AreEqual(Palette.Ink, Pixel(4 * 15 + 7, 1 * 15 + 7), "one-hit breakable has an ink crack");
             }
             finally
             {

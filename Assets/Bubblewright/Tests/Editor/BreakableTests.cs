@@ -104,6 +104,44 @@ namespace Bubblewright.Tests
             Assert.AreEqual(2, wick.Hearts);
         }
 
+        [Test]
+        public void BreakableTuningUsesSpecifiedDefaults()
+        {
+            Assert.AreEqual(2, Tuning.I.breakableHp);
+            Assert.AreEqual(0.03f, Tuning.I.breakableHeartChance, 0.0001f);
+            Assert.AreEqual(8f, Tuning.I.heartPickupLife, 0.0001f);
+        }
+
+        [Test]
+        public void PickupFallsToSurfaceCollectsAndHealsWick()
+        {
+            var map = StageMap.Flat();
+            var wick = Wick.Create(root.transform, null);
+            wick.ResetForStage(0f, 0f, 2);
+            var pickup = Pickup.Create(root.transform, new Vector2(0f, 4.5f));
+
+            for (int i = 0; i < 60 && pickup.Active; i++)
+            {
+                if (pickup.Tick(1f / 60f, map, wick.Hitbox))
+                    wick.Heal();
+            }
+
+            Assert.IsFalse(pickup.Active);
+            Assert.AreEqual(3, wick.Hearts);
+        }
+
+        [Test]
+        public void PickupExpiresAfterConfiguredLifetime()
+        {
+            var pickup = Pickup.Create(root.transform, new Vector2(8f, 0f));
+            var farAway = new Rect(-1f, 0f, 1f, 1f);
+
+            for (int i = 0; i < Mathf.CeilToInt(Tuning.I.heartPickupLife * 60f) + 1; i++)
+                pickup.Tick(1f / 60f, StageMap.Flat(), farAway);
+
+            Assert.IsFalse(pickup.Active);
+        }
+
         static float FireToEnd(Harpoon harpoon, Vector2 from, int chipColumn = -1)
         {
             harpoon.Fire(from, chipColumn);
