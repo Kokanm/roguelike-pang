@@ -11,23 +11,30 @@ namespace Bubblewright.Tests
         {
             foreach (var layout in StageLayouts.All)
             {
-                yield return new TestCaseData(layout.name, layout.levels, layout.rows)
+                yield return new TestCaseData(layout.name, layout.levels, layout.onlyWorld, layout.needsBreaking, layout.rows)
                     .SetName($"{layout.name}_follows_layout_rules");
-                yield return new TestCaseData(layout.name + " (mirror)", layout.levels, StageLayouts.Mirror(layout.rows))
+                yield return new TestCaseData(layout.name + " (mirror)", layout.levels, layout.onlyWorld, layout.needsBreaking, StageLayouts.Mirror(layout.rows))
                     .SetName($"{layout.name}_mirror_follows_layout_rules");
             }
         }
 
         [Test]
-        public void LibraryContainsFourteenNamedLayouts()
+        public void LibraryContainsNineteenNamedLayoutsIncludingFiveCatacombs()
         {
-            Assert.AreEqual(14, StageLayouts.All.Length);
+            Assert.AreEqual(19, StageLayouts.All.Length);
             var names = new HashSet<string>();
+            int catacombs = 0;
             foreach (var layout in StageLayouts.All)
             {
                 Assert.IsFalse(string.IsNullOrWhiteSpace(layout.name));
                 Assert.IsTrue(names.Add(layout.name), $"duplicate layout name {layout.name}");
+                if (layout.onlyWorld == 5)
+                {
+                    catacombs++;
+                    Assert.IsTrue(Array.Exists(layout.rows, row => row.Contains("B")), $"{layout.name} contains breakables");
+                }
             }
+            Assert.AreEqual(5, catacombs);
         }
 
         [Test]
@@ -41,7 +48,7 @@ namespace Bubblewright.Tests
         }
 
         [TestCaseSource(nameof(LayoutsAndMirrors))]
-        public void EveryLayoutParsesAndFollowsEveryRule(string name, int levels, string[] rows)
+        public void EveryLayoutParsesAndFollowsEveryRule(string name, int levels, int onlyWorld, bool needsBreaking, string[] rows)
         {
             StageMap map = null;
             Assert.DoesNotThrow(() => map = StageLayout.Parse(rows), $"{name}: parses");
@@ -51,13 +58,14 @@ namespace Bubblewright.Tests
             {
                 Assert.AreEqual(StageMap.Cols, rows[i].Length, $"{name}: row {13 - i} has 32 columns");
                 foreach (char ch in rows[i])
-                    Assert.Contains(ch, new[] { '.', '#', 'H', 'T' }, $"{name}: uses only ., #, H and T");
+                    Assert.Contains(ch, new[] { '.', '#', 'B', 'H', 'T' }, $"{name}: uses only ., #, B, H and T");
             }
 
             for (int r = 0; r < StageMap.Rows; r++)
                 for (int c = 0; c < StageMap.Cols; c++)
                     if (map.IsSolid(c, r))
-                        Assert.Contains(r, new[] { 4, 9 }, $"{name}: solid at ({c}, {r}) is on a platform row");
+                        Assert.IsTrue(r == 4 || r == 9 || onlyWorld == 5 && map.Get(c, r).kind == TileKind.Breakable,
+                            $"{name}: solid at ({c}, {r}) follows the platform or Catacombs breakable rule");
 
             int expectedLevels = HasSolid(map, 9) ? 3 : HasSolid(map, 4) ? 2 : 1;
             Assert.AreEqual(expectedLevels, levels, $"{name}: levels matches rows used");
@@ -67,8 +75,9 @@ namespace Bubblewright.Tests
                     if (map.Get(c, r).ladder)
                         Assert.IsTrue(IsCompleteLadder(map, c, r), $"{name}: ladder at ({c}, {r}) belongs to a complete ladder");
 
-            AssertPlatformsHaveValidRunsAndLadders(name, map, 4);
-            AssertPlatformsHaveValidRunsAndLadders(name, map, 9);
+            bool allowBreakableWithoutLadder = onlyWorld == 5 && needsBreaking;
+            AssertPlatformsHaveValidRunsAndLadders(name, map, 4, allowBreakableWithoutLadder);
+            AssertPlatformsHaveValidRunsAndLadders(name, map, 9, allowBreakableWithoutLadder);
 
             for (int c = 14; c <= 17; c++)
                 for (int r = 0; r <= 3; r++)
@@ -79,7 +88,40 @@ namespace Bubblewright.Tests
 
             AssertWallGaps(name, map, 4);
             AssertWallGaps(name, map, 9);
-            AssertEveryPlatformReachable(name, map);
+            if (!needsBreaking) AssertEveryPlatformReachable(name, map);
+        }
+
+        [Test]
+        public void WorldFiveStagesOneToFiveUseOnlyCatacombsLayouts()
+        {
+            for (int seed = 1; seed <= 100; seed++)
+            {
+                for (int stage = 25; stage <= 29; stage++)
+                    Assert.AreEqual(5, StageGenerator.PickLayout(RunAt(seed, stage), new System.Random(seed)).onlyWorld);
+
+                for (int world = 1; world <= 6; world++)
+                {
+                    if (world == 5) continue;
+                    int first = (world - 1) * 6 + 1;
+                    for (int stage = first; stage < first + 5; stage++)
+                        Assert.AreNotEqual(5, StageGenerator.PickLayout(RunAt(seed, stage), new System.Random(seed)).onlyWorld);
+                }
+            }
+        }
+
+        [Test]
+        public void SealedVaultStartsEveryBubbleInsideTheBreakableBox()
+        {
+            LayoutDef vault = Array.Find(StageLayouts.All, layout => layout.name == "Sealed Vault");
+            Assert.NotNull(vault);
+
+            for (int seed = 1; seed <= 20; seed++)
+            {
+                StagePlan plan = StageGenerator.Generate(RunAt(seed, 25), vault);
+                Assert.Greater(plan.spawns.Count, 0, $"seed {seed}");
+                foreach (var spawn in plan.spawns)
+                    Assert.Greater(spawn.position.y, 10f, $"seed {seed}: bubble is above the breakable floor");
+            }
         }
 
         [Test]
@@ -96,7 +138,8 @@ namespace Bubblewright.Tests
                 for (int world = 2; world <= 6; world++)
                 {
                     int first = (world - 1) * 6 + 1;
-                    Assert.AreEqual(2, StageGenerator.PickLayout(RunAt(seed, first), new System.Random(seed)).levels, $"seed {seed}, stage {first}");
+                    if (world != 5)
+                        Assert.AreEqual(2, StageGenerator.PickLayout(RunAt(seed, first), new System.Random(seed)).levels, $"seed {seed}, stage {first}");
                     Assert.AreEqual("Flat", StageGenerator.PickLayout(RunAt(seed, first + 5), new System.Random(seed)).name, $"seed {seed}, boss {first + 5}");
                 }
             }
@@ -174,7 +217,7 @@ namespace Bubblewright.Tests
             return map.IsSolid(c, 4) && map.IsSolid(c, 9);
         }
 
-        static void AssertPlatformsHaveValidRunsAndLadders(string name, StageMap map, int row)
+        static void AssertPlatformsHaveValidRunsAndLadders(string name, StageMap map, int row, bool allowBreakableWithoutLadder)
         {
             int c = 0;
             while (c < StageMap.Cols)
@@ -187,14 +230,17 @@ namespace Bubblewright.Tests
 
                 int start = c;
                 bool hasLadder = false;
+                bool allBreakable = true;
                 while (c < StageMap.Cols && map.IsSolid(c, row))
                 {
                     hasLadder |= map.Get(c, row).ladder;
+                    allBreakable &= map.Get(c, row).kind == TileKind.Breakable;
                     c++;
                 }
 
                 Assert.GreaterOrEqual(c - start, 4, $"{name}: platform row {row}, columns {start}-{c - 1} is at least 4 tiles");
-                Assert.IsTrue(hasLadder, $"{name}: platform row {row}, columns {start}-{c - 1} has a ladder");
+                Assert.IsTrue(hasLadder || allowBreakableWithoutLadder && allBreakable,
+                    $"{name}: platform row {row}, columns {start}-{c - 1} has a ladder or requires breaking");
             }
         }
 

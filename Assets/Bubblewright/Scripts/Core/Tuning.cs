@@ -56,6 +56,14 @@ namespace Bubblewright
         [Tooltip("Hold fire to shoot again as soon as the last shot is gone.")]
         public bool holdToRefire = true;
 
+        [Header("Breakable blocks")]
+        [Tooltip("Harpoon hits required to destroy a breakable tile.")]
+        public int breakableHp = 2;
+        [Tooltip("Chance that a destroyed breakable tile drops a heart pickup.")]
+        [Range(0f, 1f)] public float breakableHeartChance = 0.03f;
+        [Tooltip("Seconds before an uncollected heart pickup disappears.")]
+        public float heartPickupLife = 8f;
+
         [Header("Bubbles")]
         [Tooltip("Horizontal speed, constant for every tier.")]
         public float bubbleSpeedX = 4f;

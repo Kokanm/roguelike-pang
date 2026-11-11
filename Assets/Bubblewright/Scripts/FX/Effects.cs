@@ -116,6 +116,35 @@ namespace Bubblewright
             }
         }
 
+        /// <summary>Small masonry chips that arc away and fall under normal stage gravity.</summary>
+        public void Debris(Vector2 at, Color a, Color b, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                var sr = Take(PlaceholderArt.I.Pixel, 1);
+                sr.color = i % 2 == 0 ? a : b;
+                var p = Add(sr, at + new Vector2(Random.Range(-0.35f, 0.35f), Random.Range(-0.25f, 0.25f)),
+                    Random.Range(0.45f, 0.8f));
+                p.velocity = new Vector2(Random.Range(-3.5f, 3.5f), Random.Range(2f, 6f));
+                p.gravity = Tuning.I.fallGravity;
+                p.size = Random.value < 0.35f ? new Vector2(2f, 1f) : Vector2.one;
+                p.spin = Random.Range(-540f, 540f);
+            }
+        }
+
+        public void Sparkle(Vector2 at, Color color)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                float angle = i * Mathf.PI * 0.5f;
+                var sr = Take(PlaceholderArt.I.Pixel, 2);
+                sr.color = color;
+                var p = Add(sr, at, 0.25f);
+                p.velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 2.5f;
+                p.drag = 5f;
+            }
+        }
+
         public void Tick(float dt)
         {
             for (int i = live.Count - 1; i >= 0; i--)
