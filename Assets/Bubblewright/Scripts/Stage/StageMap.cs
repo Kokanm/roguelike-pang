@@ -148,6 +148,7 @@ namespace Bubblewright
             float rSq = radius * radius;
             for (int pass = 0; pass < 3; pass++)
             {
+                ResolveNarrowHorizontalGap(ref position, radius, ref contact);
                 hits.Clear();
                 int cMin = Mathf.Max(0, Col(position.x - radius));
                 int cMax = Mathf.Min(Cols - 1, Col(position.x + radius));
@@ -204,6 +205,49 @@ namespace Bubblewright
             }
 
             return contact;
+        }
+
+        /// <summary>
+        /// A circle cannot pass through an opening narrower than its diameter. Treat a bounded run of empty
+        /// platform cells as continuous footing (or ceiling) for that circle instead of letting corner pushes
+        /// alternate from side to side and wedge it in the opening.
+        /// </summary>
+        void ResolveNarrowHorizontalGap(ref Vector2 position, float radius, ref Contact contact)
+        {
+            int centreCol = Col(position.x);
+            if (centreCol < 0 || centreCol >= Cols) return;
+
+            int rMin = Mathf.Max(0, Row(position.y - radius));
+            int rMax = Mathf.Min(Rows - 1, Row(position.y + radius));
+            for (int r = rMin; r <= rMax; r++)
+            {
+                if (IsSolid(centreCol, r)) continue;
+
+                int left = centreCol - 1;
+                while (left >= 0 && !IsSolid(left, r)) left--;
+                int right = centreCol + 1;
+                while (right < Cols && !IsSolid(right, r)) right++;
+                if (left < 0 || right >= Cols) continue;
+
+                float gapLeft = CellRect(left, r).xMax;
+                float gapRight = CellRect(right, r).xMin;
+                if (gapRight - gapLeft + 0.0001f >= radius * 2f ||
+                    position.x < gapLeft || position.x > gapRight)
+                    continue;
+
+                float bottom = r;
+                float top = r + 1f;
+                if (position.y >= r + 0.5f && position.y - radius < top)
+                {
+                    position.y = top + radius;
+                    contact.landed = true;
+                }
+                else if (position.y < r + 0.5f && position.y + radius > bottom)
+                {
+                    position.y = bottom - radius;
+                    contact.bumped = true;
+                }
+            }
         }
 
         void PushCentreOutOfTile(int c, int r, Rect rect, float radius, ref Vector2 position, ref Contact contact)
