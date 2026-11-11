@@ -17,10 +17,13 @@ namespace Bubblewright
 
         Tuning T => Tuning.I;
         SpriteRenderer tip, rope;
+        System.Action<int, int> hitTile;
         float baseY, tipY, x;
         float topY, bottomY;   // where the tip stops (underside of the first solid tile above) and where the tail ends
         float held = -1f;
         float clock;
+        int chipColumn = -1;
+        int chipNextRow;
 
         // The cable hangs from the launcher down to just above the floor. The loose end swings when fired,
         // then settles straight. Pieces are 3 px, the length of the cable's shading pattern, so they match the rest of it.
@@ -30,11 +33,12 @@ namespace Bubblewright
         const float SettleTime = 1.8f;    // seconds until the tail hangs straight: about two full swings
         SpriteRenderer[] tail;
 
-        public static Harpoon Create(Transform parent)
+        public static Harpoon Create(Transform parent, System.Action<int, int> hitTile = null)
         {
             var go = new GameObject("Harpoon");
             go.transform.SetParent(parent, false);
             var h = go.AddComponent<Harpoon>();
+            h.hitTile = hitTile;
             var art = PlaceholderArt.I;
 
             var ropeGo = new GameObject("Cable");
@@ -72,7 +76,7 @@ namespace Bubblewright
             return h;
         }
 
-        public void Fire(Vector2 from)
+        public void Fire(Vector2 from, int chipColumn = -1)
         {
             // Snap to the pixel grid so the 1 px cable never straddles two columns.
             float px = 1f / T.pixelsPerUnit;
@@ -81,6 +85,8 @@ namespace Bubblewright
             var map = Game.Map;
             topY = map != null ? map.CeilingAbove(x, from.y, out _) : T.arenaHeight;
             bottomY = (map != null ? map.FloorBelow(x, from.y) : 0f) + TailBottomPixels * px;
+            this.chipColumn = chipColumn;
+            chipNextRow = map != null ? Mathf.Max(0, StageMap.Row(map.FloorBelow(x, from.y))) : 0;
             tipY = from.y;
             held = -1f;
             clock = 0f;
@@ -111,11 +117,20 @@ namespace Bubblewright
             }
             // The map can change under a flying cable (breakable tiles), so look again for what is above.
             var map = Game.Map;
-            topY = map != null ? map.CeilingAbove(x, baseY, out _) : T.arenaHeight;
+            int hitRow = StageMap.Rows;
+            topY = map != null ? map.CeilingAbove(x, baseY, out hitRow) : T.arenaHeight;
             tipY += T.harpoonSpeed * SpeedMultiplier * dt;
+            ChipPassedRows(map);
             if (tipY + TipHeight >= topY)
             {
                 tipY = topY - TipHeight; // never past the underside
+                if (map != null && hitRow < StageMap.Rows && map.Get(StageMap.Col(x), hitRow).kind == TileKind.Breakable)
+                {
+                    UpdateVisual();
+                    hitTile?.Invoke(StageMap.Col(x), hitRow);
+                    Hide();
+                    return;
+                }
                 if (HoldTime <= 0f)
                 {
                     UpdateVisual();
@@ -125,6 +140,18 @@ namespace Bubblewright
                 held = 0f;
             }
             UpdateVisual();
+        }
+
+        void ChipPassedRows(StageMap map)
+        {
+            if (map == null || chipColumn < 0 || chipColumn >= StageMap.Cols) return;
+            int last = Mathf.Min(StageMap.Rows - 1, StageMap.Row(tipY + TipHeight));
+            while (chipNextRow <= last)
+            {
+                int row = chipNextRow++;
+                if (map.Get(chipColumn, row).kind == TileKind.Breakable)
+                    hitTile?.Invoke(chipColumn, row);
+            }
         }
 
         float TipHeight => (float)PlaceholderArt.HarpoonTipHeight / T.pixelsPerUnit;

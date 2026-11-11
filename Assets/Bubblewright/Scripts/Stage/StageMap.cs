@@ -73,6 +73,23 @@ namespace Bubblewright
             return k == TileKind.Solid || k == TileKind.Breakable;
         }
 
+        /// <summary>Damages a breakable cell once and returns true only when that hit destroys it.</summary>
+        public bool Damage(int c, int r)
+        {
+            Cell cell = Get(c, r);
+            if (cell.kind != TileKind.Breakable) return false;
+
+            if (cell.hp > 1)
+            {
+                cell.hp--;
+                Set(c, r, cell);
+                return false;
+            }
+
+            Set(c, r, new Cell { kind = TileKind.Empty, ladder = false });
+            return true;
+        }
+
         public float FloorBelow(float x, float y)
         {
             int c = Col(x);
