@@ -309,7 +309,9 @@ namespace Bubblewright
                 if (harpoons[i].Active) anyActive = true;
                 else if (free == null) free = harpoons[i];
             }
-            if (free != null && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
+            var shotTip = wick.LauncherTip;
+            bool tipBlocked = Map.IsSolid(StageMap.Col(shotTip.x), StageMap.Row(shotTip.y));
+            if (free != null && !tipBlocked && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
             {
                 free.Fire(wick.LauncherTip);
                 shotTimer = 0f;

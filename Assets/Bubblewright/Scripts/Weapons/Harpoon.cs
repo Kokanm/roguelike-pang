@@ -5,7 +5,7 @@ namespace Bubblewright
     /// <summary>
     /// The starting weapon: a barbed steel tip trailing a 1 px twisted steel cable, fired straight up
     /// from the launcher tip at 20 u/s. The cable stays where it was fired. A bubble touching the cable
-    /// or the tip pops. Gone when it pops something or reaches the ceiling. One on screen at a time.
+    /// or the tip pops. Gone when it pops something or reaches the ceiling or the underside of a platform. One on screen at a time.
     /// </summary>
     public class Harpoon : MonoBehaviour
     {
@@ -18,6 +18,7 @@ namespace Bubblewright
         Tuning T => Tuning.I;
         SpriteRenderer tip, rope;
         float baseY, tipY, x;
+        float topY, bottomY;   // where the tip stops (underside of the first solid tile above) and where the tail ends
         float held = -1f;
         float clock;
 
@@ -28,7 +29,6 @@ namespace Bubblewright
         const float SwaySpeed = 7f;       // radians per second
         const float SettleTime = 1.8f;    // seconds until the tail hangs straight: about two full swings
         SpriteRenderer[] tail;
-        float TailBottomY => TailBottomPixels * (1f / Tuning.I.pixelsPerUnit);
 
         public static Harpoon Create(Transform parent)
         {
@@ -78,6 +78,9 @@ namespace Bubblewright
             float px = 1f / T.pixelsPerUnit;
             x = Mathf.Round(from.x / px) * px;
             baseY = from.y;
+            var map = Game.Map;
+            topY = map != null ? map.CeilingAbove(x, from.y, out _) : T.arenaHeight;
+            bottomY = (map != null ? map.FloorBelow(x, from.y) : 0f) + TailBottomPixels * px;
             tipY = from.y;
             held = -1f;
             clock = 0f;
@@ -106,15 +109,18 @@ namespace Bubblewright
                 else UpdateVisual(); // keep the tail settling while hooked
                 return;
             }
+            // The map can change under a flying cable (breakable tiles), so look again for what is above.
+            var map = Game.Map;
+            topY = map != null ? map.CeilingAbove(x, baseY, out _) : T.arenaHeight;
             tipY += T.harpoonSpeed * SpeedMultiplier * dt;
-            if (tipY + TipHeight >= T.arenaHeight)
+            if (tipY + TipHeight >= topY)
             {
+                tipY = topY - TipHeight; // never past the underside
                 if (HoldTime <= 0f)
                 {
                     Hide();
                     return;
                 }
-                tipY = T.arenaHeight - TipHeight; // hooked into the ceiling
                 held = 0f;
             }
             UpdateVisual();
@@ -141,7 +147,7 @@ namespace Bubblewright
                 float settle = Mathf.Clamp01(1f - clock / SettleTime);
                 float sway = Mathf.Sin(clock * SwaySpeed - k * 2.5f) * 2.5f * k * k * settle;
                 float segTop = baseY - i * SegmentPixels * px;
-                float segBottom = Mathf.Max(TailBottomY, segTop - SegmentPixels * px);
+                float segBottom = Mathf.Max(bottomY, segTop - SegmentPixels * px);
                 float px_x = x + Mathf.Round(sway) * px;
                 tail[i].transform.position = new Vector3(px_x, segBottom, 0f);
                 tail[i].size = new Vector2(px, Mathf.Max(px, segTop - segBottom));
@@ -154,7 +160,7 @@ namespace Bubblewright
             if (!Active) return false;
             float px = 1f / T.pixelsPerUnit;
             float w = WidthMultiplier;
-            var cable = new Rect(x - px * w, TailBottomY, px * 2f * w, tipY - TailBottomY);
+            var cable = new Rect(x - px * w, bottomY, px * 2f * w, tipY - bottomY);
             var head = new Rect(x - 3.5f * px * w, tipY, 7f * px * w, TipHeight);
             return b.Overlaps(cable) || b.Overlaps(head);
         }
