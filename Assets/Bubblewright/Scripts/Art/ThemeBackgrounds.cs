@@ -143,14 +143,14 @@ namespace Bubblewright
         }
 
         /// <summary>Arena walls, ceiling beam, floor ledge and the ground strip, in the theme's tile colours.</summary>
-        static void Frame(PixelCanvas c, Theme theme)
+        internal static void Frame(PixelCanvas c, Theme theme, Color32? litEdge = null)
         {
             var t = Tuning.I;
             int ppu = t.pixelsPerUnit;
             int w = c.Width;
             int Px(float wx) => Mathf.RoundToInt((wx - Left) * ppu);
             int Py(float wy) => Mathf.RoundToInt((wy - Bottom) * ppu);
-            Color32 lit = Palette.Mix(theme.tileCap, theme.accent, 0.4f);
+            Color32 lit = litEdge ?? Palette.Mix(theme.tileCap, theme.accent, 0.4f);
 
             int wallW = 6;
             int ceilY = Py(t.arenaHeight);

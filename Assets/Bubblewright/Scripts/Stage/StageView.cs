@@ -134,6 +134,8 @@ namespace Bubblewright
                 }
             }
 
+            ThemeTileDetails.Paint(theme, map, pixels, Width, x0, y0, c, r, cell);
+
             if (cell.kind == TileKind.Breakable && cell.hp == 1)
             {
                 int[] crackX = { 7, 7, 6, 6, 7, 7, 8, 7, 7, 6, 6, 7, 8, 8, 7 };
