@@ -724,9 +724,9 @@ namespace Bubblewright
             cardStyle.fontSize = 8 * k;
 
             // Four cards still fit the 480 px reference width: shrink the gap, then the card.
-            int n = Mathf.Max(1, choices.Count);
-            float gap = (n > 3 ? 6 : 10) * k;
-            float w = Mathf.Min(120 * k, Mathf.Floor(((T.referenceResolution.x - 12) * k - (n - 1) * gap) / n));
+            int cardCount = Mathf.Max(1, choices.Count);
+            float gap = (cardCount > 3 ? 6 : 10) * k;
+            float w = Mathf.Min(120 * k, Mathf.Floor(((T.referenceResolution.x - 12) * k - (cardCount - 1) * gap) / cardCount));
             float h = 84 * k;
             float x0 = (Screen.width - (choices.Count * w + (choices.Count - 1) * gap)) * 0.5f;
             float top = cy - 44 * k;
