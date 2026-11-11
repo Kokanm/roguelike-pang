@@ -65,6 +65,58 @@ namespace Bubblewright
         /// <summary>The pick after the boss of a hard world: more cards, and more than one can be taken.</summary>
         public bool IsRichPick => IsBossStage && IsHard;
 
+        /// <summary>
+        /// Whether the left or right choice comes after this stage: after the boss of worlds 1 to 5, never after the
+        /// last boss and never after any other stage.
+        /// </summary>
+        public static bool PathFollows(int stage) => IsBossStageNumber(stage) && stage < Tuning.I.RunLength;
+
+        /// <summary>One of the two doors is the hard road. It carries a debuff for the whole next world.</summary>
+        public readonly struct RoadChoice
+        {
+            public readonly bool hardIsRight;
+            public readonly Debuff debuff;
+            public RoadChoice(bool hardIsRight, Debuff debuff) { this.hardIsRight = hardIsRight; this.debuff = debuff; }
+        }
+
+        /// <summary>
+        /// Which door is hard (50/50) and which debuff it carries (any debuff, but not the one the world just finished
+        /// had if that world was hard). Depends only on the seed and the stage, so a reopened screen shows the same doors.
+        /// </summary>
+        public RoadChoice RollRoad()
+        {
+            var rng = StageRng(2);
+            bool hardIsRight = rng.Next(2) == 1;
+            var finished = CurrentDebuff;
+            var pool = new List<Debuff>();
+            foreach (var d in Debuff.All) if (d != finished) pool.Add(d);
+            return new RoadChoice(hardIsRight, pool[rng.Next(pool.Count)]);
+        }
+
+        /// <summary>The choice after this world's boss: the whole NEXT world is hard with this debuff, or calm when null.</summary>
+        public void ChooseRoad(Debuff hardDebuff) => SetHard(World + 1, hardDebuff);
+
+        /// <summary>The worlds played so far as "C H C" (calm or hard), the current world last.</summary>
+        public string RoadSummary()
+        {
+            var parts = new List<string>();
+            for (int w = 1; w <= World && w < hardWorld.Length; w++) parts.Add(hardWorld[w] ? "H" : "C");
+            return string.Join(" ", parts);
+        }
+
+        /// <summary>"30% more bubbles, 25% less time", from the hard world numbers.</summary>
+        public static string HardRoadNumbers() =>
+            $"{Mathf.RoundToInt((Tuning.I.hardBudgetScale - 1f) * 100f)}% more bubbles, {Mathf.RoundToInt((1f - Tuning.I.hardTimeScale) * 100f)}% less time";
+
+        /// <summary>"Reward: double score, and pick 2 of 4 upgrades after the boss".</summary>
+        public static string HardRoadReward()
+        {
+            var t = Tuning.I;
+            float s = t.hardScoreScale;
+            string score = Mathf.Approximately(s, 2f) ? "double score" : Mathf.Approximately(s, 3f) ? "triple score" : $"score x{s:0.##}";
+            return $"Reward: {score}, and pick {t.hardRewardPicks} of {t.hardRewardCards} upgrades after the boss";
+        }
+
         public static int WorldOf(int stage) => (Mathf.Max(1, stage) - 1) / Tuning.I.stagesPerWorld + 1;
         public static int StageInWorldOf(int stage) => (Mathf.Max(1, stage) - 1) % Tuning.I.stagesPerWorld + 1;
         public static bool IsBossStageNumber(int stage) => StageInWorldOf(stage) == Tuning.I.stagesPerWorld;
