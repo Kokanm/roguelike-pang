@@ -56,10 +56,11 @@ Timings come from the sheet's animation table and live in `Tuning.asset` under *
 | Move | Drag left or right anywhere in the left half (relative to where your thumb lands) | A / D or arrows | Left stick or d-pad |
 | Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J, K, W or Up | A / Cross, X / Square, RT or RB |
 | Play again | Tap | R, Enter or Space | Start or A |
+| Toggle test layout (debug) | Debug panel | F3 or debug panel | Debug panel |
 
 The mouse acts as one finger, so you can try the touch controls on desktop: click and drag in the left half, click in the right half.
 
-Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **F1** shows hitboxes.
+Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **F1** shows hitboxes; **F3** toggles the Tower test layout.
 
 ### Tuning
 
