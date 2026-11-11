@@ -82,12 +82,14 @@ namespace Bubblewright
             }
         }
 
-        /// <summary>"GOD · TIMER FROZEN" for the HUD, or null when no cheat is on.</summary>
+        /// <summary>Enabled debug options for the HUD, or null when no cheat is on.</summary>
         string DebugSummary()
         {
-            if (!debug.god && !debug.freezeTimer) return null;
-            if (debug.god && debug.freezeTimer) return "GOD MODE · TIMER FROZEN";
-            return debug.god ? "GOD MODE" : "TIMER FROZEN";
+            string summary = null;
+            if (debug.god) summary = "GOD MODE";
+            if (debug.freezeTimer) summary = summary == null ? "TIMER FROZEN" : summary + " · TIMER FROZEN";
+            if (testLayout) summary = summary == null ? "TEST LAYOUT" : summary + " · TEST LAYOUT";
+            return summary;
         }
 
         // ------------------------------------------------------------------ drawing
@@ -213,12 +215,14 @@ namespace Bubblewright
             FillRect(Grow(panel, -k), WithAlpha(Palette.Ink, 0.95f));
 
             GUILayout.BeginArea(Grow(panel, -6 * k));
-            GUILayout.Label("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL bubbles, F1 hitboxes", dbgTitle);
+            GUILayout.Label("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, F1 hitboxes, F3 test layout", dbgTitle);
 
             GUILayout.BeginHorizontal();
             debug.god = DbgToggle("GOD MODE", debug.god, k, 100);
             debug.freezeTimer = DbgToggle("FREEZE TIMER", debug.freezeTimer, k, 100);
             showHitboxes = DbgToggle("HITBOXES", showHitboxes, k, 100);
+            bool nextTestLayout = DbgToggle("TEST LAYOUT", testLayout, k, 100);
+            if (nextTestLayout != testLayout) ToggleTestLayout();
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();

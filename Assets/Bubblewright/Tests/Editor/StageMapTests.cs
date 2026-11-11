@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -228,6 +229,107 @@ namespace Bubblewright.Tests
             map.Set(-1, 0, new Cell { kind = TileKind.Solid });
             map.SetGround(StageMap.Cols, Surface.Sand);
             Assert.AreEqual(v0 + 2, map.Version);
+        }
+
+        [Test]
+        public void XlGloopOnFlatMapKeepsItsPeakAndStaysInsideArena()
+        {
+            SetGameMap(StageMap.Flat());
+            var bubble = Bubble.Create(null, BubbleKind.Gloop, 0,
+                new Vector2(0f, Tuning.I.tiers[0].diameter * 0.5f),
+                new Vector2(Tuning.I.bubbleSpeedX, Tuning.I.BounceSpeed(BubbleKind.Gloop, 0)), false);
+
+            try
+            {
+                const float dt = 1f / 60f;
+                for (int i = 0; i < 20 * 60; i++)
+                {
+                    bubble.Tick(dt);
+                    float radius = bubble.Radius;
+                    Assert.LessOrEqual(bubble.Position.y + radius, Tuning.I.tiers[0].peakHeight + 0.05f, $"top at tick {i}");
+                    Assert.GreaterOrEqual(bubble.Position.x - radius, -Tuning.I.HalfWidth - 1e-4f, $"left at tick {i}");
+                    Assert.LessOrEqual(bubble.Position.x + radius, Tuning.I.HalfWidth + 1e-4f, $"right at tick {i}");
+                    Assert.GreaterOrEqual(bubble.Position.y - radius, -1e-4f, $"floor at tick {i}");
+                    Assert.LessOrEqual(bubble.Position.y + radius, Tuning.I.arenaHeight + 1e-4f, $"ceiling at tick {i}");
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(bubble.gameObject);
+            }
+        }
+
+        [Test]
+        public void BubbleSubstepsFastMotionAndBouncesFromPlatformTop()
+        {
+            SetGameMap(StageLayout.Parse(Shelf));
+            var bubble = Bubble.Create(null, BubbleKind.Gloop, 3,
+                new Vector2(0f, 6f), new Vector2(0f, -12f), false);
+
+            try
+            {
+                bubble.Tick(0.2f);
+                Assert.GreaterOrEqual(bubble.Position.y, 5f + bubble.Radius - 1e-4f);
+                Assert.Greater(bubble.Velocity.y, 0f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(bubble.gameObject);
+            }
+        }
+
+        [Test]
+        public void StageViewPaintsTilesLaddersAndTransparentEmptyCells()
+        {
+            var stageViewType = typeof(Game).Assembly.GetType("Bubblewright.StageView");
+            Assert.NotNull(stageViewType, "StageView must exist.");
+
+            var map = StageMap.Flat();
+            map.Set(1, 1, new Cell { kind = TileKind.Solid });
+            map.Set(2, 1, new Cell { kind = TileKind.Solid, ladder = true });
+            map.Set(4, 1, new Cell { kind = TileKind.Breakable, hp = 2 });
+            map.Set(6, 1, new Cell { ladder = true });
+            SetGameMap(map);
+
+            var create = stageViewType.GetMethod("Create", BindingFlags.Public | BindingFlags.Static);
+            var tick = stageViewType.GetMethod("Tick", BindingFlags.Public | BindingFlags.Instance);
+            Assert.NotNull(create);
+            Assert.NotNull(tick);
+            var view = (Component)create.Invoke(null, new object[] { null });
+
+            try
+            {
+                tick.Invoke(view, null);
+                var texture = view.GetComponent<SpriteRenderer>().sprite.texture;
+                var pixels = texture.GetPixels32();
+                Color32 Pixel(int x, int y) => pixels[y * texture.width + x];
+
+                Assert.AreEqual(Palette.Clear, Pixel(0, 0));
+                Assert.AreEqual(Palette.Dusk, Pixel(1 * 15 + 7, 1 * 15 + 7));
+                Assert.AreEqual(Palette.Lilac, Pixel(1 * 15 + 7, 1 * 15 + 13));
+                Assert.AreEqual(Palette.Deep, Pixel(1 * 15 + 7, 1 * 15 + 11));
+                Assert.AreEqual(Palette.Ink, Pixel(1 * 15, 1 * 15 + 7));
+                Assert.AreEqual(Palette.Dusk, Pixel(1 * 15 + 14, 1 * 15 + 7), "adjacent solids have no internal outline");
+                Assert.AreEqual(Palette.Steel, Pixel(6 * 15 + 3, 1 * 15 + 2));
+                Assert.AreEqual(Palette.SteelLight, Pixel(6 * 15 + 7, 1 * 15 + 4));
+                Assert.AreEqual(Palette.Mix(Palette.Dusk, Palette.Lilac, 0.35f), Pixel(4 * 15 + 7, 1 * 15 + 7));
+            }
+            finally
+            {
+                var renderer = view.GetComponent<SpriteRenderer>();
+                var sprite = renderer.sprite;
+                var texture = sprite.texture;
+                UnityEngine.Object.DestroyImmediate(view.gameObject);
+                UnityEngine.Object.DestroyImmediate(sprite);
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        static void SetGameMap(StageMap map)
+        {
+            var property = typeof(Game).GetProperty("Map", BindingFlags.Public | BindingFlags.Static);
+            Assert.NotNull(property, "Game.Map must exist.");
+            property.SetValue(null, map);
         }
     }
 }

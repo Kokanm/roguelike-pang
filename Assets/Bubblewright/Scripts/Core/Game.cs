@@ -39,6 +39,7 @@ namespace Bubblewright
         Wick wick;
         readonly List<Harpoon> harpoons = new List<Harpoon>();
         Effects fx;
+        StageView stageView;
         TouchControlsView touchView;
 
         State state;
@@ -90,6 +91,7 @@ namespace Bubblewright
             Sorting.Apply(bg, Layer.Sky);
             ApplySpriteMaterial(bg);
 
+            stageView = StageView.Create(world);
             bubbleRoot = new GameObject("Bubbles").transform;
             bubbleRoot.SetParent(world, false);
             harpoons.Add(Harpoon.Create(world));
@@ -165,6 +167,7 @@ namespace Bubblewright
 
         void StartStage()
         {
+            Map = BuildStageMap();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
@@ -232,6 +235,7 @@ namespace Bubblewright
         {
             input.Update();
             HandleDebugKeys();
+            stageView.Tick();
 
             // Phones are locked to landscape; if we still end up in portrait, pause behind a prompt.
             if (Screen.height > Screen.width)
@@ -518,6 +522,7 @@ namespace Bubblewright
                     float vy = i >= 2 ? kick * T.trigloopMiddleKick : kick;
                     var pos = b.Position + new Vector2(dir * childR * 0.5f, 0f);
                     pos.y = Mathf.Max(pos.y, childR);
+                    Map.ResolveCircle(ref pos, childR);
                     SpawnBubble(b.Kind, next, pos, dir, vy, true);
                 }
             }
@@ -540,6 +545,8 @@ namespace Bubblewright
         void HandleDebugKeys()
         {
             if (input.DebugToggleHitboxes) showHitboxes = !showHitboxes;
+            if (input.DebugTestLayoutPressed && (state == State.Play || state == State.Intro))
+                ToggleTestLayout();
             if (input.DebugSpawn > 0 && !paused && (state == State.Play || state == State.Intro))
                 DebugSpawn((BubbleKind)(input.DebugSpawn - 1));
         }
@@ -606,7 +613,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
-                Label("A/D or arrows: move    Space: fire    Pad: stick + A    1-4: spawn bubble    F1: hitboxes    R: continue",
+                Label("A/D or arrows: move    Space: fire    Pad: stick + A    1-4: spawn    F1: hitboxes    F3: test layout    R: continue",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }
@@ -838,6 +845,7 @@ namespace Bubblewright
 
         void DrawHitboxes(int k)
         {
+            DrawStageHitboxes();
             DrawWorldRect(wick.Hitbox, Palette.Mint);
             foreach (var b in bubbles)
             {
