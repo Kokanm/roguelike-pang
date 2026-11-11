@@ -70,6 +70,7 @@ namespace Bubblewright
         int runDir, skidDir, lastWantDir;
         float hurtFlash = -1f;
         float stepClock;
+        float sandDustClock;
         float celebrateTimer = -1f;
         int celebrateLandings;
         float flameClock, idleClock;
@@ -276,14 +277,20 @@ namespace Bubblewright
                 }
                 else
                 {
-                    float target = wantMove * RunSpeed;
+                    // The floor under his feet sets how he speeds up and slows down (only while on the ground).
+                    Surface surface = Mode == Mode.Ground ? map.SurfaceUnder(pos.x, FeetY) : Surface.Normal;
+                    float topSpeed = surface == Surface.Sand ? RunSpeed * T.sandSpeedScale : RunSpeed;
+                    float accelTime = surface == Surface.Ice ? T.iceAccelTime : surface == Surface.Sand ? T.sandAccelTime : T.accelTime;
+                    float stopTime = surface == Surface.Ice ? T.iceStopTime : T.stopTime;
+                    float target = wantMove * topSpeed;
                     transform.position = pos;
-                    if (Mode == Mode.Ground) DetectRunEdges(target);
+                    if (Mode == Mode.Ground) DetectRunEdges(target, surface != Surface.Ice);
                     else lastWantDir = target > 0f ? 1 : target < 0f ? -1 : 0;
                     bool stopping = target == 0f || (VelocityX != 0f && Mathf.Sign(target) != Mathf.Sign(VelocityX));
-                    float rate = RunSpeed / Mathf.Max(0.001f, stopping ? T.stopTime : T.accelTime);
+                    float rate = topSpeed / Mathf.Max(0.001f, stopping ? stopTime : accelTime);
                     VelocityX = Mathf.MoveTowards(VelocityX, target, rate * dt);
                     pos.x += VelocityX * dt;
+                    TickSandDust(surface, dt);
                 }
 
                 ResolveHorizontal(map, prevX, ref pos);
@@ -565,12 +572,12 @@ namespace Bubblewright
         }
 
         /// <summary>Starts the run-start stretch and the skid when the wanted direction changes.</summary>
-        void DetectRunEdges(float target)
+        void DetectRunEdges(float target, bool canSkid = true)
         {
             int want = target > 0f ? 1 : target < 0f ? -1 : 0;
             if (want == lastWantDir) return;
             int moving = VelocityX > 0f ? 1 : VelocityX < 0f ? -1 : 0;
-            if (moving != 0 && want != moving && Mathf.Abs(VelocityX) >= T.skidMinSpeed * RunSpeed)
+            if (canSkid && moving != 0 && want != moving && Mathf.Abs(VelocityX) >= T.skidMinSpeed * RunSpeed)
             {
                 skid = 0f;
                 skidDir = moving;
@@ -588,6 +595,20 @@ namespace Bubblewright
                 }
             }
             lastWantDir = want;
+        }
+
+        /// <summary>One dust puff at his feet every sandDustInterval seconds while he walks on sand.</summary>
+        void TickSandDust(Surface surface, float dt)
+        {
+            if (surface != Surface.Sand || Mathf.Abs(VelocityX) < 0.1f)
+            {
+                sandDustClock = 0f;
+                return;
+            }
+            sandDustClock += dt;
+            if (sandDustClock < T.sandDustInterval) return;
+            sandDustClock = 0f;
+            if (fx != null) fx.Dust(Feet(0), -Mathf.Sign(VelocityX));
         }
 
         Vector2 Feet(int pixelsX) => new Vector2(transform.position.x + pixelsX * Px, FeetY);

@@ -172,6 +172,7 @@ namespace Bubblewright
                 ? StageGenerator.Generate(run, CurrentTestLayout)
                 : StageGenerator.Generate(run);
             Map = plan.map;
+            debugSurface = -1;
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
