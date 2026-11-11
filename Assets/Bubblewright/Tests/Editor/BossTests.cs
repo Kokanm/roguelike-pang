@@ -157,7 +157,8 @@ namespace Bubblewright.Tests
 
             var bullet = Bullet.Create(root.transform, from, dir * Tuning.I.bulletSpeed, Themes.ForWorld(1));
             float closest = float.MaxValue;
-            for (int i = 0; i < 60 * 4; i++)
+            // Four seconds at 240 Hz. Speed 7 needs a bit over 2.6 s to reach Wick from the ceiling; 60*4 steps of 1/240 is only one second.
+            for (int i = 0; i < 240 * 4; i++)
             {
                 bullet.Tick(1f / 240f);
                 closest = Mathf.Min(closest, Vector2.Distance(bullet.Position, target));
