@@ -15,6 +15,20 @@ namespace Bubblewright
             StartStage();
         }
 
+        // Debug: -1 = as generated, then 0 = all normal, 1 = all ice, 2 = all sand.
+        int debugSurface = -1;
+        static readonly Surface[] DebugSurfaces = { Surface.Normal, Surface.Ice, Surface.Sand };
+
+        string DebugSurfaceLabel() => debugSurface < 0 ? "SURFACE" : $"SURFACE: {DebugSurfaces[debugSurface].ToString().ToUpperInvariant()}";
+
+        /// <summary>Debug panel: the whole current stage becomes normal, then all ice, then all sand, to tune the feel in any world.</summary>
+        void DebugCycleSurface()
+        {
+            if (Map == null) return;
+            debugSurface = (debugSurface + 1) % DebugSurfaces.Length;
+            WorldRules.PaintAll(Map, DebugSurfaces[debugSurface]);
+        }
+
         void DrawStageHitboxes()
         {
             for (int r = 0; r < StageMap.Rows; r++)

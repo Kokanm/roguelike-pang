@@ -185,6 +185,20 @@ namespace Bubblewright
         [Tooltip("The bar turns lemon and blinks for the last seconds.")]
         public float stormWarning = 10f;
 
+        [Header("Surfaces")]
+        [Tooltip("Ice: seconds to reach top speed from standing still (normal floor: Accel Time).")]
+        public float iceAccelTime = 0.5f;
+        [Tooltip("Ice: seconds to slide from top speed to a stop (normal floor: Stop Time).")]
+        public float iceStopTime = 0.9f;
+        [Tooltip("Sand: top speed is the normal run speed times this.")]
+        public float sandSpeedScale = 0.7f;
+        [Tooltip("Sand: seconds to reach top speed from standing still.")]
+        public float sandAccelTime = 0.1f;
+        [Tooltip("Desert stages get this much more time on the storm clock, because everything takes longer.")]
+        public float desertTimeScale = 1.15f;
+        [Tooltip("While walking on sand, a dust puff at his feet every this many seconds.")]
+        public float sandDustInterval = 0.25f;
+
         public int RunLength => worlds * stagesPerWorld;
         public float HalfWidth => arenaWidth * 0.5f;
         public float Pixel => 1f / pixelsPerUnit;

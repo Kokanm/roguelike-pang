@@ -271,6 +271,7 @@ namespace Bubblewright
         {
             var t = Tuning.I;
             float time = t.timeBase + t.timePerWorld * (Run.WorldOf(stage) - 1) + t.timePerStage * (Run.StageInWorldOf(stage) - 1);
+            if (Run.WorldOf(stage) == 3) time *= t.desertTimeScale; // Desert: everything is slower on sand
             return hard ? time * t.hardTimeScale : time;
         }
 
@@ -340,6 +341,7 @@ namespace Bubblewright
             var t = Tuning.I;
             LayoutDef layout = layoutOverride ?? PickLayout(stage, rng);
             StageMap map = StageLayout.Parse(layout.rows);
+            WorldRules.Apply(map, Run.WorldOf(stage), rng);
             float bubbleMinY = layout.bubbleMinY > 0f ? layout.bubbleMinY : 5f;
             float budget = Budget(stage, hard);
             int maxBubbles = MaxStartBubbles(stage);
