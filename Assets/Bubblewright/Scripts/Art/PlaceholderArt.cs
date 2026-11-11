@@ -19,6 +19,7 @@ namespace Bubblewright
         public Sprite Background;
         public Sprite FireButton, FireButtonPressed, MoveHint, MoveKnob, MoveDot, ClimbUpHint, ClimbDownHint;
         public Sprite Droplet, Pixel, Dust, MuzzleFlash;
+        public Sprite SpikeHidden, SpikeWarn, SpikeRaised;
 
         /// <summary>Height of the harpoon tip sprite above its pivot, in pixels.</summary>
         public const int HarpoonTipHeight = 8;
@@ -75,6 +76,9 @@ namespace Bubblewright
             MoveDot = BuildDisc(8, Palette.Cream, "MoveDot");
             ClimbUpHint = BuildClimbArrow(true);
             ClimbDownHint = BuildClimbArrow(false);
+            SpikeHidden = BuildSpikeHidden();
+            SpikeWarn = BuildSpikeWarn();
+            SpikeRaised = BuildSpikeRaised();
 
             var drop = new PixelCanvas(2, 2);
             drop.Rect(0, 0, 2, 2, Palette.Cream);
@@ -511,6 +515,71 @@ namespace Bubblewright
             }
             c.Outline(Palette.Ink);
             return c.ToSprite(up ? "ClimbUpHint" : "ClimbDownHint", new Vector2(4.5f, 3f), ppu);
+        }
+
+        // ---------------------------------------------------------------- Lava spikes (one tile wide, tiled along a strip)
+
+        /// <summary>Five 1 px holes, one per spike, in the centre of each 3 px slot.</summary>
+        Sprite BuildSpikeHidden()
+        {
+            var c = new PixelCanvas(15, 1);
+            for (int i = 0; i < 5; i++) c.Set(i * 3 + 1, 0, Palette.Ink);
+            return SpikeSprite(c, "SpikeHidden");
+        }
+
+        /// <summary>Five steel tips, 2 px tall, ink around the metal.</summary>
+        Sprite BuildSpikeWarn() => PaintSpikes("SpikeWarn", "ILI", "ISI");
+
+        /// <summary>
+        /// Five steel triangles, 7 px tall and 3 px wide at the base. SteelLight is the left edge of the
+        /// metal, Steel is the fill, and the ink pixels are the outline. Drawn by hand so five fit in one tile.
+        /// Rows are top first.
+        /// </summary>
+        Sprite BuildSpikeRaised() => PaintSpikes("SpikeRaised", new[]
+        {
+            ".I.",
+            ".L.",
+            "ILI",
+            "ILS",
+            "ILS",
+            "ISS",
+            "ISI",
+        });
+
+        Sprite PaintSpikes(string name, params string[] rowsTopFirst)
+        {
+            int height = rowsTopFirst.Length;
+            var c = new PixelCanvas(15, height);
+            for (int i = 0; i < 5; i++)
+            {
+                int x0 = i * 3;
+                for (int r = 0; r < height; r++)
+                {
+                    string row = rowsTopFirst[r];
+                    int y = height - 1 - r;
+                    for (int x = 0; x < row.Length; x++)
+                        if (row[x] != '.') c.Set(x0 + x, y, SpikeInk(row[x]));
+                }
+            }
+            return SpikeSprite(c, name);
+        }
+
+        static Color32 SpikeInk(char ch)
+        {
+            switch (ch)
+            {
+                case 'I': return Palette.Ink;
+                case 'L': return Palette.SteelLight;
+                case 'S': return Palette.Steel;
+                default: return Palette.Clear;
+            }
+        }
+
+        Sprite SpikeSprite(PixelCanvas canvas, string name)
+        {
+            Sprite sprite = canvas.ToSprite(name, Vector2.zero, ppu);
+            sprite.texture.wrapMode = TextureWrapMode.Repeat;
+            return sprite;
         }
     }
 }
