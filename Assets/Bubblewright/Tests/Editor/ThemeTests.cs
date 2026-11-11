@@ -137,13 +137,9 @@ namespace Bubblewright.Tests
         [Test]
         public void PaintedThemesProvideTileDetailsWithoutTouchingTheOutline()
         {
-            var field = typeof(Theme).GetField("paintTileDetail");
-            Assert.NotNull(field, "Theme needs a tile-detail hook");
-
             foreach (Theme theme in new[] { Themes.ForWorld(2), Themes.ForWorld(3), Themes.ForWorld(4) })
             {
-                var painter = (System.Action<PixelCanvas, int, int, Cell>)field.GetValue(theme);
-                Assert.NotNull(painter, theme.name);
+                Assert.NotNull(theme.paintTileDetail, theme.name);
                 var canvas = new PixelCanvas(15, 15);
                 canvas.Rect(0, 0, 15, 15, theme.tileFill);
                 for (int i = 0; i < 15; i++)
@@ -154,7 +150,8 @@ namespace Bubblewright.Tests
                     canvas.Set(14, i, theme.tileLine);
                 }
 
-                painter(canvas, 0, 0, new Cell { kind = TileKind.Solid, surface = Surface.Normal });
+                // The bottom outline is only drawn when the tile underneath is empty, so openBelow is true.
+                theme.paintTileDetail(canvas, 0, 0, new Cell { kind = TileKind.Solid, surface = Surface.Normal }, true);
 
                 for (int i = 0; i < 15; i++)
                 {

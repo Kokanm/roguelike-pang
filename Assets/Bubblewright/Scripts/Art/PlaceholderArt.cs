@@ -500,7 +500,7 @@ namespace Bubblewright
         /// <summary>The theme's tinted spike sprite (built on first use), or null when the theme uses the plain steel ones.</summary>
         Sprite TintedSpike(Theme theme, int which)
         {
-            if (!theme == Themes.ForWorld(6)) return null;
+            if (theme != Themes.ForWorld(6)) return null;
             if (lavaSpikes == null || lavaSpikes[which] == null || lavaSpikes[which].texture == null)
             {
                 Color32 fill = SpikeFill(theme);
