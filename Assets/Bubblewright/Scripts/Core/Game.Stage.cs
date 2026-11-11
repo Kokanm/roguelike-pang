@@ -4,31 +4,13 @@ namespace Bubblewright
     {
         public static StageMap Map { get; private set; }
 
-        static readonly string[] TowerLayout =
-        {
-            "................................",
-            "................................",
-            "................................",
-            "................................",
-            "..........#########T##..........",
-            "...................H............",
-            "...................H............",
-            "...................H............",
-            "...................H............",
-            "....##T##################T##....",
-            "......H..................H......",
-            "......H..................H......",
-            "......H..................H......",
-            "......H..................H......",
-        };
-
-        bool testLayout;
-
-        StageMap BuildStageMap() => testLayout ? StageLayout.Parse(TowerLayout) : StageMap.Flat();
+        int testLayoutIndex = -1;
+        bool testLayout => testLayoutIndex >= 0;
+        LayoutDef CurrentTestLayout => testLayout ? StageLayouts.All[testLayoutIndex] : null;
 
         void ToggleTestLayout()
         {
-            testLayout = !testLayout;
+            testLayoutIndex = (testLayoutIndex + 1) % StageLayouts.All.Length;
             run.Hearts = wick.Hearts;
             StartStage();
         }

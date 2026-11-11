@@ -89,7 +89,11 @@ namespace Bubblewright
             string summary = null;
             if (debug.god) summary = "GOD MODE";
             if (debug.freezeTimer) summary = summary == null ? "TIMER FROZEN" : summary + " · TIMER FROZEN";
-            if (testLayout) summary = summary == null ? "TEST LAYOUT" : summary + " · TEST LAYOUT";
+            if (testLayout)
+            {
+                string layout = $"TEST LAYOUT: {CurrentTestLayout.name.ToUpperInvariant()}";
+                summary = summary == null ? layout : summary + " · " + layout;
+            }
             return summary;
         }
 
@@ -222,8 +226,8 @@ namespace Bubblewright
             debug.god = DbgToggle("GOD MODE", debug.god, k, 100);
             debug.freezeTimer = DbgToggle("FREEZE TIMER", debug.freezeTimer, k, 100);
             showHitboxes = DbgToggle("HITBOXES", showHitboxes, k, 100);
-            bool nextTestLayout = DbgToggle("TEST LAYOUT", testLayout, k, 100);
-            if (nextTestLayout != testLayout) ToggleTestLayout();
+            if (DbgButton(testLayout ? $"LAYOUT: {CurrentTestLayout.name.ToUpperInvariant()}" : "TEST LAYOUT", k, 100))
+                ToggleTestLayout();
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
