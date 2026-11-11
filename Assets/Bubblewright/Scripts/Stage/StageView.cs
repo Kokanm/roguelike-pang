@@ -13,6 +13,7 @@ namespace Bubblewright
         const int CapRows = 3;
 
         readonly Color32[] groundPixels = new Color32[Width * CapRows];
+        PixelCanvas pixelCanvas;
         SpriteRenderer spriteRenderer;
         Texture2D texture, groundTexture;
         Sprite sprite, groundSprite;
@@ -27,6 +28,7 @@ namespace Bubblewright
             go.transform.position = new Vector3(-StageMap.Cols * 0.5f, 0f, 0f);
 
             var view = go.AddComponent<StageView>();
+            view.pixelCanvas = new PixelCanvas(Width, Height, view.pixels);
             view.texture = new Texture2D(Width, Height, TextureFormat.RGBA32, false)
             {
                 name = "Stage Map",
@@ -133,6 +135,8 @@ namespace Bubblewright
                     }
                 }
             }
+
+            theme.paintTileDetail?.Invoke(pixelCanvas, x0, y0, cell);
 
             if (cell.kind == TileKind.Breakable && cell.hp == 1)
             {
