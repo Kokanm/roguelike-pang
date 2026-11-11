@@ -20,7 +20,7 @@ namespace Bubblewright
     [DefaultExecutionOrder(-100)]
     public partial class Game : MonoBehaviour
     {
-        enum State { Title, Select, Intro, Play, Clear, Pick, Over }
+        enum State { Title, Select, Intro, Play, Clear, Pick, Path, Over }
         const string BestScoreKey = "Bubblewright.BestScore";
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -178,6 +178,7 @@ namespace Bubblewright
             debugSurface = -1;
             debugTheme = -1;
             ApplyTheme(Themes.ForWorld(run.World));
+            HidePathScene();
             SetupSpikes();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
@@ -293,6 +294,7 @@ namespace Bubblewright
                 case State.Play: TickPlay(dt); break;
                 case State.Clear: TickClear(dt); break;
                 case State.Pick: TickPick(dt); break;
+                case State.Path: TickPath(dt); break;
                 case State.Over: TickOver(dt); break;
             }
 
@@ -454,7 +456,7 @@ namespace Bubblewright
             picksLeft = rich ? Mathf.Min(T.hardRewardPicks, choices.Count) : 1;
             if (choices.Count == 0)
             {
-                NextStage();
+                FinishPick();
                 return;
             }
             selected = choices.Count / 2;
@@ -497,7 +499,7 @@ namespace Bubblewright
                 stateTime = 0f; // short pause so the same tap does not pick again
                 return;
             }
-            NextStage();
+            FinishPick();
         }
 
         void NextStage()
@@ -649,7 +651,7 @@ namespace Bubblewright
             DrawPauseButton(pauseButtonRect, k);
             Label($"{run.Score:000000}", pauseButtonRect.x - 6 * k - 200 * k, topLeft.y + pad + 2 * k, UiText.Primary, TextAnchor.UpperRight, 200 * k);
 
-            DrawStormTimer(topLeft, topRight, pad, k);
+            if (state != State.Path) DrawStormTimer(topLeft, topRight, pad, k);
             var hardDebuff = run.CurrentDebuff;
             if (hardDebuff != null)
                 Label($"HARD ROAD: {hardDebuff.Name.ToUpperInvariant()}", topLeft.x + pad, topLeft.y + pad + 16 * k, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
@@ -701,6 +703,9 @@ namespace Bubblewright
                     break;
                 case State.Pick:
                     DrawPick(k, touchUi);
+                    break;
+                case State.Path:
+                    DrawPath(k, touchUi);
                     break;
                 case State.Over:
                     Plate(Screen.height * 0.32f - 6 * k, (stateTime > 0.8f ? 74 : 26) * k, k);

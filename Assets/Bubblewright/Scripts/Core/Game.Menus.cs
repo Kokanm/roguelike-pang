@@ -114,6 +114,7 @@ namespace Bubblewright
         void DrawPause(int k, bool touchUi)
         {
             FillRect(new Rect(0, 0, Screen.width, Screen.height), WithAlpha(Palette.Ink, UiText.DimAlpha));
+            DrawRoadStrip(k, run.World);
             float top = debugPanel ? 12 * k : Screen.height * 0.5f - 40 * k;
             Centered("PAUSED", top, 14 * k, UiText.Primary);
 

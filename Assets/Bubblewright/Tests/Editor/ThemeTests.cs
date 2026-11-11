@@ -15,6 +15,15 @@ namespace Bubblewright.Tests
             foreach (var theme in Themes.All) yield return new TestCaseData(theme).SetName($"Theme {theme.name}");
         }
 
+        static IEnumerable<TestCaseData> PaintedThemes()
+        {
+            for (int world = 2; world <= 4; world++)
+            {
+                Theme theme = Themes.ForWorld(world);
+                yield return new TestCaseData(theme, world).SetName($"{theme.name} painted background");
+            }
+        }
+
         [Test]
         public void ThereAreSixThemesInWorldOrder()
         {
@@ -89,6 +98,71 @@ namespace Bubblewright.Tests
             Assert.AreEqual(Paint(t, 3), Paint(t, 3));
         }
 
+        [TestCaseSource(nameof(PaintedThemes))]
+        public void PaintedBackgroundMatchesRooftopsSizeIsOpaqueAndUsesAtLeastSixColours(Theme theme, int world)
+        {
+            Texture2D rooftops = PlaceholderArt.I.BackgroundFor(Themes.ForWorld(1)).texture;
+            Texture2D painted = PaintTexture(theme, world);
+            Assert.AreEqual(rooftops.width, painted.width);
+            Assert.AreEqual(rooftops.height, painted.height);
+
+            var colours = new HashSet<Color32>();
+            foreach (Color32 pixel in painted.GetPixels32())
+            {
+                Assert.AreEqual(255, pixel.a, $"{theme.name} has a transparent pixel");
+                colours.Add(pixel);
+            }
+            Assert.GreaterOrEqual(colours.Count, 6, theme.name);
+        }
+
+        [TestCaseSource(nameof(PaintedThemes))]
+        public void PaintedBackgroundNeverExceedsTileCapLuminanceExceptForAccent(Theme theme, int world)
+        {
+            float maximum = UiText.RelativeLuminance(theme.tileCap);
+            foreach (Color32 pixel in PaintTexture(theme, world).GetPixels32())
+                if (!pixel.Equals(theme.accent))
+                    Assert.LessOrEqual(UiText.RelativeLuminance(pixel), maximum + 0.0001f,
+                        $"{theme.name} pixel {pixel} is brighter than tileCap");
+        }
+
+        [TestCaseSource(nameof(PaintedThemes))]
+        public void PaintedBackgroundIsDeterministic(Theme theme, int world)
+        {
+            CollectionAssert.AreEqual(
+                PaintTexture(theme, world).GetPixels32(),
+                PaintTexture(theme, world).GetPixels32(),
+                theme.name);
+        }
+
+        [Test]
+        public void PaintedThemesProvideTileDetailsWithoutTouchingTheOutline()
+        {
+            foreach (Theme theme in new[] { Themes.ForWorld(2), Themes.ForWorld(3), Themes.ForWorld(4) })
+            {
+                Assert.NotNull(theme.paintTileDetail, theme.name);
+                var canvas = new PixelCanvas(15, 15);
+                canvas.Rect(0, 0, 15, 15, theme.tileFill);
+                for (int i = 0; i < 15; i++)
+                {
+                    canvas.Set(i, 0, theme.tileLine);
+                    canvas.Set(i, 14, theme.tileLine);
+                    canvas.Set(0, i, theme.tileLine);
+                    canvas.Set(14, i, theme.tileLine);
+                }
+
+                // The bottom outline is only drawn when the tile underneath is empty, so openBelow is true.
+                theme.paintTileDetail(canvas, 0, 0, new Cell { kind = TileKind.Solid, surface = Surface.Normal }, true);
+
+                for (int i = 0; i < 15; i++)
+                {
+                    Assert.AreEqual(theme.tileLine, canvas.Get(i, 0), $"{theme.name} bottom outline");
+                    Assert.AreEqual(theme.tileLine, canvas.Get(i, 14), $"{theme.name} top outline");
+                    Assert.AreEqual(theme.tileLine, canvas.Get(0, i), $"{theme.name} left outline");
+                    Assert.AreEqual(theme.tileLine, canvas.Get(14, i), $"{theme.name} right outline");
+                }
+            }
+        }
+
         [Test]
         public void RooftopsBackgroundIsPixelForPixelTheOriginal()
         {
@@ -103,9 +177,14 @@ namespace Bubblewright.Tests
 
         static string Paint(Theme t, int world)
         {
+            return Checksum(PaintTexture(t, world).GetPixels32());
+        }
+
+        static Texture2D PaintTexture(Theme t, int world)
+        {
             var c = new PixelCanvas(960, 510);
             t.paintBackground(c, t, new System.Random(world));
-            return Checksum(c.ToTexture("theme test").GetPixels32());
+            return c.ToTexture("theme test");
         }
 
         static string Checksum(Color32[] pixels)
