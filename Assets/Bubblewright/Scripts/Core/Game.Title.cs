@@ -34,7 +34,7 @@ namespace Bubblewright
             hitBubbles.Clear();
             fx.Clear();
             HideHarpoons();
-            wick.ResetForStage(0f, T.hearts);
+            wick.ResetForStage(0f, 0f, T.hearts);
             wick.Waving = true;
             freeze = slowMo = shake = 0f;
             shotTimer = 0f;
@@ -58,7 +58,7 @@ namespace Bubblewright
 
         void TickTitle(float dt)
         {
-            wick.Tick(0f, dt, false);
+            wick.Tick(0f, 0f, dt, false);
 
             var items = CurrentTitleItems;
             int dir = TitleMoveDir;

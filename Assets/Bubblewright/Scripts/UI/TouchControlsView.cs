@@ -9,7 +9,7 @@ namespace Bubblewright
     /// </summary>
     public class TouchControlsView : MonoBehaviour
     {
-        SpriteRenderer hint, knob, dot, fire;
+        SpriteRenderer hint, knob, dot, climbUp, climbDown, fire;
         Camera cam;
 
         public static TouchControlsView Create(Transform parent, Camera cam)
@@ -22,6 +22,8 @@ namespace Bubblewright
             v.hint = v.Part("Move Hint", art.MoveHint, 0);
             v.knob = v.Part("Move Knob", art.MoveKnob, 1);
             v.dot = v.Part("Move Dot", art.MoveDot, 2);
+            v.climbUp = v.Part("Climb Up", art.ClimbUpHint, 1);
+            v.climbDown = v.Part("Climb Down", art.ClimbDownHint, 1);
             v.fire = v.Part("Fire Button", art.FireButton, 0);
             return v;
         }
@@ -37,30 +39,42 @@ namespace Bubblewright
             return sr;
         }
 
-        public void Refresh(GameInput input, Tuning t)
+        public void Refresh(GameInput input, Tuning t, bool nearLadder = false)
         {
             bool show = Application.isMobilePlatform || input.TouchUsed;
             float stripMid = -t.groundStrip * 0.5f - 0.2f;
+            float px = 1f / t.pixelsPerUnit;
 
             // Anchor to the visible screen edges (inside the safe area), not the arena, so thumbs reach them.
             var safe = Screen.safeArea;
             float leftX = cam.ScreenToWorldPoint(new Vector3(safe.xMin, 0f, 0f)).x;
             float rightX = cam.ScreenToWorldPoint(new Vector3(safe.xMax, 0f, 0f)).x;
+            Vector2 hintPos = new Vector2(leftX + 4f, stripMid);
 
             hint.enabled = show && !input.PadActive;
-            hint.transform.position = Snap(new Vector2(leftX + 4f, stripMid), t);
+            hint.transform.position = Snap(hintPos, t);
 
             fire.enabled = show;
             fire.sprite = input.TouchFireHeld ? PlaceholderArt.I.FireButtonPressed : PlaceholderArt.I.FireButton;
             fire.transform.position = Snap(new Vector2(rightX - 3f, stripMid), t);
 
             knob.enabled = dot.enabled = show && input.PadActive;
+            Vector2 arrowAnchor = hintPos;
             if (input.PadActive)
             {
                 Vector2 o = cam.ScreenToWorldPoint(input.PadOrigin);
                 Vector2 c = cam.ScreenToWorldPoint(input.PadCurrent);
                 knob.transform.position = Snap(o, t);
-                dot.transform.position = Snap(new Vector2(c.x, o.y), t);
+                dot.transform.position = Snap(input.Climb != 0f ? new Vector2(o.x, c.y) : new Vector2(c.x, o.y), t);
+                arrowAnchor = o;
+            }
+
+            climbUp.enabled = climbDown.enabled = show && nearLadder;
+            if (nearLadder)
+            {
+                float arrowOffset = 12f * px;
+                climbUp.transform.position = Snap(arrowAnchor + new Vector2(0f, arrowOffset), t);
+                climbDown.transform.position = Snap(arrowAnchor - new Vector2(0f, arrowOffset), t);
             }
         }
 

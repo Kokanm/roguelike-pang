@@ -177,5 +177,39 @@ namespace Bubblewright.Tests
             wick.ResetForStage(0f, 0f, 3);
             Assert.IsFalse(wick.NearLadder, "No ground ladder at x = 0.");
         }
+
+        [Test]
+        public void TouchClimbHintsUseMistWithInkOutlineAndFollowNearLadderFlag()
+        {
+            var art = PlaceholderArt.I;
+            Assert.NotNull(art.ClimbUpHint);
+            Assert.NotNull(art.ClimbDownHint);
+            var upPixels = art.ClimbUpHint.texture.GetPixels32();
+            int w = art.ClimbUpHint.texture.width;
+            Assert.AreEqual(Palette.Mist, upPixels[2 * w + 4]);
+            Assert.AreEqual(Palette.Ink, upPixels[5 * w + 4]);
+
+            var camGo = new GameObject("TestCam");
+            var cam = camGo.AddComponent<Camera>();
+            Game.ConfigureCamera(cam);
+            var view = TouchControlsView.Create(root.transform, cam);
+            var input = new GameInput();
+            typeof(GameInput).GetProperty("TouchUsed", BindingFlags.Public | BindingFlags.Instance).SetValue(input, true);
+
+            try
+            {
+                view.Refresh(input, Tuning.I, false);
+                Assert.IsFalse(view.transform.Find("Climb Up").GetComponent<SpriteRenderer>().enabled);
+                Assert.IsFalse(view.transform.Find("Climb Down").GetComponent<SpriteRenderer>().enabled);
+
+                view.Refresh(input, Tuning.I, true);
+                Assert.IsTrue(view.transform.Find("Climb Up").GetComponent<SpriteRenderer>().enabled);
+                Assert.IsTrue(view.transform.Find("Climb Down").GetComponent<SpriteRenderer>().enabled);
+            }
+            finally
+            {
+                Object.DestroyImmediate(camGo);
+            }
+        }
     }
 }
