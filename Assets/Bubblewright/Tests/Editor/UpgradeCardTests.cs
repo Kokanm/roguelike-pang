@@ -47,7 +47,8 @@ namespace Bubblewright.Tests
                 Assert.IsFalse(string.IsNullOrWhiteSpace(u.Name));
                 Assert.IsFalse(string.IsNullOrWhiteSpace(u.Text), $"{u.Name} has no description");
                 Assert.LessOrEqual(u.Name.Length, 12, $"{u.Name}: name too long for the space beside the icon");
-                Assert.LessOrEqual(u.Text.Length, 72, $"{u.Name}: description too long for four lines on the card");
+                // After the boss of a hard world four cards share the 480 px screen (112 px each), so the text gets about 4 lines of 19 characters.
+                Assert.LessOrEqual(u.Text.Length, 66, $"{u.Name}: description too long for four lines on a card when four are shown");
             }
         }
 

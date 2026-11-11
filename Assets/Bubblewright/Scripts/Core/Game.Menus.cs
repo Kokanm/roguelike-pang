@@ -242,6 +242,7 @@ namespace Bubblewright
             GUILayout.Label("SPAWN XL", dbgLabel, GUILayout.Width(52 * k));
             foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
                 if (DbgButton(kind.ToString().ToUpperInvariant(), k, 62)) DebugSpawn(kind);
+            if (DbgButton(DebugHardLabel(), k, 110)) DebugCycleHardWorld();
             GUILayout.EndHorizontal();
 
             GUILayout.Label("ADD UPGRADE (no limits)", dbgLabel);
@@ -279,6 +280,17 @@ namespace Bubblewright
             run.MaxHearts = max;
             run.Hearts = Mathf.Clamp(hearts, 1, max);
             wick.SetHearts(run.Hearts);
+        }
+
+        string DebugHardLabel() => run.CurrentDebuff == null ? "HARD: OFF" : $"HARD: {run.CurrentDebuff.Name.ToUpperInvariant()}";
+
+        /// <summary>Calm, then each debuff in turn, then calm again. Restarts the stage so the numbers apply.</summary>
+        void DebugCycleHardWorld()
+        {
+            var current = run.CurrentDebuff;
+            int next = current == null ? 0 : System.Array.IndexOf(Debuff.All, current) + 1;
+            run.SetHard(run.World, next < Debuff.All.Length ? Debuff.All[next] : null);
+            DebugGoToStage(run.Stage);
         }
 
         void DebugGoToStage(int stage)
