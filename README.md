@@ -19,7 +19,7 @@ Plan:
 One stage of World 1 (Rooftops) built entirely from code, using the numbers from the design sheet:
 
 - **Wick** runs on the floor only (no jump): 9 u/s top speed, reached in 0.06 s, stops in 0.04 s. He plays with his back to the camera, faces it at stage start, turns with a 0.2 s squash, and turns back to celebrate after the last pop. His candle flame shows his 3 hearts.
-- **Harpoon**: one shot at a time, straight up from the launcher tip (+0.35 u right of centre) at 20 u/s. A 1 px twisted steel cable stays where it was fired; a bubble touching the cable or the barbed tip pops.
+- **Harpoon**: one shot at a time, straight up from the launcher tip (+0.35 u right of centre) at 20 u/s. A 1 px twisted steel cable stays where it was fired; a bubble touching the cable or the barbed tip pops. The tip stops under the first solid tile above it (a platform or the ceiling) and the tail hangs down to the first surface below.
 - **Bubbles**: kinematic, with our own bounce maths (no physics engine). Constant 4 u/s sideways. Each tier always peaks at its height from the sheet (XL 13, L 11, M 8.5, S 6 u). They split into the next size (Trigloops into 3), kicked up and out. No eyes: type reads from colour plus a centre mark.
 - **Screen**: renders at 480 x 270 with the URP Pixel Perfect Camera (15 px per unit, upscale render texture). The arena is always 32 x 14 u with a 4 u ground strip; wider or taller screens show extra scenery. Phones are locked to landscape.
 - **Controls**: touch first, plus keyboard and gamepad (below).
