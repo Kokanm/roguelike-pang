@@ -43,7 +43,7 @@ namespace Bubblewright
         public int World => WorldOf(Stage);
         /// <summary>Stage inside its world, 1 to 6.</summary>
         public int StageInWorld => StageInWorldOf(Stage);
-        /// <summary>The last stage of a world is its boss stage. Bosses come later; for now it is a bigger normal stage.</summary>
+        /// <summary>The last stage of a world is its boss stage: one flat floor, no generated bubbles, a boss.</summary>
         public bool IsBossStage => IsBossStageNumber(Stage);
         public string WorldName => WorldNameOf(World);
 
@@ -259,7 +259,6 @@ namespace Bubblewright
         {
             var t = Tuning.I;
             float budget = t.budgetBase + t.budgetPerWorld * (Run.WorldOf(stage) - 1) + t.budgetPerStage * (Run.StageInWorldOf(stage) - 1);
-            if (Run.IsBossStageNumber(stage)) budget *= t.bossPlaceholderBudgetScale;
             return hard ? budget * t.hardBudgetScale : budget;
         }
 
@@ -274,6 +273,9 @@ namespace Bubblewright
             if (Run.WorldOf(stage) == 3) time *= t.desertTimeScale; // Desert: everything is slower on sand
             return hard ? time * t.hardTimeScale : time;
         }
+
+        /// <summary>Seconds on the storm clock of a boss stage. A hard world still scales it.</summary>
+        public static float BossTime(bool hard = false) => hard ? Tuning.I.bossTime * Tuning.I.hardTimeScale : Tuning.I.bossTime;
 
         public static LayoutDef PickLayout(Run run, System.Random rng) => PickLayout(run.Stage, rng);
 
@@ -342,6 +344,8 @@ namespace Bubblewright
             LayoutDef layout = layoutOverride ?? PickLayout(stage, rng);
             StageMap map = StageLayout.Parse(layout.rows);
             WorldRules.Apply(map, Run.WorldOf(stage), rng, Run.StageInWorldOf(stage), Run.IsBossStageNumber(stage));
+            if (Run.IsBossStageNumber(stage))
+                return new StagePlan { map = map, spawns = new List<SpawnSpec>(), wickX = 0f }; // the boss is the whole stage
             float bubbleMinY = layout.bubbleMinY > 0f ? layout.bubbleMinY : 5f;
             float budget = Budget(stage, hard);
             int maxBubbles = MaxStartBubbles(stage);

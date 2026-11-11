@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Bubblewright
@@ -515,6 +516,78 @@ namespace Bubblewright
         {
             Sprite sprite = canvas.ToSprite(name, Vector2.zero, ppu);
             sprite.texture.wrapMode = TextureWrapMode.Repeat;
+            return sprite;
+        }
+
+        // ------------------------------------------------------------------ bosses
+
+        /// <summary>A boss body, its cream hit-flash silhouette, and the cream lower band that blinks before a shot.</summary>
+        public class BossSprites
+        {
+            public Sprite body, flash, tell;
+        }
+
+        readonly Dictionary<string, BossSprites> bossCache = new Dictionary<string, BossSprites>();
+        readonly Dictionary<string, Sprite> bulletCache = new Dictionary<string, Sprite>();
+
+        /// <summary>Height in pixels of the band at the bottom of a boss that blinks as the tell.</summary>
+        public const int BossTellBand = 4;
+
+        /// <summary>
+        /// Placeholder boss painted from its size and the world's colours: a rounded body in tileFill, a tileCap band across
+        /// the top third, a skyTop visor slit 60% of the width, three rivets and a 1 px ink outline. The sprite is
+        /// the body plus a 1 px margin for the outline, with the pivot at the centre of the body.
+        /// </summary>
+        public BossSprites BossFor(Theme theme, BossSpec spec)
+        {
+            int w = Mathf.RoundToInt(spec.size.x * ppu), h = Mathf.RoundToInt(spec.size.y * ppu);
+            string key = $"{theme.name}|{w}x{h}";
+            if (bossCache.TryGetValue(key, out var cached) && cached.body != null && cached.body.texture != null) return cached;
+
+            var c = new PixelCanvas(w + 2, h + 2);
+            const int ox = 1, oy = 1;
+            c.Rect(ox, oy, w, h, theme.tileFill);
+            // Rounded corners: clip three pixels at each.
+            foreach (var (cx, cy, dx, dy) in new[] { (ox, oy, 1, 1), (ox + w - 1, oy, -1, 1), (ox, oy + h - 1, 1, -1), (ox + w - 1, oy + h - 1, -1, -1) })
+            {
+                c.Set(cx, cy, Palette.Clear);
+                c.Set(cx + dx, cy, Palette.Clear);
+                c.Set(cx, cy + dy, Palette.Clear);
+            }
+            c.RectOnFilled(ox, oy + h - h / 3, w, h / 3, theme.tileCap);       // band across the top third
+            c.RectOnFilled(ox, oy, w, BossTellBand, theme.tileShade);          // the lower band that blinks before a shot
+            int visorW = Mathf.RoundToInt(w * 0.6f);
+            c.Rect(ox + (w - visorW) / 2, oy + h / 2 - 2, visorW, 5, theme.skyTop); // visor slit
+            for (int i = 1; i <= 3; i++)
+                c.Rect(ox + w * i / 4 - 1, oy + BossTellBand + 3, 3, 3, theme.tileShade); // rivets
+
+            var tell = new PixelCanvas(w + 2, h + 2);
+            for (int y = oy; y < oy + BossTellBand; y++)
+                for (int x = ox; x < ox + w; x++)
+                    if (c.Filled(x, y)) tell.Set(x, y, Palette.Cream);
+
+            c.Outline(Palette.Ink);
+            var pivot = new Vector2(ox + w * 0.5f, oy + h * 0.5f);
+            var sprites = new BossSprites
+            {
+                body = c.ToSprite($"Boss_{key}", pivot, ppu),
+                flash = c.Silhouette(Palette.Cream).ToSprite($"Boss_{key}_Flash", pivot, ppu),
+                tell = tell.ToSprite($"Boss_{key}_Tell", pivot, ppu),
+            };
+            bossCache[key] = sprites;
+            return sprites;
+        }
+
+        /// <summary>A 7 px aimed bullet: cream core, a 1 px ring in the theme's accent, 1 px ink outline (docs/design/expansion-art.md).</summary>
+        public Sprite BulletFor(Theme theme)
+        {
+            if (bulletCache.TryGetValue(theme.name, out var cached) && cached != null && cached.texture != null) return cached;
+            var c = new PixelCanvas(7, 7);
+            c.Circle(3.5f, 3.5f, 2.5f, theme.accent);
+            c.Circle(3.5f, 3.5f, 1.5f, Palette.Cream);
+            c.Outline(Palette.Ink);
+            var sprite = c.ToSprite($"Bullet_{theme.name}", new Vector2(3.5f, 3.5f), ppu);
+            bulletCache[theme.name] = sprite;
             return sprite;
         }
     }

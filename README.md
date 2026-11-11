@@ -64,6 +64,10 @@ The mouse acts as one finger, so you can try the touch controls on desktop: clic
 
 Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces). **SPIKES** adds Lava's retracting strips to the current stage in any world. The **THEME** button cycles the look of the current stage (sky, hills, tiles, ground strip) through the six world themes without changing the world.
 
+### Boss stages
+
+The last stage of each world is a boss stage: one flat floor, no generated bubbles, and one boss (a placeholder blocky "WARDEN" for every world until step 18). It slides in from above during the intro, then walks left and right near the ceiling and fires a bullet at Wick about every two seconds; its lower band blinks cream half a second before each shot. Any harpoon touch (tip or cable) takes 1 health; health is 12 in world 1 and 4 more in each later world. Bullets and touching the body each cost a heart (bullets cost more in the storm). The storm clock runs on boss stages too (120 s), and the storm speeds up the boss and its bullets. When its health reaches 0 any leftover bubbles pop without children, the boss shakes and bursts, and the world is cleared. All numbers are in Tuning > Bosses. The debug panel's **BOSS -5 HP** button takes off five health.
+
 ### Tuning
 
 Every number lives in `Assets/Bubblewright/Resources/Tuning.asset`. Select it and edit in the Inspector, even while playing. Bubble gravity is derived per tier from its peak height and a bounce time, so it always reaches the sheet's peak height.

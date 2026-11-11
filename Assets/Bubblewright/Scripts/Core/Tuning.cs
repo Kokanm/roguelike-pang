@@ -155,8 +155,6 @@ namespace Bubblewright
         public int leadFromWorld = 2;
         [Tooltip("Chance per stage (from stage 2) of a free Lucky bubble on top of the budget.")]
         [Range(0f, 1f)] public float luckyChance = 0.25f;
-        [Tooltip("Boss stages (placeholder until the bosses exist) get this much more budget.")]
-        public float bossPlaceholderBudgetScale = 1.5f;
         [Tooltip("With more than one cable, the gap between shots while fire is held.")]
         public float multiShotGap = 0.15f;
 
@@ -210,6 +208,29 @@ namespace Bubblewright
         public float spikePhaseStep = 0.8f;
         [Tooltip("How tall a raised spike's hurt box is, in pixels, measured up from the surface it sits on.")]
         public int spikeHeightPixels = 7;
+
+        [Header("Bosses")]
+        [Tooltip("Health of the first boss. Each later world's boss has bossHpPerWorld more.")]
+        public int bossBaseHp = 12;
+        public int bossHpPerWorld = 4;
+        [Tooltip("Seconds on the storm clock of a boss stage. A hard world still scales it.")]
+        public float bossTime = 120f;
+        [Tooltip("Height of the boss's centre, in units above the floor.")]
+        public float bossY = 11f;
+        [Tooltip("Seconds the boss shows a cream silhouette after a hit.")]
+        public float bossHitFlash = 0.08f;
+        [Tooltip("Hearts Wick loses when he touches the boss's body.")]
+        public int bossContactDamage = 1;
+        [Tooltip("Speed of aimed bullets, in units per second.")]
+        public float bulletSpeed = 7f;
+        [Tooltip("Radius of a bullet's hit circle, in pixels.")]
+        public int bulletRadiusPixels = 3;
+        [Tooltip("During the storm the boss and its bullets move this much faster.")]
+        public float bossStormScale = 1.4f;
+        [Tooltip("Freeze when a harpoon hits the boss, in frames at 60 per second.")]
+        public int bossHitStopFrames = 2;
+        [Tooltip("Seconds the boss shakes and sheds debris after its last health is gone, before it bursts.")]
+        public float bossDeathShake = 0.6f;
 
         public int RunLength => worlds * stagesPerWorld;
         public float HalfWidth => arenaWidth * 0.5f;

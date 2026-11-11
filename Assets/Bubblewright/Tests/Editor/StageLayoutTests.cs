@@ -155,7 +155,8 @@ namespace Bubblewright.Tests
                     var plan = StageGenerator.Generate(RunAt(seed, stage));
                     Assert.NotNull(plan.map, $"seed {seed}, stage {stage}: map");
                     Assert.AreEqual(0f, plan.wickX, 1e-5f, $"seed {seed}, stage {stage}: Wick starts in the middle");
-                    Assert.GreaterOrEqual(plan.spawns.Count, 1, $"seed {seed}, stage {stage}: at least one bubble");
+                    if (Run.IsBossStageNumber(stage)) Assert.AreEqual(0, plan.spawns.Count, $"seed {seed}, stage {stage}: the boss is the whole stage");
+                    else Assert.GreaterOrEqual(plan.spawns.Count, 1, $"seed {seed}, stage {stage}: at least one bubble");
 
                     foreach (var spawn in plan.spawns)
                     {

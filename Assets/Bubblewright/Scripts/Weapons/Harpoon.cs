@@ -182,15 +182,36 @@ namespace Bubblewright
             }
         }
 
+        /// <summary>The rectangle of the cable, from just above the floor up to the tip. The same one Hits uses.</summary>
+        public Rect CableRect
+        {
+            get
+            {
+                float px = 1f / T.pixelsPerUnit;
+                float w = WidthMultiplier;
+                return new Rect(x - px * w, bottomY, px * 2f * w, tipY - bottomY);
+            }
+        }
+
+        /// <summary>The rectangle of the barbed tip. The same one Hits uses.</summary>
+        public Rect TipRect
+        {
+            get
+            {
+                float px = 1f / T.pixelsPerUnit;
+                float w = WidthMultiplier;
+                return new Rect(x - 3.5f * px * w, tipY, 7f * px * w, TipHeight);
+            }
+        }
+
+        /// <summary>True if the rectangle touches the cable or the tip.</summary>
+        public bool Hits(Rect rect) => Active && (rect.Overlaps(CableRect) || rect.Overlaps(TipRect));
+
         /// <summary>True if the bubble touches the cable or the tip.</summary>
         public bool Hits(Bubble b)
         {
             if (!Active) return false;
-            float px = 1f / T.pixelsPerUnit;
-            float w = WidthMultiplier;
-            var cable = new Rect(x - px * w, bottomY, px * 2f * w, tipY - bottomY);
-            var head = new Rect(x - 3.5f * px * w, tipY, 7f * px * w, TipHeight);
-            return b.Overlaps(cable) || b.Overlaps(head);
+            return b.Overlaps(CableRect) || b.Overlaps(TipRect);
         }
     }
 }

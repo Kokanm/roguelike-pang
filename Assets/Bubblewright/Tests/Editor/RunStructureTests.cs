@@ -59,8 +59,8 @@ namespace Bubblewright.Tests
             Assert.AreEqual(8f + 30f, StageGenerator.Budget(31), 0.001f);
             Assert.AreEqual(60f + 40f, StageGenerator.StageTime(31), 0.001f);
 
-            // the boss stage placeholder gets a bigger budget but the same time rule
-            Assert.AreEqual((8f + 10f) * Tuning.I.bossPlaceholderBudgetScale, StageGenerator.Budget(6), 0.001f);
+            // the boss stage follows the same budget and time rules (the boss stage itself spawns no bubbles)
+            Assert.AreEqual(8f + 10f, StageGenerator.Budget(6), 0.001f);
             Assert.AreEqual(60f + 20f, StageGenerator.StageTime(6), 0.001f);
         }
 
@@ -69,7 +69,7 @@ namespace Bubblewright.Tests
         {
             for (int s = 1; s < Tuning.I.RunLength; s++)
             {
-                if (Run.IsBossStageNumber(s) || Run.IsBossStageNumber(s + 1)) continue; // the boss placeholder has its own scale
+                if (Run.IsBossStageNumber(s) || Run.IsBossStageNumber(s + 1)) continue; // a world's last stage is followed by a new world, which starts lower
                 Assert.Greater(StageGenerator.Budget(s + 1), StageGenerator.Budget(s), $"budget {s} -> {s + 1}");
                 Assert.Greater(StageGenerator.StageTime(s + 1), StageGenerator.StageTime(s), $"time {s} -> {s + 1}");
             }
@@ -136,6 +136,11 @@ namespace Bubblewright.Tests
                 for (int s = 1; s <= Tuning.I.RunLength; s++)
                 {
                     var specs = StageGenerator.Generate(RunAt(seed, s)).spawns;
+                    if (Run.IsBossStageNumber(s))
+                    {
+                        Assert.AreEqual(0, specs.Count, $"seed {seed} boss stage {s} has no generated bubbles");
+                        continue;
+                    }
                     Assert.GreaterOrEqual(specs.Count, 1, $"seed {seed} stage {s}");
                     // the free Lucky bubble sits on top of the cap
                     Assert.LessOrEqual(specs.Count, StageGenerator.MaxStartBubbles(s) + 1, $"seed {seed} stage {s}");
