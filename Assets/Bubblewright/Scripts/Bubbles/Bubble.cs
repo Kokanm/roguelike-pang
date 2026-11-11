@@ -54,34 +54,26 @@ namespace Bubblewright
             float g = T.Gravity(Kind, Tier);
             var p = (Vector2)transform.position;
 
-            // Exact ballistic step (constant gravity), and the floor bounce sets velocity exactly,
-            // so the apex never drifts with frame rate.
-            p.x += Velocity.x * dt;
-            p.y += Velocity.y * dt - 0.5f * g * dt * dt;
-            Velocity.y -= g * dt;
+            // Keep the exact constant-gravity ballistic step, but split long moves so a bubble cannot
+            // cross a one-unit tile between collision checks.
+            var displacement = new Vector2(Velocity.x * dt, Velocity.y * dt - 0.5f * g * dt * dt);
+            int steps = Mathf.Max(1, Mathf.CeilToInt(displacement.magnitude / 0.4f));
+            float stepDt = dt / steps;
+            for (int i = 0; i < steps; i++)
+            {
+                p.x += Velocity.x * stepDt;
+                p.y += Velocity.y * stepDt - 0.5f * g * stepDt * stepDt;
+                Velocity.y -= g * stepDt;
 
-            float r = Radius;
-            if (p.y - r <= 0f)
-            {
-                p.y = r;
-                Velocity.y = T.BounceSpeed(Kind, Tier);
-                squashTimer = 0f;
-                Sfx.Play(Sound.Bounce, 1f + Tier * 0.25f, 0.5f - Tier * 0.1f); // big bubbles thud, small ones tap
-            }
-            if (p.y + r >= T.arenaHeight)
-            {
-                p.y = T.arenaHeight - r;
-                Velocity.y = -Mathf.Abs(Velocity.y);
-            }
-            if (p.x - r <= -T.HalfWidth)
-            {
-                p.x = -T.HalfWidth + r;
-                Velocity.x = Mathf.Abs(Velocity.x);
-            }
-            if (p.x + r >= T.HalfWidth)
-            {
-                p.x = T.HalfWidth - r;
-                Velocity.x = -Mathf.Abs(Velocity.x);
+                Contact contact = Game.Map.ResolveCircle(ref p, Radius);
+                if (contact.landed)
+                {
+                    Velocity.y = T.BounceSpeed(Kind, Tier);
+                    squashTimer = 0f;
+                    Sfx.Play(Sound.Bounce, 1f + Tier * 0.25f, 0.5f - Tier * 0.1f); // big bubbles thud, small ones tap
+                }
+                if (contact.bumped) Velocity.y = -Mathf.Abs(Velocity.y);
+                if (contact.side != 0) Velocity.x = contact.side * Mathf.Abs(Velocity.x);
             }
             transform.position = p;
 

@@ -29,9 +29,10 @@ namespace Bubblewright
         /// <summary>Screen position (pixels, origin bottom left) of a finger or click that began this frame.</summary>
         public Vector2? TapPosition { get; private set; }
 
-        // Desktop debug helpers: 1-4 spawn an XL bubble of each type, F1 toggles hitboxes.
+        // Desktop debug helpers: 1-4 spawn an XL bubble, F1 toggles hitboxes, F3 toggles the test layout.
         public int DebugSpawn { get; private set; }
         public bool DebugToggleHitboxes { get; private set; }
+        public bool DebugTestLayoutPressed { get; private set; }
         /// <summary>Esc, P or pad Start. F2 opens the debug panel (it pauses the game too).</summary>
         public bool PausePressed { get; private set; }
         public bool DebugPanelPressed { get; private set; }
@@ -75,6 +76,7 @@ namespace Bubblewright
             bool keyFire = false, keyFirePressed = false, confirm = false, any = false;
             DebugSpawn = 0;
             DebugToggleHitboxes = false;
+            DebugTestLayoutPressed = false;
             PausePressed = false;
             DebugPanelPressed = false;
 
@@ -93,6 +95,7 @@ namespace Bubblewright
                 if (kb.digit3Key.wasPressedThisFrame) DebugSpawn = 3;
                 if (kb.digit4Key.wasPressedThisFrame) DebugSpawn = 4;
                 DebugToggleHitboxes = kb.f1Key.wasPressedThisFrame;
+                DebugTestLayoutPressed = kb.f3Key.wasPressedThisFrame;
                 PausePressed |= kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame;
                 DebugPanelPressed = kb.f2Key.wasPressedThisFrame;
             }
@@ -136,6 +139,7 @@ namespace Bubblewright
             any |= Input.anyKeyDown;
             for (int d = 1; d <= 4; d++) if (Input.GetKeyDown(KeyCode.Alpha0 + d)) DebugSpawn = d;
             DebugToggleHitboxes = Input.GetKeyDown(KeyCode.F1);
+            DebugTestLayoutPressed = Input.GetKeyDown(KeyCode.F3);
             PausePressed = Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P) || Input.GetKeyDown(KeyCode.JoystickButton7);
             DebugPanelPressed = Input.GetKeyDown(KeyCode.F2);
             for (int i = 0; i < Input.touchCount; i++)
