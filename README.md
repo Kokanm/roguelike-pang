@@ -62,7 +62,7 @@ Timings come from the sheet's animation table and live in `Tuning.asset` under *
 
 The mouse acts as one finger, so you can try the touch controls on desktop: click and drag in the left half, click in the right half.
 
-Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces).
+Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces). The **THEME** button cycles the look of the current stage (sky, hills, tiles, ground strip) through the six world themes without changing the world.
 
 ### Tuning
 

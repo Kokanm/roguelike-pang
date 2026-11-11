@@ -18,6 +18,7 @@ namespace Bubblewright
         Sprite sprite, groundSprite;
         StageMap paintedMap;
         int paintedVersion = -1;
+        Theme paintedTheme, theme;
 
         public static StageView Create(Transform parent)
         {
@@ -63,7 +64,9 @@ namespace Bubblewright
         public void Tick()
         {
             StageMap map = Game.Map;
-            if (map == null || map == paintedMap && map.Version == paintedVersion) return;
+            if (map == null) return;
+            theme = Game.CurrentTheme;
+            if (map == paintedMap && map.Version == paintedVersion && theme == paintedTheme) return;
 
             System.Array.Clear(pixels, 0, pixels.Length);
             System.Array.Clear(groundPixels, 0, groundPixels.Length);
@@ -86,49 +89,47 @@ namespace Bubblewright
             groundTexture.Apply(false, false);
             paintedMap = map;
             paintedVersion = map.Version;
+            paintedTheme = theme;
         }
 
         void PaintTile(StageMap map, int c, int r, Cell cell)
         {
             int x0 = c * TilePixels, y0 = r * TilePixels;
-            Color32 fill = cell.kind == TileKind.Breakable
-                ? Palette.CatacombBrick
-                : Palette.Dusk;
-            Rect(x0, y0, TilePixels, TilePixels, fill);
+            bool breakable = cell.kind == TileKind.Breakable;
+            Rect(x0, y0, TilePixels, TilePixels, breakable ? theme.breakFill : theme.tileFill);
 
             if (cell.kind == TileKind.Breakable)
             {
-                for (int y = 5; y < 11; y += 5) Rect(x0, y0 + y, TilePixels, 1, Palette.CatacombBrickDark);
+                for (int y = 5; y < 11; y += 5) Rect(x0, y0 + y, TilePixels, 1, theme.tileShade);
                 for (int course = 0; course < 3; course++)
                 {
                     int y = y0 + course * 5;
                     int joint = course % 2 == 0 ? 5 : 10;
                     for (int x = joint; x < TilePixels; x += 10)
-                        Rect(x0 + x, y, 1, Mathf.Min(5, TilePixels - course * 5), Palette.CatacombBrickDark);
+                        Rect(x0 + x, y, 1, Mathf.Min(5, TilePixels - course * 5), theme.tileShade);
                 }
             }
 
             Rect(x0, y0 + 12, TilePixels, 3,
-                cell.kind == TileKind.Breakable ? Palette.CatacombBrickLight : Palette.Lilac);
-            Rect(x0, y0 + 11, TilePixels, 1,
-                cell.kind == TileKind.Breakable ? Palette.CatacombBrickDark : Palette.Deep);
+                breakable ? Palette.Mix(theme.breakFill, theme.tileCap, 0.5f) : theme.tileCap);
+            Rect(x0, y0 + 11, TilePixels, 1, theme.tileShade);
 
             Surface surface = cell.surface;
             if (surface != Surface.Normal) PaintCap(pixels, Width, x0, y0 + 12, surface);
 
-            if (!map.IsSolid(c - 1, r)) Rect(x0, y0, 1, TilePixels, Palette.Ink);
-            if (!map.IsSolid(c + 1, r)) Rect(x0 + 14, y0, 1, TilePixels, Palette.Ink);
-            if (!map.IsSolid(c, r - 1)) Rect(x0, y0, TilePixels, 1, Palette.Ink);
+            if (!map.IsSolid(c - 1, r)) Rect(x0, y0, 1, TilePixels, theme.tileLine);
+            if (!map.IsSolid(c + 1, r)) Rect(x0 + 14, y0, 1, TilePixels, theme.tileLine);
+            if (!map.IsSolid(c, r - 1)) Rect(x0, y0, TilePixels, 1, theme.tileLine);
             if (!map.IsSolid(c, r + 1))
             {
-                Rect(x0, y0 + 14, TilePixels, 1, Palette.Ink);
+                Rect(x0, y0 + 14, TilePixels, 1, theme.tileLine);
                 // Sand has a wavy top: every other column sits 1 px lower.
                 if (surface == Surface.Sand)
                 {
                     for (int x = 1; x < TilePixels - 1; x += 2)
                     {
                         pixels[(y0 + 14) * Width + x0 + x] = Palette.Clear;
-                        pixels[(y0 + 13) * Width + x0 + x] = Palette.Ink;
+                        pixels[(y0 + 13) * Width + x0 + x] = theme.tileLine;
                     }
                 }
             }

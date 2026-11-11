@@ -4,6 +4,36 @@ namespace Bubblewright
     {
         public static StageMap Map { get; private set; }
 
+        static Theme currentTheme;
+        /// <summary>The look of the current world: sky, tiles and ground strip colours. Rooftops until a stage starts.</summary>
+        public static Theme CurrentTheme
+        {
+            get => currentTheme ?? Themes.ForWorld(1);
+            set => currentTheme = value;
+        }
+
+        SpriteRenderer background;
+
+        /// <summary>Shows a theme: background sprite and camera clear colour now, tiles on the next StageView.Tick.</summary>
+        void ApplyTheme(Theme theme)
+        {
+            CurrentTheme = theme;
+            if (background != null) background.sprite = PlaceholderArt.I.BackgroundFor(theme);
+            if (cam != null) cam.backgroundColor = theme.strip;
+        }
+
+        // Debug: -1 = the world's own theme, then 0..5 = that theme's look on the current stage.
+        int debugTheme = -1;
+
+        string DebugThemeLabel() => debugTheme < 0 ? "THEME" : $"THEME: {Themes.All[debugTheme].name.ToUpperInvariant()}";
+
+        /// <summary>Debug panel: cycles the look of the current stage through the six themes without changing the world.</summary>
+        void DebugCycleTheme()
+        {
+            debugTheme = (debugTheme + 1) % Themes.All.Length;
+            ApplyTheme(Themes.All[debugTheme]);
+        }
+
         int testLayoutIndex = -1;
         bool testLayout => testLayoutIndex >= 0;
         LayoutDef CurrentTestLayout => testLayout ? StageLayouts.All[testLayoutIndex] : null;
