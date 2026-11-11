@@ -199,6 +199,18 @@ namespace Bubblewright
         [Tooltip("While walking on sand, a dust puff at his feet every this many seconds.")]
         public float sandDustInterval = 0.25f;
 
+        [Header("Spikes")]
+        [Tooltip("Seconds a strip stays down, showing only the holes in the floor.")]
+        public float spikeDownTime = 3f;
+        [Tooltip("Seconds the tips poke up and wobble before the spikes rise.")]
+        public float spikeWarnTime = 0.5f;
+        [Tooltip("Seconds the spikes stay raised. They hurt Wick only while raised, and always for one heart.")]
+        public float spikeUpTime = 1.5f;
+        [Tooltip("Each later strip starts this many seconds further into the cycle than the one before it, so they do not all rise together.")]
+        public float spikePhaseStep = 0.8f;
+        [Tooltip("How tall a raised spike's hurt box is, in pixels, measured up from the surface it sits on.")]
+        public int spikeHeightPixels = 7;
+
         public int RunLength => worlds * stagesPerWorld;
         public float HalfWidth => arenaWidth * 0.5f;
         public float Pixel => 1f / pixelsPerUnit;

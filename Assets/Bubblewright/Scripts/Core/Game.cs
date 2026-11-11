@@ -175,6 +175,7 @@ namespace Bubblewright
             debugSurface = -1;
             debugTheme = -1;
             ApplyTheme(Themes.ForWorld(run.World));
+            SetupSpikes();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
@@ -349,33 +350,23 @@ namespace Bubblewright
                 }
             }
 
+            spikes?.Tick(dt);
+
             if (!debug.god && !wick.Invulnerable && !wick.Dead)
             {
                 var box = wick.Hitbox;
                 foreach (var b in bubbles)
                 {
                     if (b.Popped || !b.Overlaps(box)) continue;
-                    wick.Hurt(b.Position.x, storm ? T.stormDamage : 1);
-                    freeze = T.hurtFreeze;
-                    shake = T.shakeTime;
-                    Sfx.Play(Sound.Hurt);
-                    if (wick.Dead)
-                    {
-                        HideHarpoons();
-                        run.Hearts = 0;
-                        SaveGame.Delete();
-                        RecordScore();
-                        SetState(State.Over);
-                        Sfx.Play(Sound.Over);
-                    }
-                    else
-                    {
-                        run.Hearts = wick.Hearts;
-                        SaveGame.UpdateHearts(wick.Hearts);
-                    }
+                    HurtWick(b.Position.x, storm ? T.stormDamage : 1);
                     break;
                 }
             }
+
+            // Spikes always take one heart, including during the storm. A bubble hit this frame already made him safe.
+            if (spikes != null && !debug.god && !wick.Invulnerable && !wick.Dead &&
+                spikes.Hurts(wick.Hitbox, out float spikeX))
+                HurtWick(spikeX, 1);
 
             if (state == State.Play && bubbles.Count == 0 && hitBubbles.Count == 0)
             {
@@ -888,6 +879,7 @@ namespace Bubblewright
         void DrawHitboxes(int k)
         {
             DrawStageHitboxes();
+            spikes?.ForEachRaisedHurtBox(DrawSpikeHurtBox);
             DrawWorldRect(wick.Hitbox, Palette.Mint);
             foreach (var b in bubbles)
             {
