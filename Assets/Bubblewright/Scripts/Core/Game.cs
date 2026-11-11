@@ -168,14 +168,17 @@ namespace Bubblewright
         void StartStage()
         {
             touchView.gameObject.SetActive(true);
-            Map = BuildStageMap();
+            StagePlan plan = testLayout
+                ? StageGenerator.Generate(run, CurrentTestLayout)
+                : StageGenerator.Generate(run);
+            Map = plan.map;
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
             fx.Clear();
             ApplyRunUpgrades();
             HideHarpoons();
-            wick.ResetForStage(0f, 0f, run.Hearts);
+            wick.ResetForStage(plan.wickX, 0f, run.Hearts);
             wick.Waving = true;
             freeze = slowMo = shake = 0f;
             shotTimer = 0f;
@@ -183,7 +186,7 @@ namespace Bubblewright
             stormClock = stormBanner = 0f;
             storm = false;
 
-            foreach (var s in StageGenerator.Generate(run))
+            foreach (var s in plan.spawns)
             {
                 int tier = Mathf.Clamp(s.tier, 0, T.tiers.Length - 1);
                 SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false);
@@ -636,7 +639,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
-                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   Pad: stick/d-pad + A   1-4: spawn   F1: hitboxes   F3: layout",
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   Pad: stick/d-pad + A   1-4: spawn   F1: hitboxes   F3: next layout",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }

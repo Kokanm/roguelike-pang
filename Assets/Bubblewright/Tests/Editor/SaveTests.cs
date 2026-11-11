@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -26,8 +25,18 @@ namespace Bubblewright.Tests
             return run;
         }
 
-        static string Describe(List<SpawnSpec> specs) =>
-            string.Join(";", specs.Select(s => $"{s.kind}/{s.tier}/{s.position.x:F4}/{s.position.y:F4}/{s.direction}"));
+        static string Describe(StagePlan plan)
+        {
+            string map = "";
+            for (int r = 0; r < StageMap.Rows; r++)
+                for (int c = 0; c < StageMap.Cols; c++)
+                {
+                    Cell cell = plan.map.Get(c, r);
+                    map += cell.ladder ? "H" : cell.kind == TileKind.Solid ? "#" : ".";
+                }
+            return map + ":" + string.Join(";", plan.spawns.Select(s =>
+                $"{s.kind}/{s.tier}/{s.position.x:F4}/{s.position.y:F4}/{s.direction}"));
+        }
 
         [Test]
         public void RunSurvivesSaveAndLoadWithEveryValueEqual()
