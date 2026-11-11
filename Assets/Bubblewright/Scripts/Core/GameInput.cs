@@ -20,6 +20,7 @@ namespace Bubblewright
     public class GameInput
     {
         public float Move { get; private set; }
+        public float MoveY { get; private set; }
         public bool FireHeld { get; private set; }
         public bool FirePressed { get; private set; }
         public bool ConfirmPressed { get; private set; }
@@ -72,7 +73,7 @@ namespace Bubblewright
         public void Update()
         {
             pointers.Clear();
-            float keyMove = 0f;
+            float keyMove = 0f, keyMoveY = 0f;
             bool keyFire = false, keyFirePressed = false, confirm = false, any = false;
             DebugSpawn = 0;
             DebugToggleHitboxes = false;
@@ -86,9 +87,11 @@ namespace Bubblewright
             {
                 if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) keyMove -= 1f;
                 if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) keyMove += 1f;
+                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) keyMoveY -= 1f;
+                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) keyMoveY += 1f;
                 keyFire |= kb.spaceKey.isPressed || kb.jKey.isPressed || kb.kKey.isPressed || kb.wKey.isPressed || kb.upArrowKey.isPressed;
                 keyFirePressed |= kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame || kb.kKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame;
-                confirm |= kb.rKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame;
+                confirm |= kb.rKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame;
                 any |= kb.anyKey.wasPressedThisFrame;
                 if (kb.digit1Key.wasPressedThisFrame) DebugSpawn = 1;
                 if (kb.digit2Key.wasPressedThisFrame) DebugSpawn = 2;
@@ -103,7 +106,9 @@ namespace Bubblewright
             if (pad != null)
             {
                 float x = pad.leftStick.ReadValue().x + pad.dpad.ReadValue().x;
+                float y = pad.leftStick.ReadValue().y + pad.dpad.ReadValue().y;
                 if (Mathf.Abs(x) > 0.35f) keyMove += Mathf.Sign(x);
+                if (Mathf.Abs(y) > 0.35f) keyMoveY += Mathf.Sign(y);
                 keyFire |= pad.buttonSouth.isPressed || pad.buttonWest.isPressed || pad.rightTrigger.isPressed || pad.rightShoulder.isPressed;
                 keyFirePressed |= pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame || pad.rightTrigger.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame;
                 confirm |= pad.startButton.wasPressedThisFrame || pad.buttonSouth.wasPressedThisFrame;
@@ -125,16 +130,20 @@ namespace Bubblewright
 #else
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) keyMove -= 1f;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) keyMove += 1f;
-            float axis = 0f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) keyMoveY -= 1f;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) keyMoveY += 1f;
+            float axis = 0f, axisY = 0f;
             try { axis = Input.GetAxisRaw("Horizontal"); } catch (System.ArgumentException) { }
+            try { axisY = Input.GetAxisRaw("Vertical"); } catch (System.ArgumentException) { }
             if (keyMove == 0f && Mathf.Abs(axis) > 0.35f) keyMove = Mathf.Sign(axis);
+            if (keyMoveY == 0f && Mathf.Abs(axisY) > 0.35f) keyMoveY = Mathf.Sign(axisY);
             KeyCode[] fireKeys = { KeyCode.Space, KeyCode.J, KeyCode.K, KeyCode.W, KeyCode.UpArrow, KeyCode.JoystickButton0, KeyCode.JoystickButton2, KeyCode.JoystickButton5 };
             foreach (var k in fireKeys)
             {
                 keyFire |= Input.GetKey(k);
                 keyFirePressed |= Input.GetKeyDown(k);
             }
-            confirm |= Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space)
+            confirm |= Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space)
                        || Input.GetKeyDown(KeyCode.JoystickButton7) || Input.GetKeyDown(KeyCode.JoystickButton0);
             any |= Input.anyKeyDown;
             for (int d = 1; d <= 4; d++) if (Input.GetKeyDown(KeyCode.Alpha0 + d)) DebugSpawn = d;
@@ -155,6 +164,7 @@ namespace Bubblewright
             float touchMove = UpdateTouch(out bool touchFire, out bool touchFirePressed, out bool touchBegan);
 
             Move = Mathf.Clamp(touchMove != 0f ? touchMove : keyMove, -1f, 1f);
+            MoveY = Mathf.Clamp(keyMoveY, -1f, 1f);
             FireHeld = keyFire || touchFire;
             FirePressed = keyFirePressed || touchFirePressed;
             ConfirmPressed = confirm || touchBegan;

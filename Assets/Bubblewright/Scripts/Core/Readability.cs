@@ -73,6 +73,8 @@ namespace Bubblewright
             yield return ("Card border", Palette.Lilac, Dimmed);
             yield return ("Rare card border", Palette.Lemon, Dimmed);
             yield return ("Hovered card border", Palette.Mint, Dimmed);
+            yield return ("Menu button border on a plate", Palette.Lilac, Plate);
+            yield return ("Hovered menu button border on a plate", Palette.Mint, Plate);
             yield return ("Pause button border on the sky", Palette.Mist, SkyWorst);
             yield return ("Timer bar", Palette.Mint, TimerTrack);
             yield return ("Timer bar, last seconds", Palette.Lemon, TimerTrack);
