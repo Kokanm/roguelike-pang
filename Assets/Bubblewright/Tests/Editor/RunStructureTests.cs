@@ -84,8 +84,16 @@ namespace Bubblewright.Tests
             CollectionAssert.AreEqual(new[] { 4, 4, 5, 5, 6, 6 }, caps);
         }
 
-        static string Describe(List<SpawnSpec> specs) =>
-            string.Join(";", specs.Select(s => $"{s.kind}/{s.tier}/{s.position.x:F2}/{s.position.y:F2}/{s.direction}"));
+        static string Describe(StagePlan plan)
+        {
+            var cells = new List<string>();
+            for (int r = 0; r < StageMap.Rows; r++)
+                for (int c = 0; c < StageMap.Cols; c++)
+                    if (plan.map.IsSolid(c, r) || plan.map.Get(c, r).ladder)
+                        cells.Add($"{c},{r},{plan.map.Get(c, r).ladder}");
+            return string.Join("|", cells) + ":" +
+                   string.Join(";", plan.spawns.Select(s => $"{s.kind}/{s.tier}/{s.position.x:F2}/{s.position.y:F2}/{s.direction}"));
+        }
 
         [Test]
         public void SameSeedAndStageGiveTheSameStage()
@@ -127,7 +135,7 @@ namespace Bubblewright.Tests
             for (int seed = 1; seed <= 5; seed++)
                 for (int s = 1; s <= Tuning.I.RunLength; s++)
                 {
-                    var specs = StageGenerator.Generate(RunAt(seed, s));
+                    var specs = StageGenerator.Generate(RunAt(seed, s)).spawns;
                     Assert.GreaterOrEqual(specs.Count, 1, $"seed {seed} stage {s}");
                     // the free Lucky bubble sits on top of the cap
                     Assert.LessOrEqual(specs.Count, StageGenerator.MaxStartBubbles(s) + 1, $"seed {seed} stage {s}");
@@ -139,9 +147,9 @@ namespace Bubblewright.Tests
         {
             for (int seed = 1; seed <= 30; seed++)
             {
-                foreach (var spec in StageGenerator.Generate(RunAt(seed, 3))) // world 1
+                foreach (var spec in StageGenerator.Generate(RunAt(seed, 3)).spawns) // world 1
                     Assert.AreNotEqual(BubbleKind.Lead, spec.kind, $"seed {seed}");
-                foreach (var spec in StageGenerator.Generate(RunAt(seed, 2))) // before trigloops
+                foreach (var spec in StageGenerator.Generate(RunAt(seed, 2)).spawns) // before trigloops
                     Assert.AreNotEqual(BubbleKind.Trigloop, spec.kind, $"seed {seed}");
             }
         }

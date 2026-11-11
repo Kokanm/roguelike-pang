@@ -245,6 +245,13 @@ namespace Bubblewright
     /// Builds a stage from the sheet's bubble budget: each stage gets a budget that grows by stage, and spends it
     /// on bubbles (XL 8, L 4, M 2, S 1, times a cost per kind). Trigloops and Leads join in later stages.
     /// </summary>
+    public class StagePlan
+    {
+        public StageMap map;
+        public List<SpawnSpec> spawns;
+        public float wickX;
+    }
+
     public static class StageGenerator
     {
         /// <summary>Bubble budget of a stage (1 to 36) from the world and the stage inside it.</summary>
@@ -267,11 +274,58 @@ namespace Bubblewright
             return hard ? time * t.hardTimeScale : time;
         }
 
-        public static List<SpawnSpec> Generate(Run run) => Generate(run.Stage, run.StageRng(0), run.IsHard);
+        public static LayoutDef PickLayout(Run run, System.Random rng) => PickLayout(run.Stage, rng);
 
-        public static List<SpawnSpec> Generate(int stage, System.Random rng, bool hard = false)
+        static LayoutDef PickLayout(int stage, System.Random rng)
+        {
+            int world = Run.WorldOf(stage);
+            int stageInWorld = Run.StageInWorldOf(stage);
+            if (Run.IsBossStageNumber(stage) || world == 1 && stageInWorld <= 2)
+                return Mirrored(StageLayouts.All[0], rng);
+
+            int wantedLevels = 2;
+            if (world >= 2 && stageInWorld >= 2)
+                wantedLevels = rng.Next(3) == 0 ? 2 : 3;
+
+            var choices = new List<LayoutDef>();
+            foreach (var layout in StageLayouts.All)
+                if (layout.levels == wantedLevels && layout.minWorld <= world)
+                    choices.Add(layout);
+
+            // minWorld can remove a whole tier from a future data set; fall back to any eligible non-flat layout.
+            if (choices.Count == 0)
+                foreach (var layout in StageLayouts.All)
+                    if (layout.levels > 1 && layout.minWorld <= world)
+                        choices.Add(layout);
+
+            return Mirrored(choices[rng.Next(choices.Count)], rng);
+        }
+
+        static LayoutDef Mirrored(LayoutDef layout, System.Random rng)
+        {
+            if (rng.NextDouble() >= 0.5) return layout;
+            return new LayoutDef
+            {
+                name = layout.name,
+                levels = layout.levels,
+                minWorld = layout.minWorld,
+                rows = StageLayouts.Mirror(layout.rows),
+            };
+        }
+
+        public static StagePlan Generate(Run run) => Generate(run.Stage, run.StageRng(0), run.IsHard, null);
+
+        public static StagePlan Generate(Run run, LayoutDef layout) =>
+            Generate(run.Stage, run.StageRng(0), run.IsHard, layout);
+
+        public static StagePlan Generate(int stage, System.Random rng, bool hard = false) =>
+            Generate(stage, rng, hard, null);
+
+        static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride)
         {
             var t = Tuning.I;
+            LayoutDef layout = layoutOverride ?? PickLayout(stage, rng);
+            StageMap map = StageLayout.Parse(layout.rows);
             float budget = Budget(stage, hard);
             int maxBubbles = MaxStartBubbles(stage);
             var picks = new List<(BubbleKind kind, int tier)>();
@@ -293,23 +347,69 @@ namespace Bubblewright
             }
             if (stage > 1 && rng.NextDouble() < t.luckyChance) picks.Add((BubbleKind.Lucky, 2));
 
-            // Biggest first, spread out to both sides and away from Wick, who starts in the middle.
+            // Biggest first. Flat stages assign the furthest random positions to the biggest bubbles.
             picks.Sort((a, b) => a.tier.CompareTo(b.tier));
             var specs = new List<SpawnSpec>();
-            int side = rng.NextDouble() < 0.5 ? -1 : 1;
-            int perSide = Mathf.CeilToInt(picks.Count / 2f);
-            float inner = 5f, outer = t.HalfWidth - 2.5f;
-            for (int i = 0; i < picks.Count; i++)
+            if (layout.levels == 1)
             {
-                var (kind, tier) = picks[i];
-                float r = t.tiers[tier].diameter * 0.5f;
-                int rank = i / 2;
-                float x = side * Mathf.Lerp(inner, outer, (rank + 0.5f) / perSide) + (float)(rng.NextDouble() * 2.0 - 1.0);
-                float y = Mathf.Min(7f + (float)rng.NextDouble() * 2f, t.arenaHeight - r - 0.5f);
-                specs.Add(new SpawnSpec { kind = kind, tier = tier, position = new Vector2(x, y), direction = rng.NextDouble() < 0.5 ? -1 : 1 });
-                side = -side;
+                var positions = new List<Vector2>();
+                float largestClearance = t.tiers[0].diameter * 0.5f + 0.25f;
+                for (int i = 0; i < picks.Count; i++)
+                    if (TryPosition(map, largestClearance, 0f, rng, out Vector2 position))
+                        positions.Add(position);
+                positions.Sort((a, b) => Mathf.Abs(b.x).CompareTo(Mathf.Abs(a.x)));
+                int count = Mathf.Min(picks.Count, positions.Count);
+                for (int i = 0; i < count; i++)
+                    specs.Add(Spec(picks[i], positions[i], rng));
             }
-            return specs;
+            else
+            {
+                foreach (var pick in picks)
+                {
+                    float clearance = t.tiers[pick.tier].diameter * 0.5f + 0.25f;
+                    if (TryPosition(map, clearance, 0f, rng, out Vector2 position))
+                        specs.Add(Spec(pick, position, rng));
+                }
+            }
+            return new StagePlan { map = map, spawns = specs, wickX = 0f };
+        }
+
+        static SpawnSpec Spec((BubbleKind kind, int tier) pick, Vector2 position, System.Random rng) =>
+            new SpawnSpec
+            {
+                kind = pick.kind,
+                tier = pick.tier,
+                position = position,
+                direction = rng.NextDouble() < 0.5 ? -1 : 1,
+            };
+
+        static bool TryPosition(StageMap map, float clearance, float wickX, System.Random rng, out Vector2 position)
+        {
+            var t = Tuning.I;
+            float minX = -t.HalfWidth + clearance;
+            float maxX = t.HalfWidth - clearance;
+            float maxY = Mathf.Min(12.5f, t.arenaHeight - clearance);
+            for (int attempt = 0; attempt < 30; attempt++)
+            {
+                // The largest bubble plus its safety margin exactly fills a four-unit level, so explicitly
+                // try the two level centres before sampling the rest of the vertical range.
+                float y = attempt == 0 ? 7f : attempt == 1 ? 12f : Mathf.Lerp(5f, maxY, (float)rng.NextDouble());
+                var candidate = new Vector2(
+                    Mathf.Lerp(minX, maxX, (float)rng.NextDouble()),
+                    y);
+                if (Mathf.Abs(candidate.x - wickX) < 5f) continue;
+
+                Vector2 resolved = candidate;
+                Contact contact = map.ResolveCircle(ref resolved, clearance);
+                if ((resolved - candidate).sqrMagnitude <= 0.000001f &&
+                    !contact.landed && !contact.bumped && contact.side == 0)
+                {
+                    position = candidate;
+                    return true;
+                }
+            }
+            position = default;
+            return false;
         }
 
         static BubbleKind PickKind(int stage, System.Random rng)
