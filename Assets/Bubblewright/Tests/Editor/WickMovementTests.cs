@@ -181,6 +181,9 @@ namespace Bubblewright.Tests
         [Test]
         public void TouchClimbHintsUseMistWithInkOutlineAndFollowNearLadderFlag()
         {
+            // Simulate Unity destroying runtime sprites when exiting Play Mode while static fields remain set.
+            Object.DestroyImmediate(PlaceholderArt.I.ClimbUpHint);
+
             var art = PlaceholderArt.I;
             Assert.NotNull(art.ClimbUpHint);
             Assert.NotNull(art.ClimbDownHint);

@@ -118,6 +118,7 @@ namespace Bubblewright
                 tipY = topY - TipHeight; // never past the underside
                 if (HoldTime <= 0f)
                 {
+                    UpdateVisual();
                     Hide();
                     return;
                 }

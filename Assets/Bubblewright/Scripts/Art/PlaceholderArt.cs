@@ -33,8 +33,10 @@ namespace Bubblewright
         public static Vector2 LauncherOffsetPixels(bool front) =>
             new Vector2((front ? LauncherFrontX : LauncherBackX) - 2 - 11.5f, 13f);
 
+        bool Alive => WickBack != null && WickBack.texture != null && ClimbUpHint != null && ClimbUpHint.texture != null;
+
         static PlaceholderArt instance;
-        public static PlaceholderArt I => instance ??= new PlaceholderArt(Tuning.I);
+        public static PlaceholderArt I => instance != null && instance.Alive ? instance : (instance = new PlaceholderArt(Tuning.I));
 
         readonly int ppu;
 
@@ -170,7 +172,7 @@ namespace Bubblewright
         /// <summary>Icon for an upgrade card, by upgrade name. Built once, then cached.</summary>
         public Texture2D UpgradeIcon(string name)
         {
-            if (!upgradeIcons.TryGetValue(name, out var tex))
+            if (!upgradeIcons.TryGetValue(name, out var tex) || tex == null)
             {
                 tex = BuildUpgradeIcon(name).ToTexture("Icon " + name);
                 upgradeIcons[name] = tex;
