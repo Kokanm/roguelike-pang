@@ -463,15 +463,8 @@ namespace Bubblewright
             return SpikeSprite(c, "SpikeHidden");
         }
 
-        /// <summary>Five steel tips, 2 px tall, ink around the metal.</summary>
-        Sprite BuildSpikeWarn() => PaintSpikes("SpikeWarn", "ILI", "ISI");
-
-        /// <summary>
-        /// Five steel triangles, 7 px tall and 3 px wide at the base. SteelLight is the left edge of the
-        /// metal, Steel is the fill, and the ink pixels are the outline. Drawn by hand so five fit in one tile.
-        /// Rows are top first.
-        /// </summary>
-        Sprite BuildSpikeRaised() => PaintSpikes("SpikeRaised", new[]
+        static readonly string[] SpikeWarnRows = { "ILI", "ISI" };
+        static readonly string[] SpikeRaisedRows =
         {
             ".I.",
             ".L.",
@@ -480,9 +473,48 @@ namespace Bubblewright
             "ILS",
             "ISS",
             "ISI",
-        });
+        };
 
-        Sprite PaintSpikes(string name, params string[] rowsTopFirst)
+        /// <summary>Five steel tips, 2 px tall, ink around the metal.</summary>
+        Sprite BuildSpikeWarn() => PaintSpikes("SpikeWarn", Palette.Steel, SpikeWarnRows);
+
+        /// <summary>
+        /// Five steel triangles, 7 px tall and 3 px wide at the base. SteelLight is the left edge of the
+        /// metal, Steel is the fill, and the ink pixels are the outline. Drawn by hand so five fit in one tile.
+        /// Rows are top first.
+        /// </summary>
+        Sprite BuildSpikeRaised() => PaintSpikes("SpikeRaised", Palette.Steel, SpikeRaisedRows);
+
+        // In the Lava theme the spikes are iron: the Steel fill is tinted 25% toward the theme's far colour.
+        const float LavaSpikeTint = 0.25f;
+        Sprite[] lavaSpikes; // hidden, warn, raised
+
+        /// <summary>The fill colour of a spike strip in this theme. Only Lava tints it.</summary>
+        public static Color32 SpikeFill(Theme theme) =>
+            theme == Themes.ForWorld(6) ? Palette.Mix(Palette.Steel, theme.far, LavaSpikeTint) : Palette.Steel;
+
+        public Sprite SpikeHiddenFor(Theme theme) => TintedSpike(theme, 0) ?? SpikeHidden;
+        public Sprite SpikeWarnFor(Theme theme) => TintedSpike(theme, 1) ?? SpikeWarn;
+        public Sprite SpikeRaisedFor(Theme theme) => TintedSpike(theme, 2) ?? SpikeRaised;
+
+        /// <summary>The theme's tinted spike sprite (built on first use), or null when the theme uses the plain steel ones.</summary>
+        Sprite TintedSpike(Theme theme, int which)
+        {
+            if (theme != Themes.ForWorld(6)) return null;
+            if (lavaSpikes == null || lavaSpikes[which] == null || lavaSpikes[which].texture == null)
+            {
+                Color32 fill = SpikeFill(theme);
+                lavaSpikes = new[]
+                {
+                    BuildSpikeHidden(),
+                    PaintSpikes("SpikeWarnLava", fill, SpikeWarnRows),
+                    PaintSpikes("SpikeRaisedLava", fill, SpikeRaisedRows),
+                };
+            }
+            return lavaSpikes[which];
+        }
+
+        Sprite PaintSpikes(string name, Color32 fill, params string[] rowsTopFirst)
         {
             int height = rowsTopFirst.Length;
             var c = new PixelCanvas(15, height);
@@ -494,19 +526,19 @@ namespace Bubblewright
                     string row = rowsTopFirst[r];
                     int y = height - 1 - r;
                     for (int x = 0; x < row.Length; x++)
-                        if (row[x] != '.') c.Set(x0 + x, y, SpikeInk(row[x]));
+                        if (row[x] != '.') c.Set(x0 + x, y, SpikeInk(row[x], fill));
                 }
             }
             return SpikeSprite(c, name);
         }
 
-        static Color32 SpikeInk(char ch)
+        static Color32 SpikeInk(char ch, Color32 fill)
         {
             switch (ch)
             {
                 case 'I': return Palette.Ink;
                 case 'L': return Palette.SteelLight;
-                case 'S': return Palette.Steel;
+                case 'S': return fill;
                 default: return Palette.Clear;
             }
         }

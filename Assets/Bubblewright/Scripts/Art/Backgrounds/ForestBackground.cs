@@ -61,7 +61,7 @@ namespace Bubblewright
             ThemeBackgrounds.PaintedFrame(c, theme);
         }
 
-        public static void PaintTileDetail(PixelCanvas c, int x, int y, Cell cell)
+        public static void PaintTileDetail(PixelCanvas c, int x, int y, Cell cell, bool openBelow)
         {
             if (cell.kind != TileKind.Solid || cell.surface != Surface.Normal) return;
             int[] positions = { 3, 8, 12 };

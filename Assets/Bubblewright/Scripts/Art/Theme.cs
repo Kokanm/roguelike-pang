@@ -23,7 +23,7 @@ namespace Bubblewright
         public Color32 strip;
         public Action<PixelCanvas, Theme, System.Random> paintBackground;
         /// <summary>Optional detail painted inside a tile after its base, cap, surface and outline.</summary>
-        public Action<PixelCanvas, int, int, Cell> paintTileDetail;
+        public Action<PixelCanvas, int, int, Cell, bool> paintTileDetail;
 
         /// <summary>The lighter of skyBottom and far: the brightest thing text can sit on in this theme.</summary>
         public Color32 Brightest => UiText.RelativeLuminance(skyBottom) >= UiText.RelativeLuminance(far) ? skyBottom : far;
@@ -48,9 +48,11 @@ namespace Bubblewright
                 0x51658F, 0xDCEBFA, 0x34456B, 0x0C1428, 0x7388B0, 0xF2FBFF, 0x0C1428,
                 WinterBackground.Paint, WinterBackground.PaintTileDetail),
             Make("Catacombs", 0x120F1A, 0x2A2233, 0x332A3F, 0x1A1522,
-                0x6E6478, 0xA79FB0, 0x463E50, 0x120F1A, 0x8C8296, 0x9FD4FF, 0x120F1A),
+                0x6E6478, 0xA79FB0, 0x463E50, 0x120F1A, 0x8C8296, 0x9FD4FF, 0x120F1A,
+                CatacombsBackground.Paint, CatacombsBackground.PaintTileDetail),
             Make("Lava", 0x17090E, 0x4A1620, 0x5C1F26, 0x240C12,
-                0x4A3A44, 0x8E7885, 0x2E222A, 0x17090E, 0x66535E, 0xC22A1F, 0x17090E),
+                0x4A3A44, 0x8E7885, 0x2E222A, 0x17090E, 0x66535E, 0xC22A1F, 0x17090E,
+                LavaBackground.Paint, LavaBackground.PaintTileDetail),
         };
 
         /// <summary>World 1 to 6; anything outside that range is clamped.</summary>
@@ -58,22 +60,22 @@ namespace Bubblewright
 
         static Theme Make(string name, int skyTop, int skyBottom, int far, int near,
             int tileFill, int tileCap, int tileShade, int tileLine, int breakFill, int accent, int strip,
-            Action<PixelCanvas, Theme, System.Random> painter = null,
-            Action<PixelCanvas, int, int, Cell> tileDetail = null) =>
+            Action<PixelCanvas, Theme, System.Random> painter,
+            Action<PixelCanvas, int, int, Cell, bool> tileDetail = null) =>
             Make(name, Palette.Hex(skyTop), Palette.Hex(skyBottom), Palette.Hex(far), Palette.Hex(near),
                 Palette.Hex(tileFill), Palette.Hex(tileCap), Palette.Hex(tileShade), Palette.Hex(tileLine),
                 Palette.Hex(breakFill), Palette.Hex(accent), Palette.Hex(strip), painter, tileDetail);
 
         static Theme Make(string name, Color32 skyTop, Color32 skyBottom, Color32 far, Color32 near,
             Color32 tileFill, Color32 tileCap, Color32 tileShade, Color32 tileLine, Color32 breakFill, Color32 accent, Color32 strip,
-            Action<PixelCanvas, Theme, System.Random> painter = null,
-            Action<PixelCanvas, int, int, Cell> tileDetail = null) =>
+            Action<PixelCanvas, Theme, System.Random> painter,
+            Action<PixelCanvas, int, int, Cell, bool> tileDetail = null) =>
             new Theme
             {
                 name = name, skyTop = skyTop, skyBottom = skyBottom, far = far, near = near,
                 tileFill = tileFill, tileCap = tileCap, tileShade = tileShade, tileLine = tileLine,
                 breakFill = breakFill, breakLine = tileShade, accent = accent, strip = strip,
-                paintBackground = painter ?? ThemeBackgrounds.Simple,
+                paintBackground = painter,
                 paintTileDetail = tileDetail,
             };
     }

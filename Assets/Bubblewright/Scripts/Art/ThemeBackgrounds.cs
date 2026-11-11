@@ -97,31 +97,6 @@ namespace Bubblewright
             }
         }
 
-        /// <summary>
-        /// Shared painter for worlds 2 to 6 until steps 11 and 12 paint the detailed ones: sky in 6 flat bands, far hills,
-        /// nearer hills, about 25 accent dots in the top half, then the arena frame and ground strip.
-        /// </summary>
-        public static void Simple(PixelCanvas c, Theme theme, System.Random rng)
-        {
-            var t = Tuning.I;
-            int ppu = t.pixelsPerUnit;
-            int Px(float wx) => Mathf.RoundToInt((wx - Left) * ppu);
-            int Py(float wy) => Mathf.RoundToInt((wy - Bottom) * ppu);
-            int floorY = Py(0f);
-
-            PaintSky(c, theme);
-
-            // Accent dots in the top half of the arena.
-            for (int i = 0; i < 25; i++)
-                c.Set(rng.Next(Px(-t.HalfWidth), Px(t.HalfWidth)), rng.Next(Py(t.arenaHeight * 0.5f), Py(t.arenaHeight)), theme.accent);
-
-            // Two hill layers across the lower third of the arena, far then near.
-            Hills(c, rng, theme.far, floorY, Py(3.3f), 13f, 6f);
-            Hills(c, rng, theme.near, floorY, Py(1.8f), 8f, 4f);
-
-            Frame(c, theme);
-        }
-
         /// <summary>Fills the sky above the floor with six hard-edged horizontal bands.</summary>
         internal static void PaintSky(PixelCanvas c, Theme theme)
         {
@@ -138,21 +113,7 @@ namespace Bubblewright
             }
         }
 
-        /// <summary>A silhouette whose top follows two summed sine waves, filled down to the floor.</summary>
-        static void Hills(PixelCanvas c, System.Random rng, Color32 color, int floorY, int baseY, float amp1, float amp2)
-        {
-            double p1 = rng.NextDouble() * 6.28, p2 = rng.NextDouble() * 6.28;
-            double f1 = 0.018 + rng.NextDouble() * 0.008, f2 = 0.05 + rng.NextDouble() * 0.02;
-            for (int x = 0; x < c.Width; x++)
-            {
-                int top = baseY + Mathf.RoundToInt((float)(System.Math.Sin(x * f1 + p1) * amp1 + System.Math.Sin(x * f2 + p2) * amp2));
-                if (top > floorY) c.Rect(x, floorY, 1, top - floorY, color);
-            }
-        }
-
         /// <summary>Arena walls, ceiling beam, floor ledge and the ground strip, in the theme's tile colours.</summary>
-        static void Frame(PixelCanvas c, Theme theme) => Frame(c, theme, false);
-
         /// <summary>Arena frame for painted worlds, restricted to that world's colours and tile-cap luminance.</summary>
         internal static void PaintedFrame(PixelCanvas c, Theme theme) => Frame(c, theme, true);
 

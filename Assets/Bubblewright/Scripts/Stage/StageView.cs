@@ -136,7 +136,7 @@ namespace Bubblewright
                 }
             }
 
-            theme.paintTileDetail?.Invoke(pixelCanvas, x0, y0, cell);
+            theme.paintTileDetail?.Invoke(pixelCanvas, x0, y0, cell, !map.IsSolid(c, r - 1));
 
             if (cell.kind == TileKind.Breakable && cell.hp == 1)
             {
