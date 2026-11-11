@@ -491,7 +491,7 @@ namespace Bubblewright
 
         /// <summary>The fill colour of a spike strip in this theme. Only Lava tints it.</summary>
         public static Color32 SpikeFill(Theme theme) =>
-            ThemeTileDetails.IsLava(theme) ? Palette.Mix(Palette.Steel, theme.far, LavaSpikeTint) : Palette.Steel;
+            theme == Themes.ForWorld(6) ? Palette.Mix(Palette.Steel, theme.far, LavaSpikeTint) : Palette.Steel;
 
         public Sprite SpikeHiddenFor(Theme theme) => TintedSpike(theme, 0) ?? SpikeHidden;
         public Sprite SpikeWarnFor(Theme theme) => TintedSpike(theme, 1) ?? SpikeWarn;
@@ -500,7 +500,7 @@ namespace Bubblewright
         /// <summary>The theme's tinted spike sprite (built on first use), or null when the theme uses the plain steel ones.</summary>
         Sprite TintedSpike(Theme theme, int which)
         {
-            if (!ThemeTileDetails.IsLava(theme)) return null;
+            if (!theme == Themes.ForWorld(6)) return null;
             if (lavaSpikes == null || lavaSpikes[which] == null || lavaSpikes[which].texture == null)
             {
                 Color32 fill = SpikeFill(theme);

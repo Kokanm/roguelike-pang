@@ -9,6 +9,7 @@ namespace Bubblewright
     /// </summary>
     public static class LavaBackground
     {
+        const int TilePixels = 15;
         const int VolcanoHeight = 110, VolcanoBaseHalf = 170, VolcanoTopHalf = 18, NotchDepth = 8, NotchHalf = 7;
         const int LavaHeight = 32;           // inside the bottom fifth of the 14 unit arena (42 px)
         const int QuietHalfWidth = 150;      // no rock spires within this many pixels of the centre
@@ -83,7 +84,22 @@ namespace Bubblewright
                 placed++;
             }
 
-            ThemeBackgrounds.Frame(c, theme, Palette.Mix(theme.tileCap, theme.tileFill, 0.35f));
+            ThemeBackgrounds.PaintedFrame(c, theme);
+        }
+
+        /// <summary>
+        /// Tile detail for basalt platforms: two 1 px vertical cracks per tile, and a faint red line along the bottom
+        /// edge when nothing is under the tile. Only solid tiles; (x, y) is the tile's bottom-left pixel.
+        /// </summary>
+        public static void PaintTileDetail(PixelCanvas c, int x, int y, Cell cell, bool openBelow)
+        {
+            if (cell.kind != TileKind.Solid) return;
+            int index = (y / TilePixels) * StageMap.Cols + x / TilePixels;
+            Color32 crack = Themes.ForWorld(6).tileShade;
+            int a = 3 + index % 3, b = 9 + index % 3;
+            for (int dy = 2; dy <= 9; dy++) c.Set(x + a, y + dy, crack);
+            for (int dy = 1; dy <= 7; dy++) c.Set(x + b, y + dy, crack);
+            if (openBelow) c.Rect(x, y, TilePixels, 1, Palette.Shade(Themes.ForWorld(6).accent, 0.7f));
         }
 
         /// <summary>A tapering spire with a jagged right edge, base on the floor line.</summary>

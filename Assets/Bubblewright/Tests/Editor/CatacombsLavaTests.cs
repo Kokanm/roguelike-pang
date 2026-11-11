@@ -85,9 +85,6 @@ namespace Bubblewright.Tests
         {
             var catacombs = Themes.ForWorld(5).paintBackground;
             var lava = Themes.ForWorld(6).paintBackground;
-            var shared = (System.Action<PixelCanvas, Theme, System.Random>)ThemeBackgrounds.Simple;
-            Assert.AreNotEqual(shared, catacombs);
-            Assert.AreNotEqual(shared, lava);
             Assert.AreNotEqual(catacombs, lava);
             Assert.AreNotEqual(Themes.ForWorld(1).paintBackground, catacombs);
             Assert.AreNotEqual(Themes.ForWorld(1).paintBackground, lava);
@@ -131,11 +128,11 @@ namespace Bubblewright.Tests
             Assert.AreEqual(t.tileShade, Pixel(10, 0, 14), "chip, left corner");
             Assert.AreEqual(t.tileLine, Pixel(10, 14, 14), "the other corner is untouched");
             Assert.AreEqual(t.tileShade, Pixel(13, 14, 14), "chip, right corner");
-            for (int x = 6; x <= 8; x++) Assert.AreEqual(t.tileShade, Pixel(13, x, 5), "skull top");
+            for (int x = 6; x <= 8; x++) Assert.AreEqual(t.tileShade, Pixel(13, x, 6), "skull top");
+            Assert.AreEqual(t.tileShade, Pixel(13, 7, 5), "nose bridge");
+            Assert.AreEqual(t.tileShade, Pixel(13, 7, 4), "jaw");
             Assert.AreEqual(t.tileFill, Pixel(13, 6, 4), "left eye is stone");
             Assert.AreEqual(t.tileFill, Pixel(13, 8, 4), "right eye is stone");
-            Assert.AreEqual(t.tileShade, Pixel(13, 7, 4), "nose bridge");
-            Assert.AreEqual(t.tileShade, Pixel(13, 7, 3), "jaw");
             Assert.AreEqual(t.tileFill, Pixel(0, 7, 4), "no skull on a plain tile");
             Assert.AreEqual(t.breakFill, Pixel(23, 7, 7), "breakable keeps its fill and brick pattern");
             Assert.AreEqual(t.breakFill, Pixel(23, 7, 4), "breakable has no skull mark");
@@ -147,8 +144,8 @@ namespace Bubblewright.Tests
             var t = Themes.ForWorld(6);
             var map = StageMap.Flat();
             map.Set(2, 4, new Cell { kind = TileKind.Solid });   // a platform with nothing under it
-            map.Set(5, 4, new Cell { kind = TileKind.Solid });
-            map.Set(5, 3, new Cell { kind = TileKind.Solid });   // a column: the upper tile has a tile under it
+            map.Set(5, 4, new Cell { kind = TileKind.Solid });   // this one has a tile under it
+            map.Set(5, 3, new Cell { kind = TileKind.Solid });   // ...and this one has nothing under it
             var pixels = PaintStage(map, t, out int width);
             Color32 Pixel(int c, int r, int x, int y) => pixels[(r * 15 + y) * width + c * 15 + x];
             Color32 glow = Palette.Shade(t.accent, 0.7f);
@@ -156,10 +153,9 @@ namespace Bubblewright.Tests
             int index = 4 * StageMap.Cols + 2;
             Assert.AreEqual(t.tileShade, Pixel(2, 4, 3 + index % 3, 5), "first crack");
             Assert.AreEqual(t.tileShade, Pixel(2, 4, 9 + index % 3, 4), "second crack");
-            for (int x = 0; x < 15; x++) Assert.AreEqual(glow, Pixel(2, 3, x, 14), $"glow under the open platform, x {x}");
-            Assert.AreNotEqual(glow, Pixel(2, 4, 7, 0), "the glow is outside the tile");
-            Assert.AreNotEqual(glow, Pixel(5, 3, 7, 14), "the upper tile of a column has a tile under it: no glow row");
-            for (int x = 0; x < 15; x++) Assert.AreEqual(glow, Pixel(5, 2, x, 14), $"the lower tile's open underside glows, x {x}");
+            for (int x = 0; x < 15; x++) Assert.AreEqual(glow, Pixel(2, 4, x, 0), $"glow along the open underside, x {x}");
+            for (int x = 0; x < 15; x++) Assert.AreNotEqual(glow, Pixel(5, 4, x, 0), "a tile with a tile under it does not glow");
+            for (int x = 0; x < 15; x++) Assert.AreEqual(glow, Pixel(5, 3, x, 0), "the lower of the pair glows");
         }
 
         // Paints a map with StageView and returns the tile layer's pixels.

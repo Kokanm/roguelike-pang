@@ -9,6 +9,7 @@ namespace Bubblewright
     /// </summary>
     public static class CatacombsBackground
     {
+        const int TilePixels = 15;
         const int ArchWidth = 60, PillarWidth = 12, ArchPitch = ArchWidth + PillarWidth;
         const int ArchSpring = 58;           // straight sides up to here
         const int ArchHeight = 110;          // spring + the rise of the pointed top
@@ -82,7 +83,29 @@ namespace Bubblewright
                 c.Rect(centre + quiet, floorY + rise - 3, w - centre - quiet, 3, theme.near);
             }
 
-            ThemeBackgrounds.Frame(c, theme, Palette.Mix(theme.tileCap, theme.tileFill, 0.35f));
+            ThemeBackgrounds.PaintedFrame(c, theme);
+        }
+
+        /// <summary>
+        /// Tile detail: every third tile gets a 1 px chip out of one top corner, every fifth a 3 x 3 skull mark. Only
+        /// solid platform tiles; breakables keep their brick pattern. (x, y) is the tile's bottom-left pixel, so the tile
+        /// index is recovered from the column and row.
+        /// </summary>
+        public static void PaintTileDetail(PixelCanvas c, int x, int y, Cell cell, bool openBelow)
+        {
+            if (cell.kind != TileKind.Solid) return;
+            int column = x / TilePixels, row = y / TilePixels;
+            int index = row * StageMap.Cols + column;
+            Color32 shade = Themes.ForWorld(5).tileShade;
+            if (index % 3 == 0)
+                c.Set(x + (index / 3 % 2 == 0 ? 0 : TilePixels - 1), y + TilePixels - 1, shade);
+            if (index % 5 == 0)
+            {
+                // A 3 x 3 skull: flat top, a nose bridge, and a jaw. The eyes are left as stone.
+                c.Rect(x + 6, y + 6, 3, 1, shade);
+                c.Set(x + 7, y + 5, shade);
+                c.Set(x + 7, y + 4, shade);
+            }
         }
 
         /// <summary>Height of the arch opening at dx pixels from its centre (0 when outside). Two arcs of radius 60 form the point.</summary>
