@@ -78,7 +78,7 @@ namespace Bubblewright
             switch (item)
             {
                 case 0: Resume(); break;
-                case 1: Resume(); SaveGame.Delete(); StartRun(); break;
+                case 1: Resume(); SaveGame.Delete(); StartRun(run.Character); break;
                 case 2: Resume(); SaveGame.UpdateHearts(wick.Hearts); OpenTitle(); break;
                 case 3: debugPanel = !debugPanel; break;
             }
@@ -91,6 +91,7 @@ namespace Bubblewright
             if (debug.god) summary = "GOD MODE";
             if (debug.freezeTimer) summary = summary == null ? "TIMER FROZEN" : summary + " · TIMER FROZEN";
             if (debug.spikes) summary = summary == null ? "SPIKES" : summary + " · SPIKES";
+            if (Unlocks.DebugAll) summary = summary == null ? "ALL CHARACTERS" : summary + " · ALL CHARACTERS";
             if (testLayout)
             {
                 string layout = $"TEST LAYOUT: {CurrentTestLayout.name.ToUpperInvariant()}";
@@ -258,6 +259,8 @@ namespace Bubblewright
             GUILayout.BeginHorizontal();
             bool spikesOn = DbgToggle("SPIKES", debug.spikes, k, 90);
             if (spikesOn != debug.spikes) SetDebugSpikes(spikesOn);
+            Unlocks.DebugAll = DbgToggle("UNLOCK ALL", Unlocks.DebugAll, k, 100);
+            if (DbgButton("RESET UNLOCKS", k, 100)) Unlocks.Reset();
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();

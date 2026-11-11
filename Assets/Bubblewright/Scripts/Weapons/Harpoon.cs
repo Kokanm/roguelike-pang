@@ -11,6 +11,9 @@ namespace Bubblewright
     {
         public bool Active { get; private set; }
         /// <summary>Run upgrades: cable speed, extra hit width, and seconds the tip stays hooked in the ceiling.</summary>
+        float? baseSpeed;
+        /// <summary>The character's own shot speed; Wick's follows Tuning until a character sets it.</summary>
+        public float BaseSpeed { get => baseSpeed ?? T.harpoonSpeed; set => baseSpeed = value; }
         public float SpeedMultiplier { get; set; } = 1f;
         public float WidthMultiplier { get; set; } = 1f;
         public float HoldTime { get; set; }
@@ -119,7 +122,7 @@ namespace Bubblewright
             var map = Game.Map;
             int hitRow = StageMap.Rows;
             topY = map != null ? map.CeilingAbove(x, baseY, out hitRow) : T.arenaHeight;
-            tipY += T.harpoonSpeed * SpeedMultiplier * dt;
+            tipY += BaseSpeed * SpeedMultiplier * dt;
             ChipPassedRows(map);
             if (tipY + TipHeight >= topY)
             {

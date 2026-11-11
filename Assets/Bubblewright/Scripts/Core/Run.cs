@@ -16,6 +16,7 @@ namespace Bubblewright
         public int Hearts;
         public int MaxHearts;
         public readonly int Seed;
+        public Character Character;
 
         // Upgrade numbers, all neutral at the start of a run.
         public float SpeedMultiplier = 1f;
@@ -31,10 +32,12 @@ namespace Bubblewright
 
         readonly List<Upgrade> taken = new List<Upgrade>();
 
-        public Run(int seed)
+        public Run(int seed, Character character = null)
         {
             Seed = seed;
-            MaxHearts = Hearts = Tuning.I.hearts;
+            Character = character ?? Character.Wick;
+            MaxHearts = Hearts = Character.StartHearts;
+            Shots = Character.StartShots;
         }
 
         public bool IsLastStage => Stage >= Tuning.I.RunLength;
@@ -171,7 +174,7 @@ namespace Bubblewright
                 hearts = Hearts,
                 maxHearts = MaxHearts,
                 upgrades = names,
-                character = "wick",
+                character = Character.id,
                 hardWorld = (bool[])hardWorld.Clone(),
                 worldDebuff = (string[])worldDebuff.Clone(),
             };
@@ -180,7 +183,7 @@ namespace Bubblewright
         public static Run FromSave(SaveData d)
         {
             if (d == null || d.version != 1) return null;
-            var run = new Run(d.seed);
+            var run = new Run(d.seed, Character.ById(d.character));
             if (d.upgrades != null)
             {
                 foreach (var name in d.upgrades)

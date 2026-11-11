@@ -43,12 +43,16 @@ namespace Bubblewright
         PlaceholderArt(Tuning t)
         {
             ppu = t.pixelsPerUnit;
-            WickBack = BuildWick(false, out WickBackFlash);
-            WickFront = BuildWick(true, out WickFrontFlash);
+            var wick = SpritesFor(Character.Wick);
+            WickBack = wick.Back;
+            WickFront = wick.Front;
+            WickBackFlash = wick.BackFlash;
+            WickFrontFlash = wick.FrontFlash;
+            Launcher = wick.Launcher;
+            LauncherFlash = wick.LauncherFlash;
+            Hand = wick.Hand;
             Flame = BuildFlame();
             PickupRing = BuildPickupRing();
-            Launcher = BuildLauncher(out LauncherFlash);
-            Hand = BuildHand();
 
             int kindCount = System.Enum.GetValues(typeof(BubbleKind)).Length;
             Bubbles = new Sprite[kindCount, t.tiers.Length];
@@ -110,25 +114,56 @@ namespace Bubblewright
             return c.ToSprite("PickupRing", new Vector2(6.5f, 0f), ppu);
         }
 
-        // ---------------------------------------------------------------- Wick (23 x 30 px, pivot at feet)
+        // ---------------------------------------------------------------- Characters (23 x 30 px, pivot at feet)
 
-        Sprite BuildWick(bool front, out Sprite flash)
+        /// <summary>Everything about a hero that carries the cloak colours. The flame and hearts are shared.</summary>
+        public class CharacterSprites
+        {
+            public Sprite Back, Front, BackFlash, FrontFlash, Hand, Launcher, LauncherFlash;
+            /// <summary>Flat Palette.Dusk shape of the front view, for locked cards.</summary>
+            public Sprite FrontLocked;
+        }
+
+        readonly System.Collections.Generic.Dictionary<string, CharacterSprites> characterSprites =
+            new System.Collections.Generic.Dictionary<string, CharacterSprites>();
+
+        /// <summary>Builds on first use and keeps the result.</summary>
+        public CharacterSprites SpritesFor(Character c)
+        {
+            c = c ?? Character.Wick;
+            if (characterSprites.TryGetValue(c.id, out var cached) && cached.Back != null && cached.Back.texture != null) return cached;
+            var set = new CharacterSprites
+            {
+                Back = BuildWick(false, c.body, c.bodyDark, c.bodyLine, out Sprite backFlash, out _),
+                BackFlash = backFlash,
+            };
+            set.Front = BuildWick(true, c.body, c.bodyDark, c.bodyLine, out Sprite frontFlash, out Sprite locked);
+            set.FrontFlash = frontFlash;
+            set.FrontLocked = locked;
+            set.Launcher = BuildLauncher(c.body, out Sprite launcherFlash);
+            set.LauncherFlash = launcherFlash;
+            set.Hand = BuildHand(c.body);
+            characterSprites[c.id] = set;
+            return set;
+        }
+
+        Sprite BuildWick(bool front, Color32 body, Color32 bodyDark, Color32 bodyLine, out Sprite flash, out Sprite locked)
         {
             var c = new PixelCanvas(23, 30);
             // Cloak: round body
-            c.Ellipse(11.5f, 11f, 8.5f, 8f, Palette.Saffron);
-            c.EllipseOnFilled(11.5f, 2.5f, 10f, 3.5f, Palette.SaffronDark);
+            c.Ellipse(11.5f, 11f, 8.5f, 8f, body);
+            c.EllipseOnFilled(11.5f, 2.5f, 10f, 3.5f, bodyDark);
             // Belt: interior line in darker orange, not ink
-            c.RectOnFilled(3, 8, 17, 1, Palette.SaffronLine);
+            c.RectOnFilled(3, 8, 17, 1, bodyLine);
             // Boots (shared by both views), drawn over the cloak hem
             c.Rect(6, 1, 5, 3, Palette.Ink);
             c.Rect(12, 1, 5, 3, Palette.Ink);
             c.Rect(7, 3, 3, 1, Palette.Deep);
             c.Rect(13, 3, 3, 1, Palette.Deep);
             // Hood
-            c.Ellipse(11.5f, 19.5f, 6.5f, 5.5f, Palette.Saffron);
-            c.Ellipse(11.5f, 24f, 2f, 2.2f, Palette.Saffron);
-            c.RectOnFilled(6, 14, 12, 1, Palette.SaffronDark);
+            c.Ellipse(11.5f, 19.5f, 6.5f, 5.5f, body);
+            c.Ellipse(11.5f, 24f, 2f, 2.2f, body);
+            c.RectOnFilled(6, 14, 12, 1, bodyDark);
             // Candle wick on top (the flame is its own sprite)
             c.Rect(11, 26, 1, 2, Palette.Ink);
 
@@ -138,11 +173,11 @@ namespace Bubblewright
                 c.Ellipse(11.5f, 19f, 4f, 3.2f, Palette.Ink);
                 c.Rect(9, 19, 1, 2, Palette.Cream);
                 c.Rect(14, 19, 1, 2, Palette.Cream);
-                c.RectOnFilled(11, 4, 1, 9, Palette.SaffronLine); // cloak opening
+                c.RectOnFilled(11, 4, 1, 9, bodyLine); // cloak opening
             }
             else
             {
-                c.RectOnFilled(11, 15, 1, 9, Palette.SaffronLine); // hood seam
+                c.RectOnFilled(11, 15, 1, 9, bodyLine); // hood seam
             }
             // The launcher is its own part (BuildLauncher) so it can kick and rise on its own.
 
@@ -150,11 +185,12 @@ namespace Bubblewright
             string name = front ? "Wick_Front" : "Wick_Back";
             var pivot = new Vector2(11.5f, 0f);
             flash = c.Silhouette(Palette.Cream).ToSprite(name + "_Flash", pivot, ppu);
+            locked = c.Silhouette(Palette.Dusk).ToSprite(name + "_Locked", pivot, ppu);
             return c.ToSprite(name, pivot, ppu);
         }
 
         /// <summary>Steel launcher and the hand gripping it. Pivot at the bottom-left; see LauncherOffsetPixels.</summary>
-        Sprite BuildLauncher(out Sprite flash)
+        Sprite BuildLauncher(Color32 hand, out Sprite flash)
         {
             var c = new PixelCanvas(6, 13);
             const int x = 2, y = 1;
@@ -162,17 +198,17 @@ namespace Bubblewright
             c.Rect(x, y, 1, 11, Palette.SteelLight);
             c.Rect(x + 2, y, 1, 11, Palette.SteelDark);
             c.Rect(x, y + 10, 3, 1, Palette.SteelLight);
-            c.Rect(x - 1, y + 1, 2, 2, Palette.Saffron); // hand
+            c.Rect(x - 1, y + 1, 2, 2, hand);
             c.Outline(Palette.Ink);
             flash = c.Silhouette(Palette.Cream).ToSprite("Launcher_Flash", Vector2.zero, ppu);
             return c.ToSprite("Launcher", Vector2.zero, ppu);
         }
 
         /// <summary>His free hand, shown only when he waves or cheers. Pivot at the centre.</summary>
-        Sprite BuildHand()
+        Sprite BuildHand(Color32 body)
         {
             var c = new PixelCanvas(5, 5);
-            c.Rect(1, 1, 3, 3, Palette.Saffron);
+            c.Rect(1, 1, 3, 3, body);
             c.Outline(Palette.Ink);
             return c.ToSprite("Hand", new Vector2(2.5f, 2.5f), ppu);
         }

@@ -93,10 +93,9 @@ namespace Bubblewright
             {
                 if (item == 0)
                 {
-                    SaveGame.Delete();
-                    savedRun = null;
+                    // The old save stays until the new run starts, so backing out of the select screen keeps it.
                     confirmingNewRun = false;
-                    StartRun();
+                    OpenSelect();
                 }
                 else CloseNewRunConfirm();
                 return;
@@ -113,7 +112,7 @@ namespace Bubblewright
                     Sfx.Play(Sound.Turn);
                 }
             }
-            else StartRun();
+            else OpenSelect();
         }
 
         void CloseNewRunConfirm()
@@ -130,7 +129,7 @@ namespace Bubblewright
             savedRun = null;
             if (loaded == null)
             {
-                StartRun();
+                OpenSelect();
                 return;
             }
             run = loaded;
@@ -167,7 +166,7 @@ namespace Bubblewright
                 DrawMenuButton(titleRects[i], items[i], canHover && i == titleSelected, k);
 
             if (!confirmingNewRun && savedRun != null)
-                Label(SavedPlace(savedRun), titleRects[0].center.x - 90 * k, buttonY + h + 4 * k, UiText.Secondary, TextAnchor.UpperCenter, 180 * k);
+                Label($"{savedRun.Character.name.ToUpperInvariant()}, {SavedPlace(savedRun)}", titleRects[0].center.x - 90 * k, buttonY + h + 4 * k, UiText.Secondary, TextAnchor.UpperCenter, 180 * k);
         }
     }
 }
