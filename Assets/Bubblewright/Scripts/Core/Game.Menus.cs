@@ -78,7 +78,7 @@ namespace Bubblewright
             {
                 case 0: Resume(); break;
                 case 1: Resume(); SaveGame.Delete(); StartRun(); break;
-                case 2: Resume(); OpenTitle(); break;
+                case 2: Resume(); SaveGame.UpdateHearts(wick.Hearts); OpenTitle(); break;
                 case 3: debugPanel = !debugPanel; break;
             }
         }

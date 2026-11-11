@@ -23,16 +23,43 @@ namespace Bubblewright
         public static void Save(Run run)
         {
             if (run == null) return;
-            string json = JsonUtility.ToJson(run.ToSave());
+            WriteData(run.ToSave());
+        }
+
+        /// <summary>
+        /// Writes a mid-stage heart loss into the stage-start save without banking mid-stage score,
+        /// so quitting to title or closing the app cannot restore lost hearts.
+        /// </summary>
+        public static void UpdateHearts(int hearts)
+        {
+            if (hearts <= 0)
+            {
+                Delete();
+                return;
+            }
+            SaveData data = ReadData();
+            if (data == null || hearts >= data.hearts) return;
+            data.hearts = hearts;
+            WriteData(data);
+        }
+
+        public static Run Load()
+        {
+            SaveData data = ReadData();
+            return data == null ? null : Run.FromSave(data);
+        }
+
+        public static void Delete()
+        {
             try
             {
-                PlayerPrefs.SetString(Key, json);
+                PlayerPrefs.DeleteKey(Key);
                 PlayerPrefs.Save();
             }
             catch { }
         }
 
-        public static Run Load()
+        static SaveData ReadData()
         {
             string json;
             try
@@ -52,14 +79,15 @@ namespace Bubblewright
 
             if (data == null || data.version != 1 || data.stage < 1 || data.hearts < 1 || data.maxHearts < 1)
                 return null;
-            return Run.FromSave(data);
+            return data;
         }
 
-        public static void Delete()
+        static void WriteData(SaveData data)
         {
+            string json = JsonUtility.ToJson(data);
             try
             {
-                PlayerPrefs.DeleteKey(Key);
+                PlayerPrefs.SetString(Key, json);
                 PlayerPrefs.Save();
             }
             catch { }

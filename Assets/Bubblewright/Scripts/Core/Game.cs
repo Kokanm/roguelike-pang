@@ -356,6 +356,11 @@ namespace Bubblewright
                         SetState(State.Over);
                         Sfx.Play(Sound.Over);
                     }
+                    else
+                    {
+                        run.Hearts = wick.Hearts;
+                        SaveGame.UpdateHearts(wick.Hearts);
+                    }
                     break;
                 }
             }

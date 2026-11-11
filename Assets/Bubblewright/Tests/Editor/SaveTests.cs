@@ -132,5 +132,32 @@ namespace Bubblewright.Tests
             var oneHeart = new Run(7) { Stage = 3, Hearts = 1 };
             Assert.AreEqual("WORLD 1-3, 1 HEART", Game.SavedPlace(oneHeart));
         }
+
+        [Test]
+        public void UpdateHeartsPersistsDamageWhileKeepingStageStartScore()
+        {
+            var run = BuildSampleRun();
+            run.Hearts = 3;
+            SaveGame.Save(run);
+
+            // Simulate popping bubbles mid-stage, then taking two hits before quitting or closing the app.
+            run.AddScore(500);
+            SaveGame.UpdateHearts(1);
+
+            var loaded = SaveGame.Load();
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(1, loaded.Hearts);
+            Assert.AreEqual(4, loaded.MaxHearts);
+            Assert.AreEqual(1234, loaded.Score, "mid-stage points must not be banked when continuing");
+            Assert.AreEqual(9, loaded.Stage);
+
+            // Mid-stage heart gains cannot raise the saved heart count above what was already lost.
+            SaveGame.UpdateHearts(3);
+            Assert.AreEqual(1, SaveGame.Load().Hearts);
+
+            // Lethal damage removes the save.
+            SaveGame.UpdateHearts(0);
+            Assert.IsFalse(SaveGame.Exists);
+        }
     }
 }
