@@ -56,6 +56,9 @@ namespace Bubblewright
             yield return ("Build line in the ground strip", Primary, GroundStrip);
             yield return ("Timer warning and cheats on the sky", Warning, SkyWorst);
             yield return ("Storm banner on a plate", Warning, Plate);
+            yield return ("Hard road line on a plate", Warning, Plate);
+            yield return ("RARE label on a card", Warning, CardFill);
+            yield return ("RARE label on a hovered card", Warning, CardFillHover);
             yield return ("Pause button label", Primary, CardFill);
             yield return ("Debug panel title", Warning, DebugPanel);
             yield return ("Debug panel labels", Secondary, DebugPanel);
@@ -68,6 +71,7 @@ namespace Bubblewright
         public static IEnumerable<(string name, Color edge, Color background)> ControlPairs()
         {
             yield return ("Card border", Palette.Lilac, Dimmed);
+            yield return ("Rare card border", Palette.Lemon, Dimmed);
             yield return ("Hovered card border", Palette.Mint, Dimmed);
             yield return ("Pause button border on the sky", Palette.Mist, SkyWorst);
             yield return ("Timer bar", Palette.Mint, TimerTrack);

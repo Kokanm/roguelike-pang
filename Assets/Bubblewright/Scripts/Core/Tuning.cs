@@ -140,6 +140,19 @@ namespace Bubblewright
         [Tooltip("With more than one cable, the gap between shots while fire is held.")]
         public float multiShotGap = 0.15f;
 
+        [Header("Hard worlds")]
+        [Tooltip("A hard world has this much more bubble budget (boss stage included).")]
+        public float hardBudgetScale = 1.3f;
+        [Tooltip("A hard world has this share of the normal clock.")]
+        public float hardTimeScale = 0.75f;
+        [Tooltip("Everything scored in a hard world counts this many times.")]
+        public float hardScoreScale = 2f;
+        [Tooltip("Chance that a card slot is drawn from the rare upgrades.")]
+        [Range(0f, 1f)] public float rareChance = 0.15f;
+        [Tooltip("Cards offered after the boss of a hard world, and how many of them can be taken.")]
+        public int hardRewardCards = 4;
+        public int hardRewardPicks = 2;
+
         [Header("Storm timer")]
         [Tooltip("Seconds on the clock = timeBase + timePerWorld * (world - 1) + timePerStage * (stage in world - 1). The clock runs only while playing, not in the intro.")]
         public float timeBase = 60f;

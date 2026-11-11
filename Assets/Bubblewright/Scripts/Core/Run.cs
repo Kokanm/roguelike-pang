@@ -25,6 +25,10 @@ namespace Bubblewright
         public float ExtraInvulnerable;
         public int Shots = 1;
 
+        // Hard worlds, indexed by world number 1 to 6. A hard world has more bubbles, less time, one debuff and richer rewards.
+        public readonly bool[] hardWorld = new bool[7];
+        public readonly string[] worldDebuff = new string[7];
+
         readonly List<Upgrade> taken = new List<Upgrade>();
 
         public Run(int seed)
@@ -42,6 +46,23 @@ namespace Bubblewright
         /// <summary>The last stage of a world is its boss stage. Bosses come later; for now it is a bigger normal stage.</summary>
         public bool IsBossStage => IsBossStageNumber(Stage);
         public string WorldName => WorldNameOf(World);
+
+        public bool IsHard => World < hardWorld.Length && hardWorld[World];
+        /// <summary>The debuff of the world being played, or null when it is a calm world.</summary>
+        public Debuff CurrentDebuff => IsHard ? Debuff.ByName(worldDebuff[World]) : null;
+
+        public void SetHard(int world, Debuff d)
+        {
+            if (world < 1 || world >= hardWorld.Length) return;
+            hardWorld[world] = d != null;
+            worldDebuff[world] = d?.Name;
+        }
+
+        /// <summary>All scoring goes through here, so a hard world can count double.</summary>
+        public void AddScore(int points) => Score += Mathf.RoundToInt(points * (IsHard ? Tuning.I.hardScoreScale : 1f));
+
+        /// <summary>The pick after the boss of a hard world: more cards, and more than one can be taken.</summary>
+        public bool IsRichPick => IsBossStage && IsHard;
 
         public static int WorldOf(int stage) => (Mathf.Max(1, stage) - 1) / Tuning.I.stagesPerWorld + 1;
         public static int StageInWorldOf(int stage) => (Mathf.Max(1, stage) - 1) % Tuning.I.stagesPerWorld + 1;
@@ -84,20 +105,60 @@ namespace Bubblewright
             return parts.Count == 0 ? "nothing yet" : string.Join(", ", parts);
         }
 
-        /// <summary>Up to three different upgrades this run can still take, in random order.</summary>
-        public List<Upgrade> RollChoices(int count = 3)
+        /// <summary>
+        /// Up to count different upgrades this run can still take, in random order. Each slot is rare with
+        /// Tuning.rareChance; with ensureRare the first slot is always rare (when any rare can still be offered).
+        /// </summary>
+        public List<Upgrade> RollChoices(int count = 3, bool ensureRare = false)
         {
-            var pool = new List<Upgrade>();
-            foreach (var u in Upgrade.All) if (u.CanOffer(this)) pool.Add(u);
+            var common = new List<Upgrade>();
+            var rare = new List<Upgrade>();
+            foreach (var u in Upgrade.All)
+            {
+                if (!u.CanOffer(this)) continue;
+                (u.Rarity == Rarity.Rare ? rare : common).Add(u);
+            }
             var picks = new List<Upgrade>();
             var rng = StageRng(1);
-            while (picks.Count < count && pool.Count > 0)
+            for (int slot = 0; slot < count && (common.Count > 0 || rare.Count > 0); slot++)
             {
+                bool wantRare = (ensureRare && slot == 0) || rng.NextDouble() < Tuning.I.rareChance;
+                var pool = wantRare ? (rare.Count > 0 ? rare : common) : (common.Count > 0 ? common : rare);
                 int i = rng.Next(pool.Count);
                 picks.Add(pool[i]);
                 pool.RemoveAt(i);
             }
             return picks;
+        }
+    }
+
+    public enum Rarity { Common, Rare }
+
+    /// <summary>
+    /// What a hard world does to the character. Placeholder set that Kokan will redesign, so it is all data.
+    /// The scales multiply the run's numbers for the whole world and stop when the next world starts.
+    /// </summary>
+    public class Debuff
+    {
+        public string Name;
+        public string Text;
+        public float speedScale = 1f;
+        public float invulnerableScale = 1f;
+        public float harpoonSpeedScale = 1f;
+        public bool noRelight;
+
+        public static readonly Debuff[] All =
+        {
+            new Debuff { Name = "Heavy Boots", Text = "Walk 15% slower.", speedScale = 0.85f },
+            new Debuff { Name = "Short Glow", Text = "Half the safe time after a hit.", invulnerableScale = 0.5f },
+            new Debuff { Name = "Frayed Cable", Text = "Harpoons fly 20% slower.", harpoonSpeedScale = 0.8f },
+            new Debuff { Name = "Cold Wick", Text = "No Relight cards in this world.", noRelight = true },
+        };
+
+        public static Debuff ByName(string name)
+        {
+            foreach (var d in All) if (d.Name == name) return d;
+            return null;
         }
     }
 
@@ -110,6 +171,7 @@ namespace Bubblewright
         public string Name;
         public string Text;
         public int Max = 1;
+        public Rarity Rarity;
         public Func<Run, bool> Extra = _ => true;
         public Action<Run> Apply;
 
@@ -117,14 +179,14 @@ namespace Bubblewright
 
         public static readonly Upgrade[] All =
         {
-            new Upgrade { Name = "Twin Cable", Text = "One more harpoon on screen at a time.", Max = 2, Apply = r => r.Shots++ },
-            new Upgrade { Name = "Anchor Tip", Text = "The tip hooks into the ceiling and the cable stays for 1.5 s.", Apply = r => r.CableHold = 1.5f },
+            new Upgrade { Name = "Twin Cable", Text = "One more harpoon on screen at a time.", Max = 2, Rarity = Rarity.Rare, Apply = r => r.Shots++ },
+            new Upgrade { Name = "Anchor Tip", Text = "The tip hooks into the ceiling and the cable stays for 1.5 s.", Rarity = Rarity.Rare, Apply = r => r.CableHold = 1.5f },
             new Upgrade { Name = "Quick Winch", Text = "Harpoons fly 30% faster.", Max = 2, Apply = r => r.HarpoonSpeedMultiplier += 0.3f },
             new Upgrade { Name = "Wide Barbs", Text = "Harpoons hit bubbles from twice as far to the side.", Apply = r => r.HarpoonWidthMultiplier = 2f },
             new Upgrade { Name = "Swift Boots", Text = "Run 12% faster.", Max = 3, Apply = r => r.SpeedMultiplier += 0.12f },
             new Upgrade { Name = "Long Glow", Text = "Stay safe 0.75 s longer after a hit.", Max = 2, Apply = r => r.ExtraInvulnerable += 0.75f },
-            new Upgrade { Name = "Spare Wick", Text = "One more heart, and it starts lit.", Max = 2, Apply = r => { r.MaxHearts++; r.Hearts++; } },
-            new Upgrade { Name = "Relight", Text = "Get back one lost heart.", Max = 0, Extra = r => r.Hearts < r.MaxHearts, Apply = r => r.Hearts++ },
+            new Upgrade { Name = "Spare Wick", Text = "One more heart, and it starts lit.", Max = 2, Rarity = Rarity.Rare, Apply = r => { r.MaxHearts++; r.Hearts++; } },
+            new Upgrade { Name = "Relight", Text = "Get back one lost heart.", Max = 0, Extra = r => r.Hearts < r.MaxHearts && !(r.CurrentDebuff?.noRelight ?? false), Apply = r => r.Hearts++ },
         };
     }
 
@@ -135,29 +197,31 @@ namespace Bubblewright
     public static class StageGenerator
     {
         /// <summary>Bubble budget of a stage (1 to 36) from the world and the stage inside it.</summary>
-        public static float Budget(int stage)
+        public static float Budget(int stage, bool hard = false)
         {
             var t = Tuning.I;
             float budget = t.budgetBase + t.budgetPerWorld * (Run.WorldOf(stage) - 1) + t.budgetPerStage * (Run.StageInWorldOf(stage) - 1);
-            return Run.IsBossStageNumber(stage) ? budget * t.bossPlaceholderBudgetScale : budget;
+            if (Run.IsBossStageNumber(stage)) budget *= t.bossPlaceholderBudgetScale;
+            return hard ? budget * t.hardBudgetScale : budget;
         }
 
         /// <summary>Most bubbles at the start: 4, 4, 5, 5, 6, 6 for worlds 1 to 6.</summary>
         public static int MaxStartBubbles(int stage) => Tuning.I.startBubblesBase + (Run.WorldOf(stage) + 1) / 2;
 
         /// <summary>Seconds on the storm clock for a stage (1 to 36).</summary>
-        public static float StageTime(int stage)
+        public static float StageTime(int stage, bool hard = false)
         {
             var t = Tuning.I;
-            return t.timeBase + t.timePerWorld * (Run.WorldOf(stage) - 1) + t.timePerStage * (Run.StageInWorldOf(stage) - 1);
+            float time = t.timeBase + t.timePerWorld * (Run.WorldOf(stage) - 1) + t.timePerStage * (Run.StageInWorldOf(stage) - 1);
+            return hard ? time * t.hardTimeScale : time;
         }
 
-        public static List<SpawnSpec> Generate(Run run) => Generate(run.Stage, run.StageRng(0));
+        public static List<SpawnSpec> Generate(Run run) => Generate(run.Stage, run.StageRng(0), run.IsHard);
 
-        public static List<SpawnSpec> Generate(int stage, System.Random rng)
+        public static List<SpawnSpec> Generate(int stage, System.Random rng, bool hard = false)
         {
             var t = Tuning.I;
-            float budget = Budget(stage);
+            float budget = Budget(stage, hard);
             int maxBubbles = MaxStartBubbles(stage);
             var picks = new List<(BubbleKind kind, int tier)>();
 

@@ -56,7 +56,8 @@ namespace Bubblewright
         bool newBest;
         List<Upgrade> choices = new List<Upgrade>();
         int selected, lastMoveDir;
-        readonly Rect[] cardRects = new Rect[3]; // GUI space, written by OnGUI, read by TickPick
+        int picksLeft; // cards still to take in this pick (2 after the boss of a hard world)
+        readonly Rect[] cardRects = new Rect[4]; // GUI space, written by OnGUI, read by TickPick
         bool showHitboxes;
         Vector3 cameraHome;
 
@@ -191,12 +192,14 @@ namespace Bubblewright
 
         void ApplyRunUpgrades()
         {
-            wick.SpeedMultiplier = run.SpeedMultiplier;
+            var debuff = run.CurrentDebuff; // a hard world's debuff holds for every stage of that world
+            wick.SpeedMultiplier = run.SpeedMultiplier * (debuff?.speedScale ?? 1f);
             wick.ExtraInvulnerable = run.ExtraInvulnerable;
+            wick.InvulnerableScale = debuff?.invulnerableScale ?? 1f;
             while (harpoons.Count < run.Shots) harpoons.Add(Harpoon.Create(world));
             foreach (var h in harpoons)
             {
-                h.SpeedMultiplier = run.HarpoonSpeedMultiplier;
+                h.SpeedMultiplier = run.HarpoonSpeedMultiplier * (debuff?.harpoonSpeedScale ?? 1f);
                 h.WidthMultiplier = run.HarpoonWidthMultiplier;
                 h.HoldTime = run.CableHold;
             }
@@ -364,7 +367,7 @@ namespace Bubblewright
 
         // ------------------------------------------------------------------ storm timer
 
-        float StageTimeLimit => StageGenerator.StageTime(run.Stage);
+        float StageTimeLimit => StageGenerator.StageTime(run.Stage, run.IsHard);
 
         /// <summary>The storm speeds every bubble up by playing their motion faster; their arcs stay the same shape.</summary>
         float BubbleDt(float dt) => storm ? dt * T.stormSpeed : dt;
@@ -421,7 +424,9 @@ namespace Bubblewright
 
         void OpenPick()
         {
-            choices = run.RollChoices(cardRects.Length);
+            bool rich = run.IsRichPick;
+            choices = run.RollChoices(rich ? Mathf.Min(T.hardRewardCards, cardRects.Length) : 3, rich);
+            picksLeft = rich ? Mathf.Min(T.hardRewardPicks, choices.Count) : 1;
             if (choices.Count == 0)
             {
                 NextStage();
@@ -457,6 +462,16 @@ namespace Bubblewright
         {
             run.Take(choices[i]);
             Sfx.Play(Sound.Pop, 1.6f, 0.8f);
+            choices.RemoveAt(i);
+            picksLeft--;
+            if (picksLeft > 0 && choices.Count > 0)
+            {
+                // The rest of the cards stay for the second pick.
+                selected = Mathf.Clamp(i, 0, choices.Count - 1);
+                for (int c = 0; c < cardRects.Length; c++) cardRects[c] = Rect.zero;
+                stateTime = 0f; // short pause so the same tap does not pick again
+                return;
+            }
             NextStage();
         }
 
@@ -486,8 +501,8 @@ namespace Bubblewright
         {
             bubbles.Remove(b);
             var kind = T.Kind(b.Kind);
-            run.Score += T.tiers[b.Tier].score;
-            if (b.Kind == BubbleKind.Lucky) run.Score += 500; // placeholder reward
+            run.AddScore(T.tiers[b.Tier].score);
+            if (b.Kind == BubbleKind.Lucky) run.AddScore(500); // placeholder reward
 
             fx.Pop(b.Position, b.Tier, kind.color, T.popSwell);
             Sfx.Play(Sound.Pop, 1f + b.Tier * 0.2f, 0.8f);
@@ -588,8 +603,11 @@ namespace Bubblewright
             Label($"{run.Score:000000}", pauseButtonRect.x - 6 * k - 200 * k, topLeft.y + pad + 2 * k, UiText.Primary, TextAnchor.UpperRight, 200 * k);
 
             DrawStormTimer(topLeft, topRight, pad, k);
+            var hardDebuff = run.CurrentDebuff;
+            if (hardDebuff != null)
+                Label($"HARD ROAD: {hardDebuff.Name.ToUpperInvariant()}", topLeft.x + pad, topLeft.y + pad + 16 * k, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
             string cheats = DebugSummary();
-            if (cheats != null) Label(cheats, topLeft.x + pad, topLeft.y + pad + 16 * k, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
+            if (cheats != null) Label(cheats, topLeft.x + pad, topLeft.y + pad + (hardDebuff != null ? 26 : 16) * k, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
 
             bool touchUi = Application.isMobilePlatform || input.TouchUsed;
             if (!touchUi)
@@ -604,9 +622,10 @@ namespace Bubblewright
             switch (state)
             {
                 case State.Intro when run.StageInWorld == 1 && !paused:
-                    Plate(Screen.height * 0.32f - 6 * k, 38 * k, k);
+                    Plate(Screen.height * 0.32f - 6 * k, (run.IsHard ? 48 : 38) * k, k);
                     Centered($"WORLD {run.World}", Screen.height * 0.32f, 16 * k, UiText.Primary);
                     Centered(run.WorldName.ToUpperInvariant(), Screen.height * 0.32f + 20 * k, 8 * k, UiText.Accent);
+                    if (run.IsHard) Centered($"HARD ROAD  ·  {run.CurrentDebuff.Text}", Screen.height * 0.32f + 30 * k, 8 * k, UiText.Warning);
                     break;
                 case State.Clear when stateTime > 0.4f:
                     if (stateTime > 1.2f) Plate(Screen.height * 0.32f - 6 * k, (run.IsLastStage ? 50 : 38) * k, k);
@@ -696,12 +715,19 @@ namespace Bubblewright
         {
             FillRect(new Rect(0, 0, Screen.width, Screen.height), WithAlpha(Palette.Ink, UiText.DimAlpha));
             float cy = Screen.height * 0.5f;
-            Centered($"{(run.IsBossStage ? "WORLD " + run.World : "STAGE " + run.World + "-" + run.StageInWorld)} CLEAR  ·  PICK ONE", cy - 68 * k, 12 * k, UiText.Primary);
+            string pickTitle = run.IsRichPick
+                ? $"HARD ROAD REWARD: PICK {picksLeft}"
+                : $"{(run.IsBossStage ? "WORLD " + run.World : "STAGE " + run.World + "-" + run.StageInWorld)} CLEAR  ·  PICK ONE";
+            Centered(pickTitle, cy - 68 * k, 12 * k, UiText.Primary);
 
             if (cardStyle == null) cardStyle = new GUIStyle(textStyle) { wordWrap = true, fontStyle = FontStyle.Normal, alignment = TextAnchor.UpperLeft };
             cardStyle.fontSize = 8 * k;
 
-            float w = 120 * k, h = 84 * k, gap = 10 * k;
+            // Four cards still fit the 480 px reference width: shrink the gap, then the card.
+            int cardCount = Mathf.Max(1, choices.Count);
+            float gap = (cardCount > 3 ? 6 : 10) * k;
+            float w = Mathf.Min(120 * k, Mathf.Floor(((T.referenceResolution.x - 12) * k - (cardCount - 1) * gap) / cardCount));
+            float h = 84 * k;
             float x0 = (Screen.width - (choices.Count * w + (choices.Count - 1) * gap)) * 0.5f;
             float top = cy - 44 * k;
             bool canHover = !Application.isMobilePlatform;
@@ -729,11 +755,13 @@ namespace Bubblewright
                         FillRect(Grow(r, g * k), WithAlpha(Palette.Mint, 0.12f * pulse * (5 - g) / 4f));
                 }
                 int border = lit ? 2 * k : k;
-                FillRect(r, lit ? Palette.Mint : Palette.Lilac);
+                bool rare = choices[i].Rarity == Rarity.Rare;
+                FillRect(r, lit ? Palette.Mint : rare ? Palette.Lemon : Palette.Lilac);
                 var inner = Grow(r, -border);
                 FillRect(inner, lit ? UiText.CardFillHover : UiText.CardFill);
 
                 var u = choices[i];
+                if (rare) Label("RARE", inner.xMax - 28 * k, inner.y + 2 * k, UiText.Warning, TextAnchor.UpperLeft, 26 * k);
                 var iconBox = new Rect(inner.x + 5 * k, inner.y + 5 * k, 22 * k, 22 * k);
                 FillRect(iconBox, Palette.Ink);
                 if (lit) FillRect(Grow(iconBox, -k), WithAlpha(Palette.Mint, 0.15f));

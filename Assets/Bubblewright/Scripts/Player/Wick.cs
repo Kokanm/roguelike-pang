@@ -20,6 +20,8 @@ namespace Bubblewright
         /// <summary>Run upgrades: multiplies top speed, and adds seconds of safety after a hit.</summary>
         public float SpeedMultiplier { get; set; } = 1f;
         public float ExtraInvulnerable { get; set; }
+        /// <summary>Hard-world debuff: multiplies the whole safe time after a hit.</summary>
+        public float InvulnerableScale { get; set; } = 1f;
 
         float RunSpeed => T.runSpeed * SpeedMultiplier;
 
@@ -171,7 +173,7 @@ namespace Bubblewright
         {
             if (Invulnerable || Dead) return;
             Hearts = Mathf.Max(0, Hearts - Mathf.Max(1, damage));
-            invulnerable = T.invulnerableTime + ExtraInvulnerable;
+            invulnerable = (T.invulnerableTime + ExtraInvulnerable) * InvulnerableScale;
             knockTimer = T.knockbackTime;
             float dir = transform.position.x >= fromX ? 1f : -1f;
             knockVelocity = dir * T.knockback / Mathf.Max(0.01f, T.knockbackTime);
