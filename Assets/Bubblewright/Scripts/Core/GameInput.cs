@@ -20,6 +20,7 @@ namespace Bubblewright
     public class GameInput
     {
         public float Move { get; private set; }
+        public float Climb { get; private set; }
         public float MoveY { get; private set; }
         public bool FireHeld { get; private set; }
         public bool FirePressed { get; private set; }
@@ -58,9 +59,12 @@ namespace Bubblewright
             public bool began;
         }
 
+        /// <summary>Screen scale for the relative drag pad (1 at 270 px height or 90 dpi).</summary>
+        float PadScale => Screen.dpi > 0 ? Screen.dpi / 90f : Screen.height / (float)Tuning.I.referenceResolution.y;
         /// <summary>Pixels of drag before Wick starts running, scaled with screen density.</summary>
-        float DeadZone => Screen.dpi > 0 ? Screen.dpi * 0.06f : Screen.height * 0.02f;
+        float DeadZone => 5.4f * PadScale;
         float MaxDrag => DeadZone * 3f;
+        float ClimbDeadZone => 18f * PadScale;
 
         public GameInput()
         {
@@ -73,7 +77,7 @@ namespace Bubblewright
         public void Update()
         {
             pointers.Clear();
-            float keyMove = 0f, keyMoveY = 0f;
+            float keyMove = 0f, keyMoveY = 0f, keyClimb = 0f;
             bool keyFire = false, keyFirePressed = false, confirm = false, any = false;
             DebugSpawn = 0;
             DebugToggleHitboxes = false;
@@ -87,10 +91,10 @@ namespace Bubblewright
             {
                 if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) keyMove -= 1f;
                 if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) keyMove += 1f;
-                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) keyMoveY -= 1f;
-                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) keyMoveY += 1f;
-                keyFire |= kb.spaceKey.isPressed || kb.jKey.isPressed || kb.kKey.isPressed || kb.wKey.isPressed || kb.upArrowKey.isPressed;
-                keyFirePressed |= kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame || kb.kKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame;
+                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) { keyMoveY -= 1f; keyClimb -= 1f; }
+                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) { keyMoveY += 1f; keyClimb += 1f; }
+                keyFire |= kb.spaceKey.isPressed || kb.jKey.isPressed || kb.kKey.isPressed;
+                keyFirePressed |= kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame || kb.kKey.wasPressedThisFrame;
                 confirm |= kb.rKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame;
                 any |= kb.anyKey.wasPressedThisFrame;
                 if (kb.digit1Key.wasPressedThisFrame) DebugSpawn = 1;
@@ -105,15 +109,19 @@ namespace Bubblewright
             var pad = Gamepad.current;
             if (pad != null)
             {
-                float x = pad.leftStick.ReadValue().x + pad.dpad.ReadValue().x;
-                float y = pad.leftStick.ReadValue().y + pad.dpad.ReadValue().y;
+                float stickX = pad.leftStick.ReadValue().x;
+                float stickY = pad.leftStick.ReadValue().y;
+                float x = stickX + pad.dpad.ReadValue().x;
+                float y = stickY + pad.dpad.ReadValue().y;
                 if (Mathf.Abs(x) > 0.35f) keyMove += Mathf.Sign(x);
                 if (Mathf.Abs(y) > 0.35f) keyMoveY += Mathf.Sign(y);
+                if (pad.dpad.up.isPressed || stickY > 0.5f) keyClimb += 1f;
+                if (pad.dpad.down.isPressed || stickY < -0.5f) keyClimb -= 1f;
                 keyFire |= pad.buttonSouth.isPressed || pad.buttonWest.isPressed || pad.rightTrigger.isPressed || pad.rightShoulder.isPressed;
                 keyFirePressed |= pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame || pad.rightTrigger.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame;
                 confirm |= pad.startButton.wasPressedThisFrame || pad.buttonSouth.wasPressedThisFrame;
                 PausePressed |= pad.startButton.wasPressedThisFrame;
-                any |= keyFirePressed || Mathf.Abs(x) > 0.35f;
+                any |= keyFirePressed || Mathf.Abs(x) > 0.35f || keyClimb != 0f;
             }
             var ts = Touchscreen.current;
             if (ts != null)
@@ -130,14 +138,15 @@ namespace Bubblewright
 #else
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) keyMove -= 1f;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) keyMove += 1f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) keyMoveY -= 1f;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) keyMoveY += 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) { keyMoveY -= 1f; keyClimb -= 1f; }
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) { keyMoveY += 1f; keyClimb += 1f; }
             float axis = 0f, axisY = 0f;
             try { axis = Input.GetAxisRaw("Horizontal"); } catch (System.ArgumentException) { }
             try { axisY = Input.GetAxisRaw("Vertical"); } catch (System.ArgumentException) { }
             if (keyMove == 0f && Mathf.Abs(axis) > 0.35f) keyMove = Mathf.Sign(axis);
             if (keyMoveY == 0f && Mathf.Abs(axisY) > 0.35f) keyMoveY = Mathf.Sign(axisY);
-            KeyCode[] fireKeys = { KeyCode.Space, KeyCode.J, KeyCode.K, KeyCode.W, KeyCode.UpArrow, KeyCode.JoystickButton0, KeyCode.JoystickButton2, KeyCode.JoystickButton5 };
+            if (keyClimb == 0f && Mathf.Abs(axisY) > 0.5f) keyClimb = Mathf.Sign(axisY);
+            KeyCode[] fireKeys = { KeyCode.Space, KeyCode.J, KeyCode.K, KeyCode.JoystickButton0, KeyCode.JoystickButton2, KeyCode.JoystickButton5 };
             foreach (var k in fireKeys)
             {
                 keyFire |= Input.GetKey(k);
@@ -161,10 +170,24 @@ namespace Bubblewright
                 pointers.Add(new PointerSample { id = MousePointer, position = Input.mousePosition, began = Input.GetMouseButtonDown(0) });
 #endif
 
-            float touchMove = UpdateTouch(out bool touchFire, out bool touchFirePressed, out bool touchBegan);
+            float touchMove = UpdateTouch(out float touchClimb, out bool touchFire, out bool touchFirePressed, out bool touchBegan);
 
-            Move = Mathf.Clamp(touchMove != 0f ? touchMove : keyMove, -1f, 1f);
-            MoveY = Mathf.Clamp(keyMoveY, -1f, 1f);
+            if (touchClimb != 0f)
+            {
+                Move = 0f;
+                Climb = Mathf.Clamp(touchClimb, -1f, 1f);
+            }
+            else if (touchMove != 0f)
+            {
+                Move = Mathf.Clamp(touchMove, -1f, 1f);
+                Climb = 0f;
+            }
+            else
+            {
+                Move = Mathf.Clamp(keyMove, -1f, 1f);
+                Climb = Mathf.Clamp(keyClimb, -1f, 1f);
+            }
+            MoveY = Mathf.Clamp(touchClimb != 0f ? touchClimb : keyMoveY, -1f, 1f);
             FireHeld = keyFire || touchFire;
             FirePressed = keyFirePressed || touchFirePressed;
             ConfirmPressed = confirm || touchBegan;
@@ -172,8 +195,9 @@ namespace Bubblewright
             AnyInput = any || touchBegan;
         }
 
-        float UpdateTouch(out bool fire, out bool firePressed, out bool anyBegan)
+        float UpdateTouch(out float climb, out bool fire, out bool firePressed, out bool anyBegan)
         {
+            climb = 0f;
             fire = false;
             firePressed = false;
             anyBegan = false;
@@ -209,14 +233,22 @@ namespace Bubblewright
                 if (p.id == padPointer)
                 {
                     PadCurrent = p.position;
-                    float delta = p.position.x - PadOrigin.x;
-                    // The origin trails the thumb, so reversing never needs a long drag back.
-                    if (Mathf.Abs(delta) > MaxDrag)
+                    float dx = p.position.x - PadOrigin.x;
+                    float dy = p.position.y - PadOrigin.y;
+                    if (Mathf.Abs(dy) > ClimbDeadZone && Mathf.Abs(dy) > Mathf.Abs(dx))
                     {
-                        PadOrigin = new Vector2(p.position.x - Mathf.Sign(delta) * MaxDrag, PadOrigin.y);
-                        delta = Mathf.Sign(delta) * MaxDrag;
+                        climb = Mathf.Sign(dy);
                     }
-                    if (Mathf.Abs(delta) > DeadZone) move = Mathf.Sign(delta);
+                    else
+                    {
+                        // The origin trails the thumb, so reversing never needs a long drag back.
+                        if (Mathf.Abs(dx) > MaxDrag)
+                        {
+                            PadOrigin = new Vector2(p.position.x - Mathf.Sign(dx) * MaxDrag, PadOrigin.y);
+                            dx = Mathf.Sign(dx) * MaxDrag;
+                        }
+                        if (Mathf.Abs(dx) > DeadZone) move = Mathf.Sign(dx);
+                    }
                 }
                 else if (firePointers.Contains(p.id))
                 {
