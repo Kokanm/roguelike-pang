@@ -13,10 +13,16 @@ namespace Bubblewright
         readonly Color32[] pixels;
 
         public PixelCanvas(int width, int height)
+            : this(width, height, new Color32[width * height])
+        {
+        }
+
+        /// <summary>Paints directly into an existing pixel buffer.</summary>
+        public PixelCanvas(int width, int height, Color32[] pixels)
         {
             Width = width;
             Height = height;
-            pixels = new Color32[width * height];
+            this.pixels = pixels;
         }
 
         public bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < Width && y < Height;

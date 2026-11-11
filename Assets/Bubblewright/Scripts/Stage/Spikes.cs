@@ -124,9 +124,10 @@ namespace Bubblewright
             view.phase = phase;
 
             var art = PlaceholderArt.I;
-            Sprite sprite = phase == SpikePhase.Up ? art.SpikeRaised
-                : phase == SpikePhase.Warn ? art.SpikeWarn
-                : art.SpikeHidden;
+            Theme theme = Game.CurrentTheme;
+            Sprite sprite = phase == SpikePhase.Up ? art.SpikeRaisedFor(theme)
+                : phase == SpikePhase.Warn ? art.SpikeWarnFor(theme)
+                : art.SpikeHiddenFor(theme);
             SpriteRenderer sr = view.renderer;
             sr.sprite = sprite;
             sr.drawMode = SpriteDrawMode.Tiled;
