@@ -178,7 +178,7 @@ namespace Bubblewright
             stormClock = stormBanner = 0f;
             storm = false;
 
-            foreach (var s in StageGenerator.Generate(run.Stage, run.Rng))
+            foreach (var s in StageGenerator.Generate(run))
             {
                 int tier = Mathf.Clamp(s.tier, 0, T.tiers.Length - 1);
                 SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false);
@@ -360,7 +360,7 @@ namespace Bubblewright
 
         // ------------------------------------------------------------------ storm timer
 
-        float StageTimeLimit => T.stageTime + T.stageTimeGrowth * (run.Stage - 1);
+        float StageTimeLimit => StageGenerator.StageTime(run.Stage);
 
         /// <summary>The storm speeds every bubble up by playing their motion faster; their arcs stay the same shape.</summary>
         float BubbleDt(float dt) => storm ? dt * T.stormSpeed : dt;
@@ -573,7 +573,7 @@ namespace Bubblewright
                 GUI.DrawTexture(new Rect(topLeft.x + pad + i * (ft.width + 2) * k, topLeft.y + pad, ft.width * k, ft.height * k), ft);
             }
             GUI.color = Color.white;
-            Label($"STAGE {run.Stage}/{T.runLength}", topLeft.x + pad + run.MaxHearts * (ft.width + 2) * k + 4 * k, topLeft.y + pad + 2 * k, UiText.Primary, TextAnchor.UpperLeft, 200 * k);
+            Label(StageLabel(), topLeft.x + pad + run.MaxHearts * (ft.width + 2) * k + 4 * k, topLeft.y + pad + 2 * k, UiText.Primary, TextAnchor.UpperLeft, 200 * k);
 
             // Pause button in the top right corner, the score just left of it.
             pauseButtonRect = new Rect(topRight.x - pad - 14 * k, topLeft.y + pad - k, 14 * k, 14 * k);
@@ -596,13 +596,18 @@ namespace Bubblewright
 
             switch (state)
             {
+                case State.Intro when run.StageInWorld == 1 && !paused:
+                    Plate(Screen.height * 0.32f - 6 * k, 38 * k, k);
+                    Centered($"WORLD {run.World}", Screen.height * 0.32f, 16 * k, UiText.Primary);
+                    Centered(run.WorldName.ToUpperInvariant(), Screen.height * 0.32f + 20 * k, 8 * k, UiText.Accent);
+                    break;
                 case State.Clear when stateTime > 0.4f:
                     if (stateTime > 1.2f) Plate(Screen.height * 0.32f - 6 * k, (run.IsLastStage ? 50 : 38) * k, k);
                     {
                         // Drops in from above the arena and bounces to rest.
                         float drop = Mathf.Clamp01((stateTime - 0.4f) / Mathf.Max(0.01f, T.bannerDropTime));
                         float y = Mathf.LerpUnclamped(topLeft.y - 20 * k, Screen.height * 0.32f, EaseOutBounce(drop));
-                        Centered(run.IsLastStage ? "RUN COMPLETE" : "STAGE CLEAR", y, 16 * k, Palette.Cream);
+                        Centered(run.IsLastStage ? "RUN COMPLETE" : run.IsBossStage ? "WORLD CLEAR" : "STAGE CLEAR", y, 16 * k, Palette.Cream);
                     }
                     if (stateTime > 1.2f)
                     {
@@ -624,7 +629,7 @@ namespace Bubblewright
                     if (stateTime > 0.8f)
                     {
                         float y0 = Screen.height * 0.32f + 20 * k;
-                        Centered($"STAGE {run.Stage} OF {T.runLength}    SCORE {run.Score}    {best}", y0, 8 * k, UiText.Accent);
+                        Centered($"WORLD {run.World}-{run.StageInWorld}    SCORE {run.Score}    {best}", y0, 8 * k, UiText.Accent);
                         Centered($"BUILD: {run.BuildSummary()}", y0 + 12 * k, 8 * k, UiText.Primary);
                         Centered(touchUi ? "Tap to start a new run" : "Press R, Enter or Start for a new run", y0 + 24 * k, 8 * k, UiText.Secondary);
                         Centered($"seed {run.Seed}", y0 + 36 * k, 8 * k, UiText.Secondary);
@@ -641,6 +646,16 @@ namespace Bubblewright
 
             if (showHitboxes) DrawHitboxes(k);
             if (paused) DrawPause(k, touchUi);
+        }
+
+        /// <summary>"WORLD 2-3 FOREST", or "WORLD 2 BOSS" on the last stage of a world.</summary>
+        string StageLabel() => run.IsBossStage ? $"WORLD {run.World} BOSS" : $"WORLD {run.World}-{run.StageInWorld} {run.WorldName.ToUpperInvariant()}";
+
+        string NextStageLabel()
+        {
+            int next = run.Stage + 1;
+            int w = Run.WorldOf(next), i = Run.StageInWorldOf(next);
+            return Run.IsBossStageNumber(next) ? $"WORLD {w} BOSS" : $"WORLD {w}-{i} {Run.WorldNameOf(w).ToUpperInvariant()}";
         }
 
         /// <summary>A thin bar across the top of the arena: mint, then blinking lemon near the end, coral once the storm hits.</summary>
@@ -674,7 +689,7 @@ namespace Bubblewright
         {
             FillRect(new Rect(0, 0, Screen.width, Screen.height), WithAlpha(Palette.Ink, UiText.DimAlpha));
             float cy = Screen.height * 0.5f;
-            Centered($"STAGE {run.Stage} CLEAR  ·  PICK ONE", cy - 68 * k, 12 * k, UiText.Primary);
+            Centered($"{(run.IsBossStage ? "WORLD " + run.World : "STAGE " + run.World + "-" + run.StageInWorld)} CLEAR  ·  PICK ONE", cy - 68 * k, 12 * k, UiText.Primary);
 
             if (cardStyle == null) cardStyle = new GUIStyle(textStyle) { wordWrap = true, fontStyle = FontStyle.Normal, alignment = TextAnchor.UpperLeft };
             cardStyle.fontSize = 8 * k;
@@ -726,7 +741,7 @@ namespace Bubblewright
                 if (!touchUi) Label($"{i + 1}", inner.xMax - 10 * k, inner.yMax - 14 * k, UiText.Secondary, TextAnchor.UpperLeft, 10 * k);
             }
 
-            Centered($"HEARTS {run.Hearts}/{run.MaxHearts}    NEXT: STAGE {run.Stage + 1} OF {T.runLength}", top + h + 10 * k, 8 * k, UiText.Secondary);
+            Centered($"HEARTS {run.Hearts}/{run.MaxHearts}    NEXT: {NextStageLabel()}", top + h + 10 * k, 8 * k, UiText.Secondary);
             Centered(touchUi ? "Tap a card" : "Left/right and Enter, 1-3, or click a card", top + h + 22 * k, 8 * k, UiText.Secondary);
         }
 
