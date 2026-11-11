@@ -122,5 +122,15 @@ namespace Bubblewright.Tests
             Assert.AreEqual(1.12f, loaded.SpeedMultiplier, 0.0001f);
             Assert.AreEqual("Twin Cable, Swift Boots", loaded.BuildSummary());
         }
+
+        [Test]
+        public void SavedPlaceFormatsWorldStageAndHearts()
+        {
+            var twoHearts = BuildSampleRun();
+            Assert.AreEqual("WORLD 2-3, 2 HEARTS", Game.SavedPlace(twoHearts));
+
+            var oneHeart = new Run(7) { Stage = 3, Hearts = 1 };
+            Assert.AreEqual("WORLD 1-3, 1 HEART", Game.SavedPlace(oneHeart));
+        }
     }
 }
