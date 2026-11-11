@@ -56,17 +56,24 @@ Timings come from the sheet's animation table and live in `Tuning.asset` under *
 | Move | Drag left or right anywhere in the left half (relative to where your thumb lands) | A / D or Left / Right | Left stick or d-pad left / right |
 | Climb | Drag up or down anywhere in the left half | W / S or Up / Down | Left stick or d-pad up / down |
 | Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J or K | A / Cross, X / Square, RT or RB |
-| Menu / continue | Tap | Arrows or WASD, then Enter, Space or R | Left stick or d-pad, then A or Start |
+| Menu / continue / pick a card or a door | Tap | Arrows or WASD, then Enter, Space or R (cards: 1-3, doors: 1-2) | Left stick or d-pad, then A or Start |
+| Back (character select) | Tap a card to start; no back button | Esc | B / Circle |
 | Pause | Top-right pause button | Esc or P (F2 opens debug) | Start |
 | Toggle test layout (debug) | Debug panel | F3 or debug panel | Debug panel |
 
 The mouse acts as one finger, so you can try the touch controls on desktop: click and drag in the left half, click in the right half.
+
+**Characters.** NEW RUN opens a select screen with four heroes: Wick (3 hearts, the all-rounder), Ember (2 hearts, fast), Moss (4 hearts, slow) and Flint (two cables, slow shots). Wick and Ember are open from the start; finishing the whole run with Wick unlocks Moss, and with Ember unlocks Flint. All stats live in one table in `Scripts/Player/Character.cs`; Wick's row follows `Tuning`. The debug panel has UNLOCK ALL (this session only) and RESET UNLOCKS.
 
 Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces). **SPIKES** adds Lava's retracting strips to the current stage in any world. The **THEME** button cycles the look of the current stage (sky, hills, tiles, ground strip) through the six world themes without changing the world.
 
 ### Boss stages
 
 The last stage of each world is a boss stage: one flat floor, no generated bubbles, and one boss (a placeholder blocky "WARDEN" for every world until step 18). It slides in from above during the intro, then walks left and right near the ceiling and fires a bullet at Wick about every two seconds; its lower band blinks cream half a second before each shot. Any harpoon touch (tip or cable) takes 1 health; health is 12 in world 1 and 4 more in each later world. Bullets and touching the body each cost a heart (bullets cost more in the storm). The storm clock runs on boss stages too (120 s), and the storm speeds up the boss and its bullets. When its health reaches 0 any leftover bubbles pop without children, the boss shakes and bursts, and the world is cleared. All numbers are in Tuning > Bosses. The debug panel's **BOSS -5 HP** button takes off five health.
+
+### The left or right road
+
+After the upgrade pick that follows each boss except the last one (stages 6, 12, 18, 24 and 30), two doors stand in front of the next world's scenery. One of them, chosen at random from the run seed, is the hard road for the whole next world: it carries a random debuff (never the one the finished world had), and its card spells out the numbers and the reward. The other door changes nothing. Choose with left/right and Enter, Space or pad A, keys 1 (left) and 2 (right), or a tap or click on a door or its card; Wick then runs into the door and the screen fades. A row of six squares at the top shows the worlds so far (mint calm, lemon hard, outline not reached, cream bracket on the world in question); it appears on this screen and on the pause screen. The numbers live in `Tuning` under **Road choice** and **Hard worlds**. The code is in `Scripts/Core/Game.Path.cs`, the door art in `Scripts/Art/DoorArt.cs`.
 
 ### Tuning
 

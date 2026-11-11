@@ -45,7 +45,14 @@ namespace Bubblewright
             }
         }
 
-        float RunSpeed => T.runSpeed * SpeedMultiplier;
+        float? baseRunSpeed, baseInvulnerable;
+        /// <summary>The character's own run speed; Wick's follows Tuning until a character sets it.</summary>
+        public float BaseRunSpeed { get => baseRunSpeed ?? T.runSpeed; set => baseRunSpeed = value; }
+        /// <summary>The character's own safe time after a hit, before upgrades and debuffs.</summary>
+        public float BaseInvulnerable { get => baseInvulnerable ?? T.invulnerableTime; set => baseInvulnerable = value; }
+        public Character Character { get; private set; } = global::Bubblewright.Character.Wick;
+
+        float RunSpeed => BaseRunSpeed * SpeedMultiplier;
 
         Tuning T => Tuning.I;
         float Px => 1f / T.pixelsPerUnit;
@@ -89,6 +96,7 @@ namespace Bubblewright
         void Build()
         {
             var art = PlaceholderArt.I;
+            var sprites = art.SpritesFor(Character);
             rig = new GameObject("Rig").transform;
             rig.SetParent(transform, false);
 
@@ -98,13 +106,13 @@ namespace Bubblewright
             frontSet.transform.SetParent(rig, false);
 
             var flamePos = new Vector2(0f, 27f * Px);
-            bodyBack = MakePart(backSet.transform, "Body", art.WickBack, Vector2.zero, 0);
-            launcherBack = MakePart(backSet.transform, "Launcher", art.Launcher, PlaceholderArt.LauncherOffsetPixels(false) * Px, 2);
+            bodyBack = MakePart(backSet.transform, "Body", sprites.Back, Vector2.zero, 0);
+            launcherBack = MakePart(backSet.transform, "Launcher", sprites.Launcher, PlaceholderArt.LauncherOffsetPixels(false) * Px, 2);
             flameBack = MakePart(backSet.transform, "Flame", art.Flame, flamePos, 1);
-            bodyFront = MakePart(frontSet.transform, "Body", art.WickFront, Vector2.zero, 0);
-            launcherFront = MakePart(frontSet.transform, "Launcher", art.Launcher, PlaceholderArt.LauncherOffsetPixels(true) * Px, 2);
+            bodyFront = MakePart(frontSet.transform, "Body", sprites.Front, Vector2.zero, 0);
+            launcherFront = MakePart(frontSet.transform, "Launcher", sprites.Launcher, PlaceholderArt.LauncherOffsetPixels(true) * Px, 2);
             flameFront = MakePart(frontSet.transform, "Flame", art.Flame, flamePos, 1);
-            handFront = MakePart(frontSet.transform, "Hand", art.Hand, Vector2.zero, 2);
+            handFront = MakePart(frontSet.transform, "Hand", sprites.Hand, Vector2.zero, 2);
             hand = handFront.transform;
             launcherBackHome = launcherBack.transform.localPosition;
             launcherFrontHome = launcherFront.transform.localPosition;
@@ -167,10 +175,19 @@ namespace Bubblewright
 
         void ApplyFlash(bool on)
         {
-            var art = PlaceholderArt.I;
-            bodyBack.sprite = on ? art.WickBackFlash : art.WickBack;
-            bodyFront.sprite = on ? art.WickFrontFlash : art.WickFront;
-            launcherBack.sprite = launcherFront.sprite = on ? art.LauncherFlash : art.Launcher;
+            var sprites = PlaceholderArt.I.SpritesFor(Character);
+            bodyBack.sprite = on ? sprites.BackFlash : sprites.Back;
+            bodyFront.sprite = on ? sprites.FrontFlash : sprites.Front;
+            launcherBack.sprite = launcherFront.sprite = on ? sprites.LauncherFlash : sprites.Launcher;
+        }
+
+        /// <summary>Swaps the cloak colours. Starting numbers (speed, safe time) are set by the game from the run.</summary>
+        public void SetCharacter(Character c)
+        {
+            Character = c ?? global::Bubblewright.Character.Wick;
+            var sprites = PlaceholderArt.I.SpritesFor(Character);
+            handFront.sprite = sprites.Hand;
+            ApplyFlash(hurtFlash >= 0f);
         }
 
         /// <summary>Squash to 10% width, swap front/back at the thinnest point behind a dust puff, spring back.</summary>
@@ -214,7 +231,7 @@ namespace Bubblewright
         {
             if (Invulnerable || Dead) return;
             Hearts = Mathf.Max(0, Hearts - Mathf.Max(1, damage));
-            invulnerable = (T.invulnerableTime + ExtraInvulnerable) * InvulnerableScale;
+            invulnerable = (BaseInvulnerable + ExtraInvulnerable) * InvulnerableScale;
             if (Mode != Mode.Climb)
             {
                 knockTimer = T.knockbackTime;

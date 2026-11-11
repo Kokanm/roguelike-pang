@@ -82,6 +82,11 @@ namespace Bubblewright
             yield return ("Timer warning and cheats on the sky", Warning, sky);
             yield return ("Storm banner on a plate", Warning, plate);
             yield return ("Hard road line on a plate", Warning, plate);
+            yield return ("Hard road title on a card", Warning, CardFill);
+            yield return ("Hard road title on a lit card", Warning, CardFillHover);
+            yield return ("Reward line on a card", Accent, CardFill);
+            yield return ("Reward line on a lit card", Accent, CardFillHover);
+            yield return ("Road hint in the ground strip", Secondary, strip);
             yield return ("RARE label on a card", Warning, CardFill);
             yield return ("RARE label on a hovered card", Warning, CardFillHover);
             yield return ("Pause button label", Primary, CardFill);
@@ -115,6 +120,10 @@ namespace Bubblewright
             yield return ("Timer bar, last seconds", Palette.Lemon, track);
             yield return ("Timer bar, storm", Palette.Coral, track);
             yield return ("Debug button border on the panel", Palette.Lilac, DebugPanel(theme));
+            yield return ("Filled stat pip on a character card", Palette.Mint, CardFill);
+            yield return ("Empty stat pip outline on a character card", Palette.Mist, CardFill);
+            yield return ("Filled stat pip on a lit character card", Palette.Mint, CardFillHover);
+            yield return ("Empty stat pip outline on a lit character card", Palette.Mist, CardFillHover);
         }
 
         /// <summary>Colour a with alpha laid over an opaque background.</summary>

@@ -44,12 +44,16 @@ namespace Bubblewright
         PlaceholderArt(Tuning t)
         {
             ppu = t.pixelsPerUnit;
-            WickBack = BuildWick(false, out WickBackFlash);
-            WickFront = BuildWick(true, out WickFrontFlash);
+            var wick = SpritesFor(Character.Wick);
+            WickBack = wick.Back;
+            WickFront = wick.Front;
+            WickBackFlash = wick.BackFlash;
+            WickFrontFlash = wick.FrontFlash;
+            Launcher = wick.Launcher;
+            LauncherFlash = wick.LauncherFlash;
+            Hand = wick.Hand;
             Flame = BuildFlame();
             PickupRing = BuildPickupRing();
-            Launcher = BuildLauncher(out LauncherFlash);
-            Hand = BuildHand();
 
             int kindCount = System.Enum.GetValues(typeof(BubbleKind)).Length;
             Bubbles = new Sprite[kindCount, t.tiers.Length];
@@ -111,25 +115,56 @@ namespace Bubblewright
             return c.ToSprite("PickupRing", new Vector2(6.5f, 0f), ppu);
         }
 
-        // ---------------------------------------------------------------- Wick (23 x 30 px, pivot at feet)
+        // ---------------------------------------------------------------- Characters (23 x 30 px, pivot at feet)
 
-        Sprite BuildWick(bool front, out Sprite flash)
+        /// <summary>Everything about a hero that carries the cloak colours. The flame and hearts are shared.</summary>
+        public class CharacterSprites
+        {
+            public Sprite Back, Front, BackFlash, FrontFlash, Hand, Launcher, LauncherFlash;
+            /// <summary>Flat Palette.Dusk shape of the front view, for locked cards.</summary>
+            public Sprite FrontLocked;
+        }
+
+        readonly System.Collections.Generic.Dictionary<string, CharacterSprites> characterSprites =
+            new System.Collections.Generic.Dictionary<string, CharacterSprites>();
+
+        /// <summary>Builds on first use and keeps the result.</summary>
+        public CharacterSprites SpritesFor(Character c)
+        {
+            c = c ?? Character.Wick;
+            if (characterSprites.TryGetValue(c.id, out var cached) && cached.Back != null && cached.Back.texture != null) return cached;
+            var set = new CharacterSprites
+            {
+                Back = BuildWick(false, c.body, c.bodyDark, c.bodyLine, out Sprite backFlash, out _),
+                BackFlash = backFlash,
+            };
+            set.Front = BuildWick(true, c.body, c.bodyDark, c.bodyLine, out Sprite frontFlash, out Sprite locked);
+            set.FrontFlash = frontFlash;
+            set.FrontLocked = locked;
+            set.Launcher = BuildLauncher(c.body, out Sprite launcherFlash);
+            set.LauncherFlash = launcherFlash;
+            set.Hand = BuildHand(c.body);
+            characterSprites[c.id] = set;
+            return set;
+        }
+
+        Sprite BuildWick(bool front, Color32 body, Color32 bodyDark, Color32 bodyLine, out Sprite flash, out Sprite locked)
         {
             var c = new PixelCanvas(23, 30);
             // Cloak: round body
-            c.Ellipse(11.5f, 11f, 8.5f, 8f, Palette.Saffron);
-            c.EllipseOnFilled(11.5f, 2.5f, 10f, 3.5f, Palette.SaffronDark);
+            c.Ellipse(11.5f, 11f, 8.5f, 8f, body);
+            c.EllipseOnFilled(11.5f, 2.5f, 10f, 3.5f, bodyDark);
             // Belt: interior line in darker orange, not ink
-            c.RectOnFilled(3, 8, 17, 1, Palette.SaffronLine);
+            c.RectOnFilled(3, 8, 17, 1, bodyLine);
             // Boots (shared by both views), drawn over the cloak hem
             c.Rect(6, 1, 5, 3, Palette.Ink);
             c.Rect(12, 1, 5, 3, Palette.Ink);
             c.Rect(7, 3, 3, 1, Palette.Deep);
             c.Rect(13, 3, 3, 1, Palette.Deep);
             // Hood
-            c.Ellipse(11.5f, 19.5f, 6.5f, 5.5f, Palette.Saffron);
-            c.Ellipse(11.5f, 24f, 2f, 2.2f, Palette.Saffron);
-            c.RectOnFilled(6, 14, 12, 1, Palette.SaffronDark);
+            c.Ellipse(11.5f, 19.5f, 6.5f, 5.5f, body);
+            c.Ellipse(11.5f, 24f, 2f, 2.2f, body);
+            c.RectOnFilled(6, 14, 12, 1, bodyDark);
             // Candle wick on top (the flame is its own sprite)
             c.Rect(11, 26, 1, 2, Palette.Ink);
 
@@ -139,11 +174,11 @@ namespace Bubblewright
                 c.Ellipse(11.5f, 19f, 4f, 3.2f, Palette.Ink);
                 c.Rect(9, 19, 1, 2, Palette.Cream);
                 c.Rect(14, 19, 1, 2, Palette.Cream);
-                c.RectOnFilled(11, 4, 1, 9, Palette.SaffronLine); // cloak opening
+                c.RectOnFilled(11, 4, 1, 9, bodyLine); // cloak opening
             }
             else
             {
-                c.RectOnFilled(11, 15, 1, 9, Palette.SaffronLine); // hood seam
+                c.RectOnFilled(11, 15, 1, 9, bodyLine); // hood seam
             }
             // The launcher is its own part (BuildLauncher) so it can kick and rise on its own.
 
@@ -151,11 +186,12 @@ namespace Bubblewright
             string name = front ? "Wick_Front" : "Wick_Back";
             var pivot = new Vector2(11.5f, 0f);
             flash = c.Silhouette(Palette.Cream).ToSprite(name + "_Flash", pivot, ppu);
+            locked = c.Silhouette(Palette.Dusk).ToSprite(name + "_Locked", pivot, ppu);
             return c.ToSprite(name, pivot, ppu);
         }
 
         /// <summary>Steel launcher and the hand gripping it. Pivot at the bottom-left; see LauncherOffsetPixels.</summary>
-        Sprite BuildLauncher(out Sprite flash)
+        Sprite BuildLauncher(Color32 hand, out Sprite flash)
         {
             var c = new PixelCanvas(6, 13);
             const int x = 2, y = 1;
@@ -163,17 +199,17 @@ namespace Bubblewright
             c.Rect(x, y, 1, 11, Palette.SteelLight);
             c.Rect(x + 2, y, 1, 11, Palette.SteelDark);
             c.Rect(x, y + 10, 3, 1, Palette.SteelLight);
-            c.Rect(x - 1, y + 1, 2, 2, Palette.Saffron); // hand
+            c.Rect(x - 1, y + 1, 2, 2, hand);
             c.Outline(Palette.Ink);
             flash = c.Silhouette(Palette.Cream).ToSprite("Launcher_Flash", Vector2.zero, ppu);
             return c.ToSprite("Launcher", Vector2.zero, ppu);
         }
 
         /// <summary>His free hand, shown only when he waves or cheers. Pivot at the centre.</summary>
-        Sprite BuildHand()
+        Sprite BuildHand(Color32 body)
         {
             var c = new PixelCanvas(5, 5);
-            c.Rect(1, 1, 3, 3, Palette.Saffron);
+            c.Rect(1, 1, 3, 3, body);
             c.Outline(Palette.Ink);
             return c.ToSprite("Hand", new Vector2(2.5f, 2.5f), ppu);
         }
@@ -454,6 +490,22 @@ namespace Bubblewright
             return c.ToSprite(up ? "ClimbUpHint" : "ClimbDownHint", new Vector2(4.5f, 3f), ppu);
         }
 
+        // ---------------------------------------------------------------- Road choice doors (painted in DoorArt)
+
+        readonly Sprite[,] doors = new Sprite[Themes.All.Length, 2];
+
+        /// <summary>The calm or hard door in a theme's stone, 30 x 45 px, pivot bottom centre. Built on first use, then cached.</summary>
+        public Sprite DoorFor(Theme theme, bool hard)
+        {
+            int i = System.Array.IndexOf(Themes.All, theme);
+            if (i < 0) i = 0;
+            int h = hard ? 1 : 0;
+            if (doors[i, h] == null || doors[i, h].texture == null)
+                doors[i, h] = DoorArt.Paint(Themes.All[i], hard).ToSprite($"Door {Themes.All[i].name}{(hard ? " hard" : " calm")}",
+                    new Vector2(DoorArt.Width * 0.5f, 0f), ppu);
+            return doors[i, h];
+        }
+
         // ---------------------------------------------------------------- Lava spikes (one tile wide, tiled along a strip)
 
         /// <summary>Five 1 px holes, one per spike, in the centre of each 3 px slot.</summary>
@@ -464,15 +516,8 @@ namespace Bubblewright
             return SpikeSprite(c, "SpikeHidden");
         }
 
-        /// <summary>Five steel tips, 2 px tall, ink around the metal.</summary>
-        Sprite BuildSpikeWarn() => PaintSpikes("SpikeWarn", "ILI", "ISI");
-
-        /// <summary>
-        /// Five steel triangles, 7 px tall and 3 px wide at the base. SteelLight is the left edge of the
-        /// metal, Steel is the fill, and the ink pixels are the outline. Drawn by hand so five fit in one tile.
-        /// Rows are top first.
-        /// </summary>
-        Sprite BuildSpikeRaised() => PaintSpikes("SpikeRaised", new[]
+        static readonly string[] SpikeWarnRows = { "ILI", "ISI" };
+        static readonly string[] SpikeRaisedRows =
         {
             ".I.",
             ".L.",
@@ -481,9 +526,48 @@ namespace Bubblewright
             "ILS",
             "ISS",
             "ISI",
-        });
+        };
 
-        Sprite PaintSpikes(string name, params string[] rowsTopFirst)
+        /// <summary>Five steel tips, 2 px tall, ink around the metal.</summary>
+        Sprite BuildSpikeWarn() => PaintSpikes("SpikeWarn", Palette.Steel, SpikeWarnRows);
+
+        /// <summary>
+        /// Five steel triangles, 7 px tall and 3 px wide at the base. SteelLight is the left edge of the
+        /// metal, Steel is the fill, and the ink pixels are the outline. Drawn by hand so five fit in one tile.
+        /// Rows are top first.
+        /// </summary>
+        Sprite BuildSpikeRaised() => PaintSpikes("SpikeRaised", Palette.Steel, SpikeRaisedRows);
+
+        // In the Lava theme the spikes are iron: the Steel fill is tinted 25% toward the theme's far colour.
+        const float LavaSpikeTint = 0.25f;
+        Sprite[] lavaSpikes; // hidden, warn, raised
+
+        /// <summary>The fill colour of a spike strip in this theme. Only Lava tints it.</summary>
+        public static Color32 SpikeFill(Theme theme) =>
+            theme == Themes.ForWorld(6) ? Palette.Mix(Palette.Steel, theme.far, LavaSpikeTint) : Palette.Steel;
+
+        public Sprite SpikeHiddenFor(Theme theme) => TintedSpike(theme, 0) ?? SpikeHidden;
+        public Sprite SpikeWarnFor(Theme theme) => TintedSpike(theme, 1) ?? SpikeWarn;
+        public Sprite SpikeRaisedFor(Theme theme) => TintedSpike(theme, 2) ?? SpikeRaised;
+
+        /// <summary>The theme's tinted spike sprite (built on first use), or null when the theme uses the plain steel ones.</summary>
+        Sprite TintedSpike(Theme theme, int which)
+        {
+            if (theme != Themes.ForWorld(6)) return null;
+            if (lavaSpikes == null || lavaSpikes[which] == null || lavaSpikes[which].texture == null)
+            {
+                Color32 fill = SpikeFill(theme);
+                lavaSpikes = new[]
+                {
+                    BuildSpikeHidden(),
+                    PaintSpikes("SpikeWarnLava", fill, SpikeWarnRows),
+                    PaintSpikes("SpikeRaisedLava", fill, SpikeRaisedRows),
+                };
+            }
+            return lavaSpikes[which];
+        }
+
+        Sprite PaintSpikes(string name, Color32 fill, params string[] rowsTopFirst)
         {
             int height = rowsTopFirst.Length;
             var c = new PixelCanvas(15, height);
@@ -495,19 +579,19 @@ namespace Bubblewright
                     string row = rowsTopFirst[r];
                     int y = height - 1 - r;
                     for (int x = 0; x < row.Length; x++)
-                        if (row[x] != '.') c.Set(x0 + x, y, SpikeInk(row[x]));
+                        if (row[x] != '.') c.Set(x0 + x, y, SpikeInk(row[x], fill));
                 }
             }
             return SpikeSprite(c, name);
         }
 
-        static Color32 SpikeInk(char ch)
+        static Color32 SpikeInk(char ch, Color32 fill)
         {
             switch (ch)
             {
                 case 'I': return Palette.Ink;
                 case 'L': return Palette.SteelLight;
-                case 'S': return Palette.Steel;
+                case 'S': return fill;
                 default: return Palette.Clear;
             }
         }

@@ -171,6 +171,14 @@ namespace Bubblewright
         public int hardRewardCards = 4;
         public int hardRewardPicks = 2;
 
+        [Header("Road choice")]
+        [Tooltip("The two doors stand this far left and right of the middle (units).")]
+        public float pathDoorX = 7f;
+        [Tooltip("Seconds after the screen opens before input counts, so a tap meant for the previous screen cannot pick a door.")]
+        public float pathInputDelay = 0.35f;
+        [Tooltip("Seconds the screen takes to fade to the ground strip colour once Wick reaches his door.")]
+        public float pathFadeTime = 0.3f;
+
         [Header("Storm timer")]
         [Tooltip("Seconds on the clock = timeBase + timePerWorld * (world - 1) + timePerStage * (stage in world - 1). The clock runs only while playing, not in the intro.")]
         public float timeBase = 60f;

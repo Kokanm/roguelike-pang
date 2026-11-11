@@ -9,7 +9,7 @@ namespace Bubblewright
         public int version = 1;
         public int seed, stage, score, hearts, maxHearts;
         public string[] upgrades;        // names, in the order taken
-        public string character = "wick"; // used from step 16
+        public string character = "wick"; // id of the character playing; unknown ids load as Wick
         public bool[] hardWorld;         // length 7, index = world
         public string[] worldDebuff;     // length 7
     }

@@ -38,6 +38,8 @@ namespace Bubblewright
         /// <summary>Esc, P or pad Start. F2 opens the debug panel (it pauses the game too).</summary>
         public bool PausePressed { get; private set; }
         public bool DebugPanelPressed { get; private set; }
+        /// <summary>Esc or pad B: go back one menu.</summary>
+        public bool BackPressed { get; private set; }
 
         // Touch pad state, read by the on-screen view.
         public bool TouchUsed { get; private set; }
@@ -83,6 +85,7 @@ namespace Bubblewright
             DebugToggleHitboxes = false;
             DebugTestLayoutPressed = false;
             PausePressed = false;
+            BackPressed = false;
             DebugPanelPressed = false;
 
 #if BW_INPUT_SYSTEM && ENABLE_INPUT_SYSTEM
@@ -104,6 +107,7 @@ namespace Bubblewright
                 DebugToggleHitboxes = kb.f1Key.wasPressedThisFrame;
                 DebugTestLayoutPressed = kb.f3Key.wasPressedThisFrame;
                 PausePressed |= kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame;
+                BackPressed |= kb.escapeKey.wasPressedThisFrame;
                 DebugPanelPressed = kb.f2Key.wasPressedThisFrame;
             }
             var pad = Gamepad.current;
@@ -121,6 +125,7 @@ namespace Bubblewright
                 keyFirePressed |= pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame || pad.rightTrigger.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame;
                 confirm |= pad.startButton.wasPressedThisFrame || pad.buttonSouth.wasPressedThisFrame;
                 PausePressed |= pad.startButton.wasPressedThisFrame;
+                BackPressed |= pad.buttonEast.wasPressedThisFrame;
                 any |= keyFirePressed || Mathf.Abs(x) > 0.35f || keyClimb != 0f;
             }
             var ts = Touchscreen.current;
@@ -159,6 +164,7 @@ namespace Bubblewright
             DebugToggleHitboxes = Input.GetKeyDown(KeyCode.F1);
             DebugTestLayoutPressed = Input.GetKeyDown(KeyCode.F3);
             PausePressed = Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P) || Input.GetKeyDown(KeyCode.JoystickButton7);
+            BackPressed = Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1);
             DebugPanelPressed = Input.GetKeyDown(KeyCode.F2);
             for (int i = 0; i < Input.touchCount; i++)
             {
