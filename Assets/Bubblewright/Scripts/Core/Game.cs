@@ -636,7 +636,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
-                Label("A/D or arrows: move    Space: fire    Pad: stick + A    1-4: spawn    F1: hitboxes    F3: test layout    R: continue",
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   Pad: stick/d-pad + A   1-4: spawn   F1: hitboxes   F3: layout",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }

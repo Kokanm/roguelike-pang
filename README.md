@@ -53,8 +53,9 @@ Timings come from the sheet's animation table and live in `Tuning.asset` under *
 
 | Action | Touch | Keyboard | Gamepad |
 | --- | --- | --- | --- |
-| Move | Drag left or right anywhere in the left half (relative to where your thumb lands) | A / D or arrows | Left stick or d-pad |
-| Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J, K, W or Up | A / Cross, X / Square, RT or RB |
+| Move | Drag left or right anywhere in the left half (relative to where your thumb lands) | A / D or Left / Right | Left stick or d-pad left / right |
+| Climb | Drag up or down anywhere in the left half | W / S or Up / Down | Left stick or d-pad up / down |
+| Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J or K | A / Cross, X / Square, RT or RB |
 | Menu / continue | Tap | Arrows or WASD, then Enter, Space or R | Left stick or d-pad, then A or Start |
 | Pause | Top-right pause button | Esc or P (F2 opens debug) | Start |
 | Toggle test layout (debug) | Debug panel | F3 or debug panel | Debug panel |
