@@ -175,7 +175,7 @@ namespace Bubblewright
             fx.Clear();
             ApplyRunUpgrades();
             HideHarpoons();
-            wick.ResetForStage(0f, run.Hearts);
+            wick.ResetForStage(0f, 0f, run.Hearts);
             wick.Waving = true;
             freeze = slowMo = shake = 0f;
             shotTimer = 0f;
@@ -248,7 +248,7 @@ namespace Bubblewright
 
             if (UpdatePause())
             {
-                touchView.Refresh(input, T);
+                touchView.Refresh(input, T, state == State.Play && wick.NearLadder);
                 return;
             }
 
@@ -258,7 +258,7 @@ namespace Bubblewright
             {
                 freeze -= dt;
                 UpdateCamera(dt);
-                touchView.Refresh(input, T);
+                touchView.Refresh(input, T, state == State.Play && wick.NearLadder);
                 return;
             }
             PopHitBubbles();
@@ -281,14 +281,14 @@ namespace Bubblewright
 
             fx.Tick(dt);
             UpdateCamera(dt);
-            if (state != State.Title) touchView.Refresh(input, T);
+            if (state != State.Title) touchView.Refresh(input, T, state == State.Play && wick.NearLadder);
         }
 
         void TickIntro(float dt)
         {
             // Faces the camera at stage start. Any input starts the turn, and input is live from then on.
-            wick.Tick(0f, dt, false);
-            if (stateTime >= T.introTime || input.AnyInput || input.Move != 0f || input.FireHeld)
+            wick.Tick(0f, 0f, dt, false);
+            if (stateTime >= T.introTime || input.AnyInput || input.Move != 0f || input.Climb != 0f || input.FireHeld)
             {
                 wick.Waving = false;
                 wick.Turn(false);
@@ -298,7 +298,7 @@ namespace Bubblewright
 
         void TickPlay(float dt)
         {
-            wick.Tick(input.Move, dt, true);
+            wick.Tick(input.Move, input.Climb, dt, true);
 
             // Up to run.Shots cables at once. Holding fire spaces extra cables out so they do not stack on one spot.
             shotTimer += dt;
@@ -310,8 +310,9 @@ namespace Bubblewright
                 else if (free == null) free = harpoons[i];
             }
             var shotTip = wick.LauncherTip;
-            bool tipBlocked = Map.IsSolid(StageMap.Col(shotTip.x), StageMap.Row(shotTip.y));
-            if (free != null && !tipBlocked && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
+            bool canFire = (wick.Mode == Mode.Ground || wick.Mode == Mode.Climb) &&
+                           !Map.IsSolid(StageMap.Col(shotTip.x), StageMap.Row(shotTip.y));
+            if (free != null && canFire && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
             {
                 free.Fire(wick.LauncherTip);
                 shotTimer = 0f;
@@ -399,7 +400,7 @@ namespace Bubblewright
 
         void TickClear(float dt)
         {
-            wick.Tick(0f, dt, false);
+            wick.Tick(0f, 0f, dt, false);
             TickHarpoons(dt);
             if (!turnedForCelebration && slowMo <= 0f)
             {
@@ -410,7 +411,7 @@ namespace Bubblewright
             {
                 celebrating = true;
                 wick.Celebrate();
-                fx.Confetti((Vector2)wick.transform.position + new Vector2(0f, 2.5f), 40);
+                fx.Confetti(new Vector2(wick.transform.position.x, wick.FeetY + 2.5f), 40);
                 Sfx.Play(Sound.Clear);
             }
             if (stateTime > 1.2f && input.ConfirmPressed)
@@ -422,7 +423,7 @@ namespace Bubblewright
 
         void TickOver(float dt)
         {
-            wick.Tick(0f, dt, false);
+            wick.Tick(0f, 0f, dt, false);
             for (int i = 0; i < bubbles.Count; i++) bubbles[i].Tick(BubbleDt(dt));
             if (stateTime > 0.8f && input.ConfirmPressed) OpenTitle();
         }
@@ -456,7 +457,7 @@ namespace Bubblewright
         /// <summary>Tap or click a card; or left/right then Enter, Space or pad A; or press 1-3.</summary>
         void TickPick(float dt)
         {
-            wick.Tick(0f, dt, false);
+            wick.Tick(0f, 0f, dt, false);
             int dir = input.Move > 0f ? 1 : input.Move < 0f ? -1 : 0;
             bool moved = dir != 0 && dir != lastMoveDir;
             lastMoveDir = dir;
@@ -635,7 +636,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
-                Label("A/D or arrows: move    Space: fire    Pad: stick + A    1-4: spawn    F1: hitboxes    F3: test layout    R: continue",
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   Pad: stick/d-pad + A   1-4: spawn   F1: hitboxes   F3: layout",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }

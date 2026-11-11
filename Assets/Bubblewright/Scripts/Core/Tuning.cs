@@ -39,6 +39,18 @@ namespace Bubblewright
         public float knockback = 1f;
         public float knockbackTime = 0.15f;
 
+        [Header("Climbing and falling")]
+        [Tooltip("Vertical speed on ladders, in units per second.")]
+        public float climbSpeed = 5f;
+        [Tooltip("Downward acceleration while falling, in units per second squared.")]
+        public float fallGravity = 45f;
+        [Tooltip("Maximum downward speed while falling, in units per second.")]
+        public float maxFallSpeed = 20f;
+        [Tooltip("How wide Wick's footing is in units, checked at both edges for floor support.")]
+        public float feetWidth = 0.6f;
+        [Tooltip("How far in units from a ladder's centre line Wick can grab it.")]
+        public float ladderGrabWidth = 0.6f;
+
         [Header("Harpoon")]
         public float harpoonSpeed = 20f;
         [Tooltip("Hold fire to shoot again as soon as the last shot is gone.")]

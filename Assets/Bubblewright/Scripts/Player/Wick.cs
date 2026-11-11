@@ -2,14 +2,23 @@ using UnityEngine;
 
 namespace Bubblewright
 {
+    public enum Mode { Ground, Fall, Climb }
+
     /// <summary>
-    /// The lamplighter. Floor only, no jump. Pivot at his feet.
+    /// The lamplighter. Stands on floors and platforms, falls off edges and climbs ladders (still no jump). Pivot at his feet.
     /// Rig: Wick (position) > Rig (squash, lean, hop) > Back / Front groups (body, launcher, flame; the front adds a free hand).
     /// He plays with his back to the camera and faces it only for the stage intro and the celebration.
     /// All animation is procedural, with timings from the sheet's animation table (Tuning > Wick animation).
     /// </summary>
     public class Wick : MonoBehaviour
     {
+        const float HitboxBottomInset = 0.02f;
+        const float FootSupportTolerance = 0.01f;
+        const float ClimbCenterSpeed = 16f;
+        const float ClimbBobSeconds = 0.12f;
+
+        public Mode Mode { get; private set; }
+        public float FeetY => transform.position.y;
         public float VelocityX { get; private set; }
         public int Hearts { get; private set; }
         public bool FacingFront { get; private set; }
@@ -23,6 +32,19 @@ namespace Bubblewright
         /// <summary>Hard-world debuff: multiplies the whole safe time after a hit.</summary>
         public float InvulnerableScale { get; set; } = 1f;
 
+        public bool NearLadder
+        {
+            get
+            {
+                if (Mode == Mode.Climb) return true;
+                var map = Game.Map;
+                if (map == null) return false;
+                var p = transform.position;
+                return TryFindLadder(map, p.x, p.y, 1f, Mode, out _, out _) ||
+                       TryFindLadder(map, p.x, p.y, -1f, Mode, out _, out _);
+            }
+        }
+
         float RunSpeed => T.runSpeed * SpeedMultiplier;
 
         Tuning T => Tuning.I;
@@ -32,6 +54,12 @@ namespace Bubblewright
         GameObject backSet, frontSet;
         SpriteRenderer bodyBack, bodyFront, flameBack, flameFront, launcherBack, launcherFront, handFront;
         Vector3 launcherBackHome, launcherFrontHome;
+
+        float fallSpeed;
+        int ladderCol, ladderBottomRow, ladderTopRow, ladderMapVersion;
+        bool climbMoving;
+        float climbClock;
+        float landSquash = -1f;
 
         float invulnerable;
         float knockTimer, knockVelocity;
@@ -80,7 +108,7 @@ namespace Bubblewright
             launcherBackHome = launcherBack.transform.localPosition;
             launcherFrontHome = launcherFront.transform.localPosition;
 
-            ResetForStage(0f, T.hearts);
+            ResetForStage(0f, 0f, T.hearts);
         }
 
         SpriteRenderer MakePart(Transform parent, string name, Sprite sprite, Vector2 pos, int order)
@@ -95,17 +123,23 @@ namespace Bubblewright
             return sr;
         }
 
+        public void ResetForStage(float x, int hearts) => ResetForStage(x, 0f, hearts);
+
         /// <summary>Hearts carry over between stages, so the run passes them in.</summary>
-        public void ResetForStage(float x, int hearts)
+        public void ResetForStage(float x, float y, int hearts)
         {
-            transform.position = new Vector3(x, 0f, 0f);
+            transform.position = new Vector3(x, y, 0f);
+            Mode = Mode.Ground;
             VelocityX = 0f;
+            fallSpeed = 0f;
+            climbMoving = false;
+            climbClock = 0f;
             Hearts = hearts;
             invulnerable = 0f;
             knockTimer = 0f;
             turnTimer = -1f;
             celebrateTimer = -1f;
-            fireKick = runStart = skid = hurtFlash = -1f;
+            fireKick = runStart = skid = landSquash = hurtFlash = -1f;
             lastWantDir = 0;
             lean = 0f;
             Waving = false;
@@ -174,9 +208,12 @@ namespace Bubblewright
             if (Invulnerable || Dead) return;
             Hearts = Mathf.Max(0, Hearts - Mathf.Max(1, damage));
             invulnerable = (T.invulnerableTime + ExtraInvulnerable) * InvulnerableScale;
-            knockTimer = T.knockbackTime;
-            float dir = transform.position.x >= fromX ? 1f : -1f;
-            knockVelocity = dir * T.knockback / Mathf.Max(0.01f, T.knockbackTime);
+            if (Mode != Mode.Climb)
+            {
+                knockTimer = T.knockbackTime;
+                float dir = transform.position.x >= fromX ? 1f : -1f;
+                knockVelocity = dir * T.knockback / Mathf.Max(0.01f, T.knockbackTime);
+            }
             VelocityX = 0f;
             runStart = skid = -1f;
             // Flash now: the game freezes right after this, so Animate will not run until the freeze ends.
@@ -196,34 +233,335 @@ namespace Bubblewright
             celebrateLandings = 0;
         }
 
-        /// <summary>Physics and procedural animation. move is -1..1. dt is game time.</summary>
-        public void Tick(float move, float dt, bool controllable)
-        {
-            float half = T.HalfWidth - 11.5f * Px; // keep the drawn body inside the walls
-            var pos = transform.position;
+        public void Tick(float move, float dt, bool controllable) => Tick(move, 0f, dt, controllable);
 
-            if (knockTimer > 0f)
+        /// <summary>Physics and procedural animation. move and climb are -1..1. dt is game time.</summary>
+        public void Tick(float move, float climb, float dt, bool controllable)
+        {
+            var map = Game.Map ?? StageMap.Flat();
+            float wantMove = controllable && !Dead ? Mathf.Clamp(move, -1f, 1f) : 0f;
+            float wantClimb = controllable && !Dead ? Mathf.Clamp(climb, -1f, 1f) : 0f;
+            var pos = transform.position;
+            climbMoving = false;
+
+            if (Mode != Mode.Climb && knockTimer <= 0f && wantClimb != 0f &&
+                TryFindLadder(map, pos.x, pos.y, wantClimb, Mode, out int grabCol, out int grabRow))
             {
-                knockTimer -= dt;
-                pos.x += knockVelocity * dt;
-                lastWantDir = 0;
+                StartClimb(map, grabCol, grabRow);
+            }
+
+            if (Mode == Mode.Climb)
+            {
+                RefreshClimbSpan(map, pos.y);
+                if (Mode == Mode.Climb && wantClimb == 0f && wantMove != 0f)
+                {
+                    Mode = Mode.Fall;
+                    fallSpeed = 0f;
+                }
+            }
+
+            if (Mode == Mode.Climb)
+            {
+                TickClimb(map, wantClimb, dt, ref pos);
+                transform.position = pos;
             }
             else
             {
-                float target = controllable && !Dead ? Mathf.Clamp(move, -1f, 1f) * RunSpeed : 0f;
-                DetectRunEdges(target);
-                bool stopping = target == 0f || (VelocityX != 0f && Mathf.Sign(target) != Mathf.Sign(VelocityX));
-                float rate = RunSpeed / Mathf.Max(0.001f, stopping ? T.stopTime : T.accelTime);
-                VelocityX = Mathf.MoveTowards(VelocityX, target, rate * dt);
-                pos.x += VelocityX * dt;
-            }
+                float prevX = pos.x;
+                if (knockTimer > 0f)
+                {
+                    knockTimer -= dt;
+                    pos.x += knockVelocity * dt;
+                    lastWantDir = 0;
+                }
+                else
+                {
+                    float target = wantMove * RunSpeed;
+                    transform.position = pos;
+                    if (Mode == Mode.Ground) DetectRunEdges(target);
+                    else lastWantDir = target > 0f ? 1 : target < 0f ? -1 : 0;
+                    bool stopping = target == 0f || (VelocityX != 0f && Mathf.Sign(target) != Mathf.Sign(VelocityX));
+                    float rate = RunSpeed / Mathf.Max(0.001f, stopping ? T.stopTime : T.accelTime);
+                    VelocityX = Mathf.MoveTowards(VelocityX, target, rate * dt);
+                    pos.x += VelocityX * dt;
+                }
 
-            if (pos.x < -half) { pos.x = -half; VelocityX = 0f; }
-            if (pos.x > half) { pos.x = half; VelocityX = 0f; }
-            transform.position = pos;
+                ResolveHorizontal(map, prevX, ref pos);
+
+                if (Mode == Mode.Ground)
+                {
+                    if (!IsSupported(map, pos.x, pos.y))
+                    {
+                        Mode = Mode.Fall;
+                        fallSpeed = 0f;
+                    }
+                    transform.position = pos;
+                }
+                else // Mode.Fall
+                {
+                    float previousFeetY = pos.y;
+                    fallSpeed = Mathf.Min(T.maxFallSpeed, fallSpeed + T.fallGravity * dt);
+                    pos.y -= fallSpeed * dt;
+
+                    float halfFeet = T.feetWidth * 0.5f;
+                    float floor = Mathf.Max(
+                        map.FloorBelow(pos.x - halfFeet, previousFeetY),
+                        map.FloorBelow(pos.x + halfFeet, previousFeetY));
+                    if (pos.y <= floor)
+                    {
+                        pos.y = floor;
+                        fallSpeed = 0f;
+                        Mode = Mode.Ground;
+                        landSquash = 0f;
+                        transform.position = pos;
+                        if (fx != null)
+                        {
+                            fx.Dust(Feet(-4), -1f);
+                            fx.Dust(Feet(4), 1f);
+                        }
+                    }
+                    else
+                    {
+                        transform.position = pos;
+                    }
+                }
+            }
 
             if (invulnerable > 0f) invulnerable -= dt;
             Animate(dt);
+        }
+
+        Rect BodyBox(float x, float y) =>
+            new Rect(x - T.hitbox.x * 0.5f, y + HitboxBottomInset, T.hitbox.x, Mathf.Max(0.01f, T.hitbox.y - HitboxBottomInset));
+
+        bool IsSupported(StageMap map, float x, float y)
+        {
+            float halfFeet = T.feetWidth * 0.5f;
+            float leftFloor = map.FloorBelow(x - halfFeet, y + FootSupportTolerance);
+            float rightFloor = map.FloorBelow(x + halfFeet, y + FootSupportTolerance);
+            return Mathf.Abs(leftFloor - y) <= FootSupportTolerance || Mathf.Abs(rightFloor - y) <= FootSupportTolerance;
+        }
+
+        void ResolveHorizontal(StageMap map, float prevX, ref Vector3 pos)
+        {
+            float half = T.HalfWidth - 11.5f * Px; // keep the drawn body inside the walls
+            if (pos.x < -half) { pos.x = -half; VelocityX = 0f; knockTimer = 0f; }
+            if (pos.x > half) { pos.x = half; VelocityX = 0f; knockTimer = 0f; }
+
+            float halfBox = T.hitbox.x * 0.5f;
+            var box = BodyBox(pos.x, pos.y);
+            if (!map.OverlapsSolid(box)) return;
+
+            int cMin = Mathf.Max(0, StageMap.Col(box.xMin));
+            int cMax = Mathf.Min(StageMap.Cols - 1, StageMap.Col(box.xMax));
+            int rMin = Mathf.Max(0, StageMap.Row(box.yMin));
+            int rMax = Mathf.Min(StageMap.Rows - 1, StageMap.Row(box.yMax));
+            for (int c = cMin; c <= cMax; c++)
+            {
+                for (int r = rMin; r <= rMax; r++)
+                {
+                    if (!map.IsSolid(c, r)) continue;
+                    Rect rect = StageMap.CellRect(c, r);
+                    if (!box.Overlaps(rect)) continue;
+                    if (Mode == Mode.Fall && map.Get(c, r).ladder && prevX > rect.xMin - halfBox && prevX < rect.xMax + halfBox)
+                        continue;
+
+                    if (prevX <= rect.center.x && !map.IsSolid(c - 1, r))
+                    {
+                        pos.x = Mathf.Min(pos.x, rect.xMin - halfBox);
+                        VelocityX = 0f;
+                        knockTimer = 0f;
+                    }
+                    else if (prevX >= rect.center.x && !map.IsSolid(c + 1, r))
+                    {
+                        pos.x = Mathf.Max(pos.x, rect.xMax + halfBox);
+                        VelocityX = 0f;
+                        knockTimer = 0f;
+                    }
+                }
+            }
+
+            if (pos.x < -half) { pos.x = -half; VelocityX = 0f; knockTimer = 0f; }
+            if (pos.x > half) { pos.x = half; VelocityX = 0f; knockTimer = 0f; }
+        }
+
+        bool TryFindLadder(StageMap map, float x, float y, float climbDir, Mode currentMode, out int foundCol, out int foundRow)
+        {
+            foundCol = -1;
+            foundRow = -1;
+            float bestDist = float.PositiveInfinity;
+            int cMin = Mathf.Max(0, StageMap.Col(x - T.ladderGrabWidth));
+            int cMax = Mathf.Min(StageMap.Cols - 1, StageMap.Col(x + T.ladderGrabWidth));
+
+            for (int c = cMin; c <= cMax; c++)
+            {
+                float dist = Mathf.Abs(x - StageMap.CenterX(c));
+                if (dist > T.ladderGrabWidth + 1e-5f || dist >= bestDist) continue;
+
+                int r = -1;
+                if (climbDir > 0f)
+                {
+                    int feetRow = StageMap.Row(y);
+                    if (map.Get(c, feetRow).ladder) r = feetRow;
+                    else if (map.Get(c, feetRow + 1).ladder) r = feetRow + 1;
+                    if (r >= 0)
+                    {
+                        GetLadderSpan(map, c, r, out _, out int topRow);
+                        float topStop = LadderTopStop(map, c, topRow);
+                        if (y >= topStop - 1e-4f) r = -1;
+                    }
+                }
+                else if (climbDir < 0f)
+                {
+                    int belowRow = StageMap.Row(y - 0.05f);
+                    if (currentMode == Mode.Ground)
+                    {
+                        if (map.Get(c, belowRow).ladder) r = belowRow;
+                    }
+                    else
+                    {
+                        int feetRow = StageMap.Row(y);
+                        if (map.Get(c, feetRow).ladder) r = feetRow;
+                        else if (map.Get(c, belowRow).ladder) r = belowRow;
+                        if (r >= 0)
+                        {
+                            GetLadderSpan(map, c, r, out int bottomRow, out _);
+                            float bottomStop = LadderBottomStop(map, c, bottomRow, out _);
+                            if (y <= bottomStop + 1e-4f) r = -1;
+                        }
+                    }
+                }
+
+                if (r >= 0)
+                {
+                    bestDist = dist;
+                    foundCol = c;
+                    foundRow = r;
+                }
+            }
+
+            return foundCol >= 0;
+        }
+
+        static void GetLadderSpan(StageMap map, int c, int seedRow, out int bottomRow, out int topRow)
+        {
+            bottomRow = seedRow;
+            while (bottomRow > 0 && map.Get(c, bottomRow - 1).ladder) bottomRow--;
+            topRow = seedRow;
+            while (topRow + 1 < StageMap.Rows && map.Get(c, topRow + 1).ladder) topRow++;
+        }
+
+        float LadderTopStop(StageMap map, int c, int topRow)
+        {
+            if (map.IsSolid(c, topRow)) return topRow + 1f;
+            float ceil = map.CeilingAbove(StageMap.CenterX(c), topRow + 0.5f, out _);
+            return Mathf.Min(topRow + 1f, ceil - T.hitbox.y);
+        }
+
+        static float LadderBottomStop(StageMap map, int c, int bottomRow, out bool hasSurface)
+        {
+            float surface = map.FloorBelow(StageMap.CenterX(c), bottomRow + FootSupportTolerance);
+            hasSurface = Mathf.Abs(surface - bottomRow) <= FootSupportTolerance;
+            return hasSurface ? surface : bottomRow;
+        }
+
+        void StartClimb(StageMap map, int c, int seedRow)
+        {
+            Mode = Mode.Climb;
+            ladderCol = c;
+            GetLadderSpan(map, c, seedRow, out ladderBottomRow, out ladderTopRow);
+            ladderMapVersion = map.Version;
+            VelocityX = 0f;
+            fallSpeed = 0f;
+            runStart = skid = landSquash = -1f;
+            lastWantDir = 0;
+        }
+
+        void RefreshClimbSpan(StageMap map, float y)
+        {
+            if (map.Version == ladderMapVersion) return;
+            ladderMapVersion = map.Version;
+            int r = Mathf.Clamp(StageMap.Row(y), ladderBottomRow, ladderTopRow);
+            if (!map.Get(ladderCol, r).ladder && map.Get(ladderCol, r + 1).ladder) r++;
+            if (!map.Get(ladderCol, r).ladder && map.Get(ladderCol, r - 1).ladder) r--;
+            if (!map.Get(ladderCol, r).ladder)
+            {
+                Mode = Mode.Fall;
+                fallSpeed = 0f;
+                return;
+            }
+            GetLadderSpan(map, ladderCol, r, out ladderBottomRow, out ladderTopRow);
+        }
+
+        void TickClimb(StageMap map, float wantClimb, float dt, ref Vector3 pos)
+        {
+            float centerX = StageMap.CenterX(ladderCol);
+            pos.x = Mathf.MoveTowards(pos.x, centerX, ClimbCenterSpeed * dt);
+            VelocityX = 0f;
+
+            float vy = wantClimb * T.climbSpeed;
+            float prevY = pos.y;
+            pos.y += vy * dt;
+
+            if (wantClimb > 0f)
+            {
+                bool hasTopTile = map.IsSolid(ladderCol, ladderTopRow);
+                float topStop = LadderTopStop(map, ladderCol, ladderTopRow);
+                if (pos.y >= topStop)
+                {
+                    pos.y = topStop;
+                    if (hasTopTile)
+                    {
+                        Mode = Mode.Ground;
+                        climbMoving = false;
+                        ResolveClimbHorizontal(map, ref pos);
+                        return;
+                    }
+                }
+            }
+            else if (wantClimb < 0f)
+            {
+                float bottomStop = LadderBottomStop(map, ladderCol, ladderBottomRow, out bool hasSurface);
+                if (pos.y <= bottomStop)
+                {
+                    pos.y = bottomStop;
+                    if (hasSurface)
+                    {
+                        Mode = Mode.Ground;
+                        climbMoving = false;
+                        ResolveClimbHorizontal(map, ref pos);
+                        return;
+                    }
+                }
+            }
+
+            climbMoving = Mathf.Abs(pos.y - prevY) > 1e-5f;
+            ResolveClimbHorizontal(map, ref pos);
+        }
+
+        void ResolveClimbHorizontal(StageMap map, ref Vector3 pos)
+        {
+            float half = T.HalfWidth - 11.5f * Px;
+            pos.x = Mathf.Clamp(pos.x, -half, half);
+
+            float halfBox = T.hitbox.x * 0.5f;
+            var box = BodyBox(pos.x, pos.y);
+            int cMin = Mathf.Max(0, StageMap.Col(box.xMin));
+            int cMax = Mathf.Min(StageMap.Cols - 1, StageMap.Col(box.xMax));
+            int rMin = Mathf.Max(0, StageMap.Row(box.yMin));
+            int rMax = Mathf.Min(StageMap.Rows - 1, StageMap.Row(box.yMax));
+            for (int c = cMin; c <= cMax; c++)
+            {
+                if (c == ladderCol) continue;
+                for (int r = rMin; r <= rMax; r++)
+                {
+                    if (!map.IsSolid(c, r)) continue;
+                    Rect rect = StageMap.CellRect(c, r);
+                    if (!box.Overlaps(rect)) continue;
+                    if (c < ladderCol) pos.x = Mathf.Max(pos.x, rect.xMax + halfBox);
+                    else pos.x = Mathf.Min(pos.x, rect.xMin - halfBox);
+                }
+            }
         }
 
         /// <summary>Starts the run-start stretch and the skid when the wanted direction changes.</summary>
@@ -236,20 +574,23 @@ namespace Bubblewright
             {
                 skid = 0f;
                 skidDir = moving;
-                fx.Dust(Feet(moving * 5), moving);
+                if (fx != null) fx.Dust(Feet(moving * 5), moving);
                 Sfx.Play(Sound.Skid);
             }
             if (want != 0)
             {
                 runStart = 0f;
                 runDir = want;
-                fx.Dust(Feet(-3), -want);
-                fx.Dust(Feet(3), -want);
+                if (fx != null)
+                {
+                    fx.Dust(Feet(-3), -want);
+                    fx.Dust(Feet(3), -want);
+                }
             }
             lastWantDir = want;
         }
 
-        Vector2 Feet(int pixelsX) => (Vector2)transform.position + new Vector2(pixelsX * Px, 0f);
+        Vector2 Feet(int pixelsX) => new Vector2(transform.position.x + pixelsX * Px, FeetY);
 
         void Animate(float dt)
         {
@@ -258,14 +599,34 @@ namespace Bubblewright
             float speed01 = RunSpeed > 0f ? VelocityX / RunSpeed : 0f;
             float leanRate = T.runLean / Mathf.Max(0.01f, T.runStartTime);
 
-            // Run: lean into the direction, bob 1 px per step at 8 steps/s. Idle: slow 1.6 s breathing squash.
-            if (Mathf.Abs(speed01) > 0.1f)
+            // Run: lean into the direction, bob 1 px per step at 8 steps/s. Climb: bob 1 px every 0.12 s while moving, no lean. Idle: slow 1.6 s breathing squash.
+            if (Mode == Mode.Climb)
             {
+                stepClock = 0f;
+                if (climbMoving)
+                {
+                    climbClock += dt;
+                    offsetY = (Mathf.FloorToInt(climbClock / ClimbBobSeconds) % 2) * Px;
+                }
+                else
+                {
+                    climbClock = 0f;
+                }
+            }
+            else if (Mode == Mode.Fall)
+            {
+                stepClock = 0f;
+                climbClock = 0f;
+            }
+            else if (Mathf.Abs(speed01) > 0.1f)
+            {
+                climbClock = 0f;
                 stepClock += dt * 8f;
                 offsetY = (Mathf.FloorToInt(stepClock) % 2) * Px;
             }
             else
             {
+                climbClock = 0f;
                 stepClock = 0f;
                 idleClock += dt;
                 float breath = Mathf.Sin(idleClock * Mathf.PI * 2f / 1.6f);
@@ -291,7 +652,15 @@ namespace Bubblewright
                 else if (k < 0.5f) holdSkidLean = true;
                 else scale = Vector3.Scale(scale, Squash(T.skidSettle, (k - 0.5f) * 2f));
             }
-            if (holdSkidLean) lean = skidDir * T.skidLean;
+            if (landSquash >= 0f)
+            {
+                landSquash += dt;
+                float k = landSquash / Mathf.Max(0.001f, T.skidTime);
+                if (k >= 1f) landSquash = -1f;
+                else scale = Vector3.Scale(scale, Squash(T.skidSettle, k));
+            }
+            if (Mode == Mode.Climb) lean = 0f;
+            else if (holdSkidLean) lean = skidDir * T.skidLean;
             else lean = Mathf.MoveTowards(lean, -speed01 * T.runLean, leanRate * dt);
 
             // Fire: launcher kicks down 2 px, body squashes 1.1 x 0.9

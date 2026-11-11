@@ -17,7 +17,7 @@ namespace Bubblewright
         public Sprite[] PopRings; // per tier
         public Sprite HarpoonTip, Rope;
         public Sprite Background;
-        public Sprite FireButton, FireButtonPressed, MoveHint, MoveKnob, MoveDot;
+        public Sprite FireButton, FireButtonPressed, MoveHint, MoveKnob, MoveDot, ClimbUpHint, ClimbDownHint;
         public Sprite Droplet, Pixel, Dust, MuzzleFlash;
 
         /// <summary>Height of the harpoon tip sprite above its pivot, in pixels.</summary>
@@ -33,8 +33,10 @@ namespace Bubblewright
         public static Vector2 LauncherOffsetPixels(bool front) =>
             new Vector2((front ? LauncherFrontX : LauncherBackX) - 2 - 11.5f, 13f);
 
+        bool Alive => WickBack != null && WickBack.texture != null && ClimbUpHint != null && ClimbUpHint.texture != null;
+
         static PlaceholderArt instance;
-        public static PlaceholderArt I => instance ??= new PlaceholderArt(Tuning.I);
+        public static PlaceholderArt I => instance != null && instance.Alive ? instance : (instance = new PlaceholderArt(Tuning.I));
 
         readonly int ppu;
 
@@ -70,6 +72,8 @@ namespace Bubblewright
             MoveHint = BuildMoveHint();
             MoveKnob = BuildDisc(14, Palette.Lilac, "MoveKnob");
             MoveDot = BuildDisc(8, Palette.Cream, "MoveDot");
+            ClimbUpHint = BuildClimbArrow(true);
+            ClimbDownHint = BuildClimbArrow(false);
 
             var drop = new PixelCanvas(2, 2);
             drop.Rect(0, 0, 2, 2, Palette.Cream);
@@ -168,7 +172,7 @@ namespace Bubblewright
         /// <summary>Icon for an upgrade card, by upgrade name. Built once, then cached.</summary>
         public Texture2D UpgradeIcon(string name)
         {
-            if (!upgradeIcons.TryGetValue(name, out var tex))
+            if (!upgradeIcons.TryGetValue(name, out var tex) || tex == null)
             {
                 tex = BuildUpgradeIcon(name).ToTexture("Icon " + name);
                 upgradeIcons[name] = tex;
@@ -485,6 +489,18 @@ namespace Bubblewright
             c.Circle(d * 0.5f, d * 0.5f, d * 0.5f - 1f, color);
             c.Outline(Palette.Ink);
             return c.ToSprite(name, new Vector2(d * 0.5f, d * 0.5f), ppu);
+        }
+
+        Sprite BuildClimbArrow(bool up)
+        {
+            var c = new PixelCanvas(9, 6);
+            for (int i = 0; i < 4; i++)
+            {
+                int y = up ? 1 + i : 4 - i;
+                c.Rect(1 + i, y, 7 - 2 * i, 1, Palette.Mist);
+            }
+            c.Outline(Palette.Ink);
+            return c.ToSprite(up ? "ClimbUpHint" : "ClimbDownHint", new Vector2(4.5f, 3f), ppu);
         }
     }
 }
