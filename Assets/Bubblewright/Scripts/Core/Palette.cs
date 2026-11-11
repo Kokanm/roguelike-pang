@@ -22,6 +22,10 @@ namespace Bubblewright
         public static readonly Color32 SteelLight = Hex(0xDCE2EE);
         public static readonly Color32 Steel = Hex(0x9AA4BC);
         public static readonly Color32 SteelDark = Hex(0x5C6480);
+        // Catacombs masonry
+        public static readonly Color32 CatacombBrick = Hex(0xAAA2C9);
+        public static readonly Color32 CatacombBrickLight = Hex(0xD1CAE5);
+        public static readonly Color32 CatacombBrickDark = Hex(0x69638F);
         // Bubbles
         public static readonly Color32 Coral = Hex(0xFF6A5C);
         public static readonly Color32 Azure = Hex(0x3FA9FF);

@@ -94,7 +94,7 @@ namespace Bubblewright
             stageView = StageView.Create(world);
             bubbleRoot = new GameObject("Bubbles").transform;
             bubbleRoot.SetParent(world, false);
-            harpoons.Add(Harpoon.Create(world));
+            harpoons.Add(Harpoon.Create(world, HitTile));
             fx = Effects.Create(world);
             wick = Wick.Create(world, fx);
             Sfx.Create(transform);
@@ -176,12 +176,14 @@ namespace Bubblewright
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
+            ClearPickups();
             fx.Clear();
             ApplyRunUpgrades();
             HideHarpoons();
             wick.ResetForStage(plan.wickX, 0f, run.Hearts);
             wick.Waving = true;
             freeze = slowMo = shake = 0f;
+            tileShakeFrames = 0;
             shotTimer = 0f;
             turnedForCelebration = celebrating = false;
             stormClock = stormBanner = 0f;
@@ -202,7 +204,7 @@ namespace Bubblewright
             wick.SpeedMultiplier = run.EffectiveSpeedMultiplier;
             wick.ExtraInvulnerable = run.ExtraInvulnerable;
             wick.InvulnerableScale = debuff?.invulnerableScale ?? 1f;
-            while (harpoons.Count < run.Shots) harpoons.Add(Harpoon.Create(world));
+            while (harpoons.Count < run.Shots) harpoons.Add(Harpoon.Create(world, HitTile));
             foreach (var h in harpoons)
             {
                 h.SpeedMultiplier = run.HarpoonSpeedMultiplier * (debuff?.harpoonSpeedScale ?? 1f);
@@ -318,13 +320,14 @@ namespace Bubblewright
                            !Map.IsSolid(StageMap.Col(shotTip.x), StageMap.Row(shotTip.y));
             if (free != null && canFire && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
             {
-                free.Fire(wick.LauncherTip);
+                free.Fire(wick.LauncherTip, ChipColumn());
                 shotTimer = 0f;
                 wick.OnFire();
                 fx.MuzzleFlash(wick.LauncherTip);
                 Sfx.Play(Sound.Fire);
             }
             TickHarpoons(dt);
+            TickPickups(dt);
 
             if (!debug.freezeTimer) stormClock += dt;
             if (!storm && stormClock >= StageTimeLimit) StartStorm();
@@ -552,9 +555,19 @@ namespace Bubblewright
         void UpdateCamera(float dt)
         {
             var pos = cameraHome;
+            bool shaking = false;
             if (shake > 0f)
             {
                 shake -= dt;
+                shaking = true;
+            }
+            if (tileShakeFrames > 0)
+            {
+                tileShakeFrames--;
+                shaking = true;
+            }
+            if (shaking)
+            {
                 float px = 1f / T.pixelsPerUnit;
                 pos.x += Random.Range(-T.shakePixels, T.shakePixels + 1) * px;
                 pos.y += Random.Range(-T.shakePixels, T.shakePixels + 1) * px;

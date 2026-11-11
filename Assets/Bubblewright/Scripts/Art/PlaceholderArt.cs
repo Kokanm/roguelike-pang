@@ -9,7 +9,7 @@ namespace Bubblewright
     /// </summary>
     public class PlaceholderArt
     {
-        public Sprite WickBack, WickFront, Flame;
+        public Sprite WickBack, WickFront, Flame, PickupRing;
         public Sprite WickBackFlash, WickFrontFlash; // cream silhouettes for the hurt flash
         public Sprite Launcher, LauncherFlash, Hand;
         public Sprite[,] Bubbles; // [kind, tier]
@@ -46,6 +46,7 @@ namespace Bubblewright
             WickBack = BuildWick(false, out WickBackFlash);
             WickFront = BuildWick(true, out WickFrontFlash);
             Flame = BuildFlame();
+            PickupRing = BuildPickupRing();
             Launcher = BuildLauncher(out LauncherFlash);
             Hand = BuildHand();
 
@@ -96,6 +97,15 @@ namespace Bubblewright
             mf.Rect(2, 2, 3, 3, Palette.Mint);
             mf.Set(3, 3, Palette.Cream);
             MuzzleFlash = mf.ToSprite("MuzzleFlash", new Vector2(3.5f, 1f), ppu);
+        }
+
+        Sprite BuildPickupRing()
+        {
+            var c = new PixelCanvas(13, 16);
+            c.Ellipse(6.5f, 8f, 6f, 7.5f, Palette.Ink);
+            c.Ellipse(6.5f, 8f, 5f, 6.5f, Palette.Mint);
+            c.Ellipse(6.5f, 8f, 4f, 5.5f, Palette.Clear);
+            return c.ToSprite("PickupRing", new Vector2(6.5f, 0f), ppu);
         }
 
         // ---------------------------------------------------------------- Wick (23 x 30 px, pivot at feet)

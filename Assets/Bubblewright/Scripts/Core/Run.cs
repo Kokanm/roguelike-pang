@@ -284,19 +284,30 @@ namespace Bubblewright
             if (Run.IsBossStageNumber(stage) || world == 1 && stageInWorld <= 2)
                 return Mirrored(StageLayouts.All[0], rng);
 
+            if (world == 5)
+            {
+                var catacombs = new List<LayoutDef>();
+                foreach (var layout in StageLayouts.All)
+                    if (layout.onlyWorld == 5)
+                        catacombs.Add(layout);
+                return Mirrored(catacombs[rng.Next(catacombs.Count)], rng);
+            }
+
             int wantedLevels = 2;
             if (world >= 2 && stageInWorld >= 2)
                 wantedLevels = rng.Next(3) == 0 ? 2 : 3;
 
             var choices = new List<LayoutDef>();
             foreach (var layout in StageLayouts.All)
-                if (layout.levels == wantedLevels && layout.minWorld <= world)
+                if (layout.levels == wantedLevels && layout.minWorld <= world &&
+                    (layout.onlyWorld == 0 || layout.onlyWorld == world))
                     choices.Add(layout);
 
             // minWorld can remove a whole tier from a future data set; fall back to any eligible non-flat layout.
             if (choices.Count == 0)
                 foreach (var layout in StageLayouts.All)
-                    if (layout.levels > 1 && layout.minWorld <= world)
+                    if (layout.levels > 1 && layout.minWorld <= world &&
+                        (layout.onlyWorld == 0 || layout.onlyWorld == world))
                         choices.Add(layout);
 
             return Mirrored(choices[rng.Next(choices.Count)], rng);
@@ -310,6 +321,9 @@ namespace Bubblewright
                 name = layout.name,
                 levels = layout.levels,
                 minWorld = layout.minWorld,
+                onlyWorld = layout.onlyWorld,
+                needsBreaking = layout.needsBreaking,
+                bubbleMinY = layout.bubbleMinY,
                 rows = StageLayouts.Mirror(layout.rows),
             };
         }
@@ -328,6 +342,7 @@ namespace Bubblewright
             LayoutDef layout = layoutOverride ?? PickLayout(stage, rng);
             StageMap map = StageLayout.Parse(layout.rows);
             WorldRules.Apply(map, Run.WorldOf(stage), rng);
+            float bubbleMinY = layout.bubbleMinY > 0f ? layout.bubbleMinY : 5f;
             float budget = Budget(stage, hard);
             int maxBubbles = MaxStartBubbles(stage);
             var picks = new List<(BubbleKind kind, int tier)>();
@@ -357,7 +372,7 @@ namespace Bubblewright
                 var positions = new List<Vector2>();
                 float largestClearance = t.tiers[0].diameter * 0.5f + 0.25f;
                 for (int i = 0; i < picks.Count; i++)
-                    if (TryPosition(map, largestClearance, 0f, rng, out Vector2 position))
+                    if (TryPosition(map, largestClearance, bubbleMinY, 0f, rng, out Vector2 position))
                         positions.Add(position);
                 positions.Sort((a, b) => Mathf.Abs(b.x).CompareTo(Mathf.Abs(a.x)));
                 int count = Mathf.Min(picks.Count, positions.Count);
@@ -369,7 +384,7 @@ namespace Bubblewright
                 foreach (var pick in picks)
                 {
                     float clearance = t.tiers[pick.tier].diameter * 0.5f + 0.25f;
-                    if (TryPosition(map, clearance, 0f, rng, out Vector2 position))
+                    if (TryPosition(map, clearance, bubbleMinY, 0f, rng, out Vector2 position))
                         specs.Add(Spec(pick, position, rng));
                 }
             }
@@ -385,7 +400,7 @@ namespace Bubblewright
                 direction = rng.NextDouble() < 0.5 ? -1 : 1,
             };
 
-        static bool TryPosition(StageMap map, float clearance, float wickX, System.Random rng, out Vector2 position)
+        static bool TryPosition(StageMap map, float clearance, float minY, float wickX, System.Random rng, out Vector2 position)
         {
             var t = Tuning.I;
             float minX = -t.HalfWidth + clearance;
@@ -395,7 +410,8 @@ namespace Bubblewright
             {
                 // The largest bubble plus its safety margin exactly fills a four-unit level, so explicitly
                 // try the two level centres before sampling the rest of the vertical range.
-                float y = attempt == 0 ? 7f : attempt == 1 ? 12f : Mathf.Lerp(5f, maxY, (float)rng.NextDouble());
+                float y = attempt == 0 ? (minY > 5f ? 12f : 7f) :
+                    attempt == 1 ? 12f : Mathf.Lerp(minY, maxY, (float)rng.NextDouble());
                 var candidate = new Vector2(
                     Mathf.Lerp(minX, maxX, (float)rng.NextDouble()),
                     y);

@@ -203,6 +203,12 @@ namespace Bubblewright
             SetVisible(true);
         }
 
+        public void Heal()
+        {
+            Hearts++;
+            SetVisible(true);
+        }
+
         /// <summary>Normal bubbles take one heart; during the storm they take more.</summary>
         public void Hurt(float fromX, int damage = 1)
         {

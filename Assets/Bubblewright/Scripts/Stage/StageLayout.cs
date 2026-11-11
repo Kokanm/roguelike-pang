@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace Bubblewright
 {
@@ -31,7 +32,11 @@ namespace Bubblewright
                             map.Set(c, r, new Cell { kind = TileKind.Solid });
                             break;
                         case 'B':
-                            map.Set(c, r, new Cell { kind = TileKind.Breakable, hp = 2 });
+                            map.Set(c, r, new Cell
+                            {
+                                kind = TileKind.Breakable,
+                                hp = (byte)Mathf.Clamp(Tuning.I.breakableHp, 1, byte.MaxValue),
+                            });
                             break;
                         case 'H':
                             map.Set(c, r, new Cell { kind = TileKind.Empty, ladder = true });

@@ -72,7 +72,7 @@ namespace Bubblewright
                 for (int c = 0; c < StageMap.Cols; c++)
                 {
                     Cell cell = map.Get(c, r);
-                    if (cell.kind != TileKind.Empty) PaintTile(map, c, r, cell.kind);
+                    if (cell.kind != TileKind.Empty) PaintTile(map, c, r, cell);
                     if (cell.ladder) PaintLadder(c, r);
                 }
             }
@@ -88,30 +88,32 @@ namespace Bubblewright
             paintedVersion = map.Version;
         }
 
-        void PaintTile(StageMap map, int c, int r, TileKind kind)
+        void PaintTile(StageMap map, int c, int r, Cell cell)
         {
             int x0 = c * TilePixels, y0 = r * TilePixels;
-            Color32 fill = kind == TileKind.Breakable
-                ? Palette.Mix(Palette.Dusk, Palette.Lilac, 0.35f)
+            Color32 fill = cell.kind == TileKind.Breakable
+                ? Palette.CatacombBrick
                 : Palette.Dusk;
             Rect(x0, y0, TilePixels, TilePixels, fill);
 
-            if (kind == TileKind.Breakable)
+            if (cell.kind == TileKind.Breakable)
             {
-                for (int y = 5; y < 11; y += 5) Rect(x0, y0 + y, TilePixels, 1, Palette.Deep);
+                for (int y = 5; y < 11; y += 5) Rect(x0, y0 + y, TilePixels, 1, Palette.CatacombBrickDark);
                 for (int course = 0; course < 3; course++)
                 {
                     int y = y0 + course * 5;
                     int joint = course % 2 == 0 ? 5 : 10;
                     for (int x = joint; x < TilePixels; x += 10)
-                        Rect(x0 + x, y, 1, Mathf.Min(5, TilePixels - course * 5), Palette.Deep);
+                        Rect(x0 + x, y, 1, Mathf.Min(5, TilePixels - course * 5), Palette.CatacombBrickDark);
                 }
             }
 
-            Rect(x0, y0 + 12, TilePixels, 3, Palette.Lilac);
-            Rect(x0, y0 + 11, TilePixels, 1, Palette.Deep);
+            Rect(x0, y0 + 12, TilePixels, 3,
+                cell.kind == TileKind.Breakable ? Palette.CatacombBrickLight : Palette.Lilac);
+            Rect(x0, y0 + 11, TilePixels, 1,
+                cell.kind == TileKind.Breakable ? Palette.CatacombBrickDark : Palette.Deep);
 
-            Surface surface = map.Get(c, r).surface;
+            Surface surface = cell.surface;
             if (surface != Surface.Normal) PaintCap(pixels, Width, x0, y0 + 12, surface);
 
             if (!map.IsSolid(c - 1, r)) Rect(x0, y0, 1, TilePixels, Palette.Ink);
@@ -129,6 +131,13 @@ namespace Bubblewright
                         pixels[(y0 + 13) * Width + x0 + x] = Palette.Ink;
                     }
                 }
+            }
+
+            if (cell.kind == TileKind.Breakable && cell.hp == 1)
+            {
+                int[] crackX = { 7, 7, 6, 6, 7, 7, 8, 7, 7, 6, 6, 7, 8, 8, 7 };
+                for (int y = 0; y < TilePixels; y++)
+                    Rect(x0 + crackX[y], y0 + y, 1, 1, Palette.Ink);
             }
         }
 
