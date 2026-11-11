@@ -453,6 +453,22 @@ namespace Bubblewright
             return c.ToSprite(up ? "ClimbUpHint" : "ClimbDownHint", new Vector2(4.5f, 3f), ppu);
         }
 
+        // ---------------------------------------------------------------- Road choice doors (painted in DoorArt)
+
+        readonly Sprite[,] doors = new Sprite[Themes.All.Length, 2];
+
+        /// <summary>The calm or hard door in a theme's stone, 30 x 45 px, pivot bottom centre. Built on first use, then cached.</summary>
+        public Sprite DoorFor(Theme theme, bool hard)
+        {
+            int i = System.Array.IndexOf(Themes.All, theme);
+            if (i < 0) i = 0;
+            int h = hard ? 1 : 0;
+            if (doors[i, h] == null || doors[i, h].texture == null)
+                doors[i, h] = DoorArt.Paint(Themes.All[i], hard).ToSprite($"Door {Themes.All[i].name}{(hard ? " hard" : " calm")}",
+                    new Vector2(DoorArt.Width * 0.5f, 0f), ppu);
+            return doors[i, h];
+        }
+
         // ---------------------------------------------------------------- Lava spikes (one tile wide, tiled along a strip)
 
         /// <summary>Five 1 px holes, one per spike, in the centre of each 3 px slot.</summary>
