@@ -50,6 +50,7 @@ namespace Bubblewright
         public bool IsHard => World < hardWorld.Length && hardWorld[World];
         /// <summary>The debuff of the world being played, or null when it is a calm world.</summary>
         public Debuff CurrentDebuff => IsHard ? Debuff.ByName(worldDebuff[World]) : null;
+        public float EffectiveSpeedMultiplier => SpeedMultiplier * (CurrentDebuff?.speedScale ?? 1f);
 
         public void SetHard(int world, Debuff d)
         {
@@ -103,6 +104,50 @@ namespace Bubblewright
                 if (n > 0) parts.Add(n > 1 ? $"{u.Name} x{n}" : u.Name);
             }
             return parts.Count == 0 ? "nothing yet" : string.Join(", ", parts);
+        }
+
+        public SaveData ToSave()
+        {
+            var names = new string[taken.Count];
+            for (int i = 0; i < taken.Count; i++) names[i] = taken[i].Name;
+            return new SaveData
+            {
+                version = 1,
+                seed = Seed,
+                stage = Stage,
+                score = Score,
+                hearts = Hearts,
+                maxHearts = MaxHearts,
+                upgrades = names,
+                character = "wick",
+                hardWorld = (bool[])hardWorld.Clone(),
+                worldDebuff = (string[])worldDebuff.Clone(),
+            };
+        }
+
+        public static Run FromSave(SaveData d)
+        {
+            if (d == null || d.version != 1) return null;
+            var run = new Run(d.seed);
+            if (d.upgrades != null)
+            {
+                foreach (var name in d.upgrades)
+                {
+                    var u = Upgrade.ByName(name);
+                    if (u != null) run.Take(u);
+                }
+            }
+            run.Stage = d.stage;
+            run.Score = d.score;
+            run.Hearts = d.hearts;
+            run.MaxHearts = d.maxHearts;
+            if (d.hardWorld != null)
+                for (int i = 0; i < Mathf.Min(run.hardWorld.Length, d.hardWorld.Length); i++)
+                    run.hardWorld[i] = d.hardWorld[i];
+            if (d.worldDebuff != null)
+                for (int i = 0; i < Mathf.Min(run.worldDebuff.Length, d.worldDebuff.Length); i++)
+                    run.worldDebuff[i] = string.IsNullOrEmpty(d.worldDebuff[i]) ? null : d.worldDebuff[i];
+            return run;
         }
 
         /// <summary>
@@ -188,6 +233,12 @@ namespace Bubblewright
             new Upgrade { Name = "Spare Wick", Text = "One more heart, and it starts lit.", Max = 2, Rarity = Rarity.Rare, Apply = r => { r.MaxHearts++; r.Hearts++; } },
             new Upgrade { Name = "Relight", Text = "Get back one lost heart.", Max = 0, Extra = r => r.Hearts < r.MaxHearts && !(r.CurrentDebuff?.noRelight ?? false), Apply = r => r.Hearts++ },
         };
+
+        public static Upgrade ByName(string name)
+        {
+            foreach (var u in All) if (u.Name == name) return u;
+            return null;
+        }
     }
 
     /// <summary>

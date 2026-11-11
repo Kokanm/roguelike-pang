@@ -20,7 +20,7 @@ namespace Bubblewright
     [DefaultExecutionOrder(-100)]
     public partial class Game : MonoBehaviour
     {
-        enum State { Intro, Play, Clear, Pick, Over }
+        enum State { Title, Intro, Play, Clear, Pick, Over }
         const string BestScoreKey = "Bubblewright.BestScore";
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -101,7 +101,7 @@ namespace Bubblewright
             touchView = TouchControlsView.Create(world, cam);
 
             try { bestScore = PlayerPrefs.GetInt(BestScoreKey, 0); } catch { bestScore = 0; }
-            StartRun();
+            OpenTitle();
         }
 
         /// <summary>
@@ -167,6 +167,7 @@ namespace Bubblewright
 
         void StartStage()
         {
+            touchView.gameObject.SetActive(true);
             Map = BuildStageMap();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
@@ -188,12 +189,13 @@ namespace Bubblewright
                 SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false);
             }
             SetState(State.Intro);
+            SaveGame.Save(run);
         }
 
         void ApplyRunUpgrades()
         {
             var debuff = run.CurrentDebuff; // a hard world's debuff holds for every stage of that world
-            wick.SpeedMultiplier = run.SpeedMultiplier * (debuff?.speedScale ?? 1f);
+            wick.SpeedMultiplier = run.EffectiveSpeedMultiplier;
             wick.ExtraInvulnerable = run.ExtraInvulnerable;
             wick.InvulnerableScale = debuff?.invulnerableScale ?? 1f;
             while (harpoons.Count < run.Shots) harpoons.Add(Harpoon.Create(world));
@@ -269,6 +271,7 @@ namespace Bubblewright
 
             switch (state)
             {
+                case State.Title: TickTitle(dt); break;
                 case State.Intro: TickIntro(dt); break;
                 case State.Play: TickPlay(dt); break;
                 case State.Clear: TickClear(dt); break;
@@ -278,7 +281,7 @@ namespace Bubblewright
 
             fx.Tick(dt);
             UpdateCamera(dt);
-            touchView.Refresh(input, T);
+            if (state != State.Title) touchView.Refresh(input, T);
         }
 
         void TickIntro(float dt)
@@ -350,9 +353,15 @@ namespace Bubblewright
                     {
                         HideHarpoons();
                         run.Hearts = 0;
+                        SaveGame.Delete();
                         RecordScore();
                         SetState(State.Over);
                         Sfx.Play(Sound.Over);
+                    }
+                    else
+                    {
+                        run.Hearts = wick.Hearts;
+                        SaveGame.UpdateHearts(wick.Hearts);
                     }
                     break;
                 }
@@ -362,7 +371,11 @@ namespace Bubblewright
             {
                 slowMo = T.lastPopSlowMo;
                 run.Hearts = wick.Hearts;
-                if (run.IsLastStage) RecordScore();
+                if (run.IsLastStage)
+                {
+                    SaveGame.Delete();
+                    RecordScore();
+                }
                 SetState(State.Clear);
             }
         }
@@ -402,7 +415,7 @@ namespace Bubblewright
             }
             if (stateTime > 1.2f && input.ConfirmPressed)
             {
-                if (run.IsLastStage) StartRun();
+                if (run.IsLastStage) OpenTitle();
                 else OpenPick();
             }
         }
@@ -411,7 +424,7 @@ namespace Bubblewright
         {
             wick.Tick(0f, dt, false);
             for (int i = 0; i < bubbles.Count; i++) bubbles[i].Tick(BubbleDt(dt));
-            if (stateTime > 0.8f && input.ConfirmPressed) StartRun();
+            if (stateTime > 0.8f && input.ConfirmPressed) OpenTitle();
         }
 
         void RecordScore()
@@ -583,6 +596,13 @@ namespace Bubblewright
                 return;
             }
 
+            if (state == State.Title)
+            {
+                DrawTitle(k);
+                if (showHitboxes) DrawHitboxes(k);
+                return;
+            }
+
             // Arena corners in screen space (the arena may not fill wide screens).
             Vector2 topLeft = WorldToGui(new Vector2(-T.HalfWidth, T.arenaHeight));
             Vector2 topRight = WorldToGui(new Vector2(T.HalfWidth, T.arenaHeight));
@@ -643,7 +663,7 @@ namespace Bubblewright
                         if (run.IsLastStage)
                         {
                             Centered($"SCORE {run.Score}    {best}", y0, 8 * k, UiText.Accent);
-                            Centered(touchUi ? "Tap to start a new run" : "Press R, Enter or Start for a new run", y0 + 12 * k, 8 * k, UiText.Secondary);
+                            Centered(touchUi ? "Tap to continue" : "Press R, Enter or Start to continue", y0 + 12 * k, 8 * k, UiText.Secondary);
                         }
                         else Centered(touchUi ? "Tap to pick an upgrade" : "Press R, Enter or Start to pick an upgrade", y0, 8 * k, UiText.Secondary);
                     }
@@ -659,7 +679,7 @@ namespace Bubblewright
                         float y0 = Screen.height * 0.32f + 20 * k;
                         Centered($"WORLD {run.World}-{run.StageInWorld}    SCORE {run.Score}    {best}", y0, 8 * k, UiText.Accent);
                         Centered($"BUILD: {run.BuildSummary()}", y0 + 12 * k, 8 * k, UiText.Primary);
-                        Centered(touchUi ? "Tap to start a new run" : "Press R, Enter or Start for a new run", y0 + 24 * k, 8 * k, UiText.Secondary);
+                        Centered(touchUi ? "Tap to continue" : "Press R, Enter or Start to continue", y0 + 24 * k, 8 * k, UiText.Secondary);
                         Centered($"seed {run.Seed}", y0 + 36 * k, 8 * k, UiText.Secondary);
                     }
                     break;
