@@ -31,9 +31,21 @@ namespace Bubblewright
         public const int Cols = 32, Rows = 14;
         const float HalfWidth = Cols * 0.5f;
 
+        /// <summary>A retracting spike strip. row is the tile it sits on, or -1 for the ground.</summary>
+        public class SpikeStrip
+        {
+            public int col;
+            public int row;
+            public int width;
+            public float phase;
+        }
+
         readonly Cell[,] cells = new Cell[Cols, Rows];
         readonly Surface[] ground = new Surface[Cols];
         readonly List<(int c, int r, float distSq)> hits = new List<(int, int, float)>(16);
+
+        /// <summary>Retracting spike strips. Empty outside Lava, and on Lava boss stages.</summary>
+        public readonly List<SpikeStrip> spikes = new List<SpikeStrip>();
 
         public int Version { get; private set; }
 

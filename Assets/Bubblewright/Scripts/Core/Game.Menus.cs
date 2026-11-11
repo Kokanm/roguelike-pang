@@ -12,6 +12,7 @@ namespace Bubblewright
         {
             public bool god;          // bubbles pass through Wick
             public bool freezeTimer;  // the storm clock stops
+            public bool spikes;       // add Lava spike strips on any world's stage
         }
 
         DebugOptions debug;
@@ -89,6 +90,7 @@ namespace Bubblewright
             string summary = null;
             if (debug.god) summary = "GOD MODE";
             if (debug.freezeTimer) summary = summary == null ? "TIMER FROZEN" : summary + " · TIMER FROZEN";
+            if (debug.spikes) summary = summary == null ? "SPIKES" : summary + " · SPIKES";
             if (testLayout)
             {
                 string layout = $"TEST LAYOUT: {CurrentTestLayout.name.ToUpperInvariant()}";
@@ -246,6 +248,11 @@ namespace Bubblewright
             if (DbgButton("+W", k, 22)) debugStage = Mathf.Min(T.RunLength, debugStage + T.stagesPerWorld);
             if (DbgButton("GO TO STAGE", k, 80)) DebugGoToStage(debugStage);
             if (DbgButton(DebugSurfaceLabel(), k, 100)) DebugCycleSurface();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            bool spikesOn = DbgToggle("SPIKES", debug.spikes, k, 90);
+            if (spikesOn != debug.spikes) SetDebugSpikes(spikesOn);
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();

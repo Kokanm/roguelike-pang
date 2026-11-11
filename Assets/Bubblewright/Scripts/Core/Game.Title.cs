@@ -29,6 +29,7 @@ namespace Bubblewright
         {
             paused = debugPanel = false;
             Map = StageMap.Flat();
+            ClearSpikes();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
