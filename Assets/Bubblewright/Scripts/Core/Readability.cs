@@ -111,6 +111,10 @@ namespace Bubblewright
             yield return ("Timer bar, last seconds", Palette.Lemon, track);
             yield return ("Timer bar, storm", Palette.Coral, track);
             yield return ("Debug button border on the panel", Palette.Lilac, DebugPanel(theme));
+            yield return ("Filled stat pip on a character card", Palette.Mint, CardFill);
+            yield return ("Empty stat pip outline on a character card", Palette.Mist, CardFill);
+            yield return ("Filled stat pip on a lit character card", Palette.Mint, CardFillHover);
+            yield return ("Empty stat pip outline on a lit character card", Palette.Mist, CardFillHover);
         }
 
         /// <summary>Colour a with alpha laid over an opaque background.</summary>

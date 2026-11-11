@@ -57,10 +57,13 @@ Timings come from the sheet's animation table and live in `Tuning.asset` under *
 | Climb | Drag up or down anywhere in the left half | W / S or Up / Down | Left stick or d-pad up / down |
 | Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J or K | A / Cross, X / Square, RT or RB |
 | Menu / continue | Tap | Arrows or WASD, then Enter, Space or R | Left stick or d-pad, then A or Start |
+| Back (character select) | Tap a card to start; no back button | Esc | B / Circle |
 | Pause | Top-right pause button | Esc or P (F2 opens debug) | Start |
 | Toggle test layout (debug) | Debug panel | F3 or debug panel | Debug panel |
 
 The mouse acts as one finger, so you can try the touch controls on desktop: click and drag in the left half, click in the right half.
+
+**Characters.** NEW RUN opens a select screen with four heroes: Wick (3 hearts, the all-rounder), Ember (2 hearts, fast), Moss (4 hearts, slow) and Flint (two cables, slow shots). Wick and Ember are open from the start; finishing the whole run with Wick unlocks Moss, and with Ember unlocks Flint. All stats live in one table in `Scripts/Player/Character.cs`; Wick's row follows `Tuning`. The debug panel has UNLOCK ALL (this session only) and RESET UNLOCKS.
 
 Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces). **SPIKES** adds Lava's retracting strips to the current stage in any world. The **THEME** button cycles the look of the current stage (sky, hills, tiles, ground strip) through the six world themes without changing the world.
 
