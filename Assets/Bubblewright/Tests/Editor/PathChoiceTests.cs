@@ -10,6 +10,10 @@ namespace Bubblewright.Tests
     {
         static Run RunAt(int seed, int stage) => new Run(seed) { Stage = stage };
 
+        /// <summary>Opaque and not the ink outline. Out-of-range reads are clear, so they are not colour.</summary>
+        static bool Colour(Color32 p) =>
+            p.a > 0 && (p.r != Palette.Ink.r || p.g != Palette.Ink.g || p.b != Palette.Ink.b);
+
         [Test]
         public void SameSeedAndStageAlwaysGiveTheSameDoors()
         {
@@ -143,12 +147,14 @@ namespace Bubblewright.Tests
                     Assert.AreEqual(FilterMode.Point, sprite.texture.filterMode);
                     var canvas = DoorArt.Paint(theme, hard);
                     // Every pixel on the outer edge of the shape is ink: an empty pixel next to colour is never left behind.
+                    // The ink outline itself is that edge, so a clear pixel beside ink is the outside of the sprite.
                     for (int y = 0; y < canvas.Height; y++)
                         for (int x = 0; x < canvas.Width; x++)
                         {
                             if (canvas.Filled(x, y)) continue;
-                            bool touches = canvas.Filled(x - 1, y) || canvas.Filled(x + 1, y) || canvas.Filled(x, y - 1) || canvas.Filled(x, y + 1);
-                            Assert.IsFalse(touches, $"{theme.name} {(hard ? "hard" : "calm")} door has a bare edge at {x},{y}");
+                            bool touchesColour = Colour(canvas.Get(x - 1, y)) || Colour(canvas.Get(x + 1, y))
+                                || Colour(canvas.Get(x, y - 1)) || Colour(canvas.Get(x, y + 1));
+                            Assert.IsFalse(touchesColour, $"{theme.name} {(hard ? "hard" : "calm")} door has a bare edge at {x},{y}");
                         }
                 }
             }
