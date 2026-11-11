@@ -77,6 +77,8 @@ namespace Bubblewright
             yield return ("Hovered card description", Primary, CardFillHover);
             yield return ("Desktop help in the ground strip", Secondary, strip);
             yield return ("Build line in the ground strip", Primary, strip);
+            yield return ("Boss name and health on the sky", Primary, sky);
+            yield return ("Boss name on a plate", Primary, plate);
             yield return ("Timer warning and cheats on the sky", Warning, sky);
             yield return ("Storm banner on a plate", Warning, plate);
             yield return ("Hard road line on a plate", Warning, plate);
@@ -113,6 +115,8 @@ namespace Bubblewright
             yield return ("Hovered menu button border on a plate", Palette.Mint, plate);
             yield return ("Pause button border on the sky", Palette.Mist, sky);
             yield return ("Timer bar", Palette.Mint, track);
+            yield return ("Boss health bar", theme.tileCap, track);
+            yield return ("Boss health bar leading edge", Palette.Cream, track);
             yield return ("Timer bar, last seconds", Palette.Lemon, track);
             yield return ("Timer bar, storm", Palette.Coral, track);
             yield return ("Debug button border on the panel", Palette.Lilac, DebugPanel(theme));

@@ -254,6 +254,7 @@ namespace Bubblewright
             GUILayout.BeginHorizontal();
             if (DbgButton(DebugSurfaceLabel(), k, 100)) DebugCycleSurface();
             if (DbgButton(DebugThemeLabel(), k, 120)) DebugCycleTheme();
+            if (DbgButton("BOSS -5 HP", k, 90)) DebugBossDamage(5);
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
@@ -291,6 +292,7 @@ namespace Bubblewright
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
+            if (boss != null && boss.Hp > 0) boss.Damage(boss.Hp);
             if (state == State.Intro)
             {
                 wick.Waving = false;

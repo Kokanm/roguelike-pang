@@ -184,6 +184,7 @@ namespace Bubblewright
             bubbles.Clear();
             hitBubbles.Clear();
             ClearPickups();
+            ClearBoss();
             fx.Clear();
             ApplyRunUpgrades();
             HideHarpoons();
@@ -201,6 +202,7 @@ namespace Bubblewright
                 int tier = Mathf.Clamp(s.tier, 0, T.tiers.Length - 1);
                 SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false);
             }
+            SetupBoss();
             SetState(State.Intro);
             SaveGame.Save(run);
         }
@@ -307,6 +309,7 @@ namespace Bubblewright
         {
             // Faces the camera at stage start. Any input starts the turn, and input is live from then on.
             wick.Tick(0f, 0f, dt, false);
+            if (boss != null) TickBossIntro(dt);
             if (stateTime >= T.introTime || input.AnyInput || input.Move != 0f || input.Climb != 0f || input.FireHeld)
             {
                 wick.Waving = false;
@@ -342,7 +345,7 @@ namespace Bubblewright
             TickHarpoons(dt);
             TickPickups(dt);
 
-            if (!debug.freezeTimer) stormClock += dt;
+            if (!debug.freezeTimer && !(boss != null && boss.Dying)) stormClock += dt;
             if (!storm && stormClock >= StageTimeLimit) StartStorm();
             if (stormBanner > 0f) stormBanner -= dt;
 
@@ -378,7 +381,9 @@ namespace Bubblewright
                 spikes.Hurts(wick.Hitbox, out float spikeX))
                 HurtWick(spikeX, 1);
 
-            if (state == State.Play && bubbles.Count == 0 && hitBubbles.Count == 0)
+            // A boss stage is cleared by the boss falling (after its defeat sequence), not by an empty bubble list.
+            bool cleared = boss != null ? TickBossPlay(dt) : bubbles.Count == 0 && hitBubbles.Count == 0;
+            if (state == State.Play && cleared)
             {
                 slowMo = T.lastPopSlowMo;
                 run.Hearts = wick.Hearts;
@@ -394,7 +399,7 @@ namespace Bubblewright
 
         // ------------------------------------------------------------------ storm timer
 
-        float StageTimeLimit => StageGenerator.StageTime(run.Stage, run.IsHard);
+        float StageTimeLimit => run.IsBossStage ? StageGenerator.BossTime(run.IsHard) : StageGenerator.StageTime(run.Stage, run.IsHard);
 
         /// <summary>The storm speeds every bubble up by playing their motion faster; their arcs stay the same shape.</summary>
         float BubbleDt(float dt) => storm ? dt * T.stormSpeed : dt;
@@ -524,7 +529,8 @@ namespace Bubblewright
             hitBubbles.Clear();
         }
 
-        void Pop(Bubble b)
+        /// <summary>Pops a bubble with its normal effect and score. Without children when the boss fell and the rest pop by themselves.</summary>
+        void Pop(Bubble b, bool spawnChildren = true)
         {
             bubbles.Remove(b);
             var kind = T.Kind(b.Kind);
@@ -535,7 +541,7 @@ namespace Bubblewright
             Sfx.Play(Sound.Pop, 1f + b.Tier * 0.2f, 0.8f);
 
             int next = b.Tier + 1;
-            if (next < T.tiers.Length)
+            if (spawnChildren && next < T.tiers.Length)
             {
                 float g = T.Gravity(b.Kind, next);
                 float kick = Mathf.Sqrt(2f * g * T.childKickHeight);
@@ -635,28 +641,32 @@ namespace Bubblewright
             Vector2 topRight = WorldToGui(new Vector2(T.HalfWidth, T.arenaHeight));
             float pad = 6 * k;
 
+            // On a boss stage the health bar takes the top of the screen and the rest of the HUD moves down under it.
+            float hudDrop = boss != null ? 14 * k : 0f;
+
             // Hearts as little flames, top left
             var flame = PlaceholderArt.I.Flame;
             var ft = flame.texture;
             for (int i = 0; i < run.MaxHearts; i++)
             {
                 GUI.color = i < wick.Hearts ? Color.white : new Color(1f, 1f, 1f, 0.25f);
-                GUI.DrawTexture(new Rect(topLeft.x + pad + i * (ft.width + 2) * k, topLeft.y + pad, ft.width * k, ft.height * k), ft);
+                GUI.DrawTexture(new Rect(topLeft.x + pad + i * (ft.width + 2) * k, topLeft.y + pad + hudDrop, ft.width * k, ft.height * k), ft);
             }
             GUI.color = Color.white;
-            Label(StageLabel(), topLeft.x + pad + run.MaxHearts * (ft.width + 2) * k + 4 * k, topLeft.y + pad + 2 * k, UiText.Primary, TextAnchor.UpperLeft, 200 * k);
+            Label(StageLabel(), topLeft.x + pad + run.MaxHearts * (ft.width + 2) * k + 4 * k, topLeft.y + pad + 2 * k + hudDrop, UiText.Primary, TextAnchor.UpperLeft, 200 * k);
 
             // Pause button in the top right corner, the score just left of it.
-            pauseButtonRect = new Rect(topRight.x - pad - 14 * k, topLeft.y + pad - k, 14 * k, 14 * k);
+            pauseButtonRect = new Rect(topRight.x - pad - 14 * k, topLeft.y + pad - k + hudDrop, 14 * k, 14 * k);
             DrawPauseButton(pauseButtonRect, k);
-            Label($"{run.Score:000000}", pauseButtonRect.x - 6 * k - 200 * k, topLeft.y + pad + 2 * k, UiText.Primary, TextAnchor.UpperRight, 200 * k);
+            Label($"{run.Score:000000}", pauseButtonRect.x - 6 * k - 200 * k, topLeft.y + pad + 2 * k + hudDrop, UiText.Primary, TextAnchor.UpperRight, 200 * k);
 
             if (state != State.Path) DrawStormTimer(topLeft, topRight, pad, k);
+            if (boss != null && state != State.Path && state != State.Pick) DrawBossBar(topLeft, topRight, pad, k);
             var hardDebuff = run.CurrentDebuff;
             if (hardDebuff != null)
-                Label($"HARD ROAD: {hardDebuff.Name.ToUpperInvariant()}", topLeft.x + pad, topLeft.y + pad + 16 * k, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
+                Label($"HARD ROAD: {hardDebuff.Name.ToUpperInvariant()}", topLeft.x + pad, topLeft.y + pad + 16 * k + hudDrop, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
             string cheats = DebugSummary();
-            if (cheats != null) Label(cheats, topLeft.x + pad, topLeft.y + pad + (hardDebuff != null ? 26 : 16) * k, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
+            if (cheats != null) Label(cheats, topLeft.x + pad, topLeft.y + pad + (hardDebuff != null ? 26 : 16) * k + hudDrop, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
 
             bool touchUi = Application.isMobilePlatform || input.TouchUsed;
             if (!touchUi)
@@ -670,6 +680,13 @@ namespace Bubblewright
 
             switch (state)
             {
+                case State.Intro when boss != null && !paused:
+                    Plate(Screen.height * 0.32f - 6 * k, (run.IsHard ? 62 : 52) * k, k);
+                    Centered($"WORLD {run.World}", Screen.height * 0.32f, 16 * k, UiText.Primary);
+                    Centered(run.WorldName.ToUpperInvariant(), Screen.height * 0.32f + 20 * k, 8 * k, UiText.Accent);
+                    Centered(boss.Spec.name, Screen.height * 0.32f + 32 * k, 12 * k, UiText.Primary);
+                    if (run.IsHard) Centered($"HARD ROAD  ·  {run.CurrentDebuff.Text}", Screen.height * 0.32f + 46 * k, 8 * k, UiText.Warning);
+                    break;
                 case State.Intro when run.StageInWorld == 1 && !paused:
                     Plate(Screen.height * 0.32f - 6 * k, (run.IsHard ? 48 : 38) * k, k);
                     Centered($"WORLD {run.World}", Screen.height * 0.32f, 16 * k, UiText.Primary);
@@ -725,7 +742,8 @@ namespace Bubblewright
             {
                 Plate(Screen.height * 0.32f - 6 * k, 38 * k, k);
                 Centered("STORM!", Screen.height * 0.32f, 16 * k, UiText.Warning);
-                Centered($"Bubbles are faster and take {T.stormDamage} hearts", Screen.height * 0.32f + 20 * k, 8 * k, UiText.Primary);
+                Centered(boss != null ? $"The boss and its bullets are faster, and bullets take {T.stormDamage} hearts" : $"Bubbles are faster and take {T.stormDamage} hearts",
+                    Screen.height * 0.32f + 20 * k, 8 * k, UiText.Primary);
             }
 
             if (showHitboxes) DrawHitboxes(k);
@@ -758,7 +776,8 @@ namespace Bubblewright
             if (!blinkOff) FillRect(new Rect(track.x, track.y, w, track.height), fill);
 
             string text = storm ? "STORM" : $"{Mathf.FloorToInt(Mathf.Ceil(left) / 60f)}:{Mathf.CeilToInt(left) % 60:00}";
-            Centered(text, topLeft.y + pad + 2 * k, 8 * k, storm || warn ? UiText.Warning : UiText.Primary);
+            // On a boss stage the text moves down to the row under the health bar.
+            Centered(text, topLeft.y + pad + 2 * k + (boss != null ? 4 * k : 0), 8 * k, storm || warn ? UiText.Warning : UiText.Primary);
         }
 
         GUIStyle cardStyle;
@@ -904,6 +923,7 @@ namespace Bubblewright
         void DrawHitboxes(int k)
         {
             DrawStageHitboxes();
+            DrawBossHitboxes();
             spikes?.ForEachRaisedHurtBox(DrawSpikeHurtBox);
             DrawWorldRect(wick.Hitbox, Palette.Mint);
             foreach (var b in bubbles)
