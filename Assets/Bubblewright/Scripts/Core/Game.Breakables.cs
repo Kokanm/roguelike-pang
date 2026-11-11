@@ -16,12 +16,12 @@ namespace Bubblewright
             bool destroyed = Map.Damage(c, r);
             if (!destroyed)
             {
-                fx.Debris(centre, Palette.CatacombBrick, Palette.CatacombBrickDark, 3);
+                fx.Debris(centre, CurrentTheme.breakFill, CurrentTheme.tileShade, 3);
                 Sfx.Play(Sound.Bounce, 1.7f, 0.65f);
                 return;
             }
 
-            fx.Debris(centre, Palette.CatacombBrick, Palette.CatacombBrickDark, 8);
+            fx.Debris(centre, CurrentTheme.breakFill, CurrentTheme.tileShade, 8);
             Sfx.Play(Sound.Pop, 0.7f, 0.8f);
             tileShakeFrames = Mathf.Max(tileShakeFrames, 2);
 

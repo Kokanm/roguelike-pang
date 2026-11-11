@@ -85,11 +85,11 @@ namespace Bubblewright
             world = new GameObject("World").transform;
             world.SetParent(transform, false);
 
-            var bg = new GameObject("Stage Background").AddComponent<SpriteRenderer>();
-            bg.transform.SetParent(world, false);
-            bg.sprite = PlaceholderArt.I.Background;
-            Sorting.Apply(bg, Layer.Sky);
-            ApplySpriteMaterial(bg);
+            background = new GameObject("Stage Background").AddComponent<SpriteRenderer>();
+            background.transform.SetParent(world, false);
+            Sorting.Apply(background, Layer.Sky);
+            ApplySpriteMaterial(background);
+            ApplyTheme(Themes.ForWorld(1));
 
             stageView = StageView.Create(world);
             bubbleRoot = new GameObject("Bubbles").transform;
@@ -173,6 +173,8 @@ namespace Bubblewright
                 : StageGenerator.Generate(run);
             Map = plan.map;
             debugSurface = -1;
+            debugTheme = -1;
+            ApplyTheme(Themes.ForWorld(run.World));
             SetupSpikes();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();

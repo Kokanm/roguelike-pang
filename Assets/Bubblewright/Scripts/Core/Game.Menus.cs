@@ -247,7 +247,11 @@ namespace Bubblewright
             if (DbgButton("+", k, 18)) debugStage = Mathf.Min(T.RunLength, debugStage + 1);
             if (DbgButton("+W", k, 22)) debugStage = Mathf.Min(T.RunLength, debugStage + T.stagesPerWorld);
             if (DbgButton("GO TO STAGE", k, 80)) DebugGoToStage(debugStage);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
             if (DbgButton(DebugSurfaceLabel(), k, 100)) DebugCycleSurface();
+            if (DbgButton(DebugThemeLabel(), k, 120)) DebugCycleTheme();
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();

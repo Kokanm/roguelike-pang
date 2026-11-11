@@ -326,6 +326,7 @@ namespace Bubblewright.Tests
             map.Set(4, 1, new Cell { kind = TileKind.Breakable, hp = 2 });
             map.Set(6, 1, new Cell { ladder = true });
             SetGameMap(map);
+            Game.CurrentTheme = Themes.ForWorld(1);
 
             var create = stageViewType.GetMethod("Create", BindingFlags.Public | BindingFlags.Static);
             var tick = stageViewType.GetMethod("Tick", BindingFlags.Public | BindingFlags.Instance);
@@ -348,7 +349,21 @@ namespace Bubblewright.Tests
                 Assert.AreEqual(Palette.Dusk, Pixel(1 * 15 + 14, 1 * 15 + 7), "adjacent solids have no internal outline");
                 Assert.AreEqual(Palette.Steel, Pixel(6 * 15 + 3, 1 * 15 + 2));
                 Assert.AreEqual(Palette.SteelLight, Pixel(6 * 15 + 7, 1 * 15 + 4));
-                Assert.AreEqual(Palette.CatacombBrick, Pixel(4 * 15 + 7, 1 * 15 + 7));
+                Assert.AreEqual(Game.CurrentTheme.breakFill, Pixel(4 * 15 + 7, 1 * 15 + 7));
+
+                // A different theme repaints the same map in its own colours.
+                var forest = Themes.ForWorld(2);
+                Game.CurrentTheme = forest;
+                tick.Invoke(view, null);
+                pixels = texture.GetPixels32();
+                Assert.AreEqual(forest.tileFill, Pixel(1 * 15 + 7, 1 * 15 + 7));
+                Assert.AreEqual(forest.tileCap, Pixel(1 * 15 + 7, 1 * 15 + 13));
+                Assert.AreEqual(forest.tileShade, Pixel(1 * 15 + 7, 1 * 15 + 11));
+                Assert.AreEqual(forest.tileLine, Pixel(1 * 15, 1 * 15 + 7));
+                Assert.AreEqual(forest.breakFill, Pixel(4 * 15 + 7, 1 * 15 + 7));
+                Game.CurrentTheme = Themes.ForWorld(1);
+                tick.Invoke(view, null);
+                pixels = texture.GetPixels32();
 
                 map.Damage(4, 1);
                 tick.Invoke(view, null);

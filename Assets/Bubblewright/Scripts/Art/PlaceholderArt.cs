@@ -16,7 +16,6 @@ namespace Bubblewright
         public Sprite[] BubbleFlash; // cream silhouette per tier, for the pop flash frame
         public Sprite[] PopRings; // per tier
         public Sprite HarpoonTip, Rope;
-        public Sprite Background;
         public Sprite FireButton, FireButtonPressed, MoveHint, MoveKnob, MoveDot, ClimbUpHint, ClimbDownHint;
         public Sprite Droplet, Pixel, Dust, MuzzleFlash;
         public Sprite SpikeHidden, SpikeWarn, SpikeRaised;
@@ -68,7 +67,6 @@ namespace Bubblewright
 
             HarpoonTip = BuildHarpoonTip();
             Rope = BuildRope();
-            Background = BuildBackground(t);
             FireButton = BuildFireButton(false);
             FireButtonPressed = BuildFireButton(true);
             MoveHint = BuildMoveHint();
@@ -383,89 +381,27 @@ namespace Bubblewright
             return c.ToSprite("Rope", new Vector2(0.5f, 0f), ppu);
         }
 
-        // ---------------------------------------------------------------- Stage: night sky, rooftops, lilac floor, ground strip
+        // ---------------------------------------------------------------- Stage backgrounds (one per theme)
 
-        Sprite BuildBackground(Tuning t)
+        readonly Sprite[] backgrounds = new Sprite[Themes.All.Length];
+
+        /// <summary>The theme's background sprite: built on first use, then cached.</summary>
+        public Sprite BackgroundFor(Theme theme)
         {
-            const float left = -32f, bottom = -10f, top = 24f, right = 32f;
-            int w = Mathf.RoundToInt((right - left) * ppu);
-            int h = Mathf.RoundToInt((top - bottom) * ppu);
+            int i = System.Array.IndexOf(Themes.All, theme);
+            if (i < 0) i = 0;
+            if (backgrounds[i] == null || backgrounds[i].texture == null)
+                backgrounds[i] = BuildBackground(Themes.All[i], i + 1);
+            return backgrounds[i];
+        }
+
+        Sprite BuildBackground(Theme theme, int world)
+        {
+            int w = Mathf.RoundToInt((ThemeBackgrounds.Right - ThemeBackgrounds.Left) * ppu);
+            int h = Mathf.RoundToInt((ThemeBackgrounds.Top - ThemeBackgrounds.Bottom) * ppu);
             var c = new PixelCanvas(w, h);
-            int Px(float wx) => Mathf.RoundToInt((wx - left) * ppu);
-            int Py(float wy) => Mathf.RoundToInt((wy - bottom) * ppu);
-
-            // Sky: deep at the top, dusk at the horizon, ordered dither between bands.
-            int[] bayer = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
-            int horizon = Py(2f), skyTop = Py(t.arenaHeight + 2f);
-            for (int y = Py(0f); y < h; y++)
-            {
-                float k = Mathf.Clamp01((float)(y - horizon) / (skyTop - horizon));
-                for (int x = 0; x < w; x++)
-                {
-                    float threshold = (bayer[(y % 4) * 4 + (x % 4)] + 0.5f) / 16f;
-                    c.Set(x, y, k > threshold ? Palette.Deep : Palette.Dusk);
-                }
-            }
-
-            var rng = new System.Random(7);
-            // Stars
-            for (int i = 0; i < 260; i++)
-            {
-                int x = rng.Next(w), y = rng.Next(Py(4f), h);
-                c.Set(x, y, rng.NextDouble() < 0.3 ? Palette.Cream : Palette.Lilac);
-            }
-            // Moon
-            c.Circle(Px(10.5f), Py(11.2f), 17f, Palette.Cream);
-            c.Circle(Px(10.5f) + 5, Py(11.2f) - 4, 3.5f, Palette.Mix(Palette.Cream, Palette.Lilac, 0.35f));
-            c.Circle(Px(10.5f) - 6, Py(11.2f) + 5, 2.2f, Palette.Mix(Palette.Cream, Palette.Lilac, 0.35f));
-
-            // Rooftop silhouettes (deep, darker than the horizon)
-            var roofColor = Palette.Mix(Palette.Deep, Palette.Ink, 0.35f);
-            int bx = 0;
-            while (bx < w)
-            {
-                int bw = rng.Next(30, 75);
-                int bh = Mathf.RoundToInt((1.2f + (float)rng.NextDouble() * 3.8f) * ppu);
-                int y0 = Py(0f);
-                c.Rect(bx, y0, bw, bh, roofColor);
-                if (rng.NextDouble() < 0.5)
-                    for (int i = 0; i < bw / 2; i++) c.Rect(bx + i, y0 + bh + i / 2 - 1, bw - 2 * i, 1, roofColor); // pitched roof
-                if (rng.NextDouble() < 0.6) c.Rect(bx + rng.Next(4, Mathf.Max(5, bw - 8)), y0 + bh, 4, 7, roofColor); // chimney
-                for (int wy = y0 + 5; wy < y0 + bh - 4; wy += 9)
-                    for (int wx = bx + 4; wx < bx + bw - 4; wx += 8)
-                        if (rng.NextDouble() < 0.18) c.Rect(wx, wy, 2, 3, Palette.Mix(roofColor, Palette.Lilac, 0.6f));
-                bx += bw + rng.Next(0, 6);
-            }
-
-            // Arena walls and ceiling beam (only visible on screens wider or taller than 16:9)
-            int wallW = 6;
-            int ceilY = Py(t.arenaHeight);
-            for (int side = -1; side <= 1; side += 2)
-            {
-                int wx = side < 0 ? Px(-t.HalfWidth) - wallW : Px(t.HalfWidth);
-                c.Rect(wx, Py(0f), wallW, ceilY - Py(0f) + 4, Palette.Lilac);
-                c.Rect(side < 0 ? wx + wallW - 1 : wx, Py(0f), 1, ceilY - Py(0f) + 4, Palette.Mix(Palette.Lilac, Palette.Cream, 0.4f));
-                c.Rect(side < 0 ? wx - 1 : wx + wallW, Py(0f), 1, ceilY - Py(0f) + 4, Palette.Ink);
-            }
-            c.Rect(Px(-t.HalfWidth) - wallW, ceilY, Px(t.HalfWidth) - Px(-t.HalfWidth) + wallW * 2, 4, Palette.Lilac);
-            c.Rect(Px(-t.HalfWidth), ceilY, Px(t.HalfWidth) - Px(-t.HalfWidth), 1, Palette.Ink);
-
-            // Floor: a lilac ledge, then the ground strip that holds the thumb controls
-            int floorTop = Py(0f);
-            c.Rect(0, floorTop - 6, w, 6, Palette.Lilac);
-            c.Rect(0, floorTop - 1, w, 1, Palette.Mix(Palette.Lilac, Palette.Cream, 0.45f));
-            c.Rect(0, floorTop - 6, w, 1, Palette.Shade(Palette.Lilac, 0.7f));
-            c.Rect(0, floorTop - 7, w, 1, Palette.Ink);
-            c.Rect(0, 0, w, floorTop - 7, Palette.Ink);
-            // Faint brick courses in the ground strip
-            var brick = Palette.Mix(Palette.Ink, Palette.Deep, 0.55f);
-            for (int y = floorTop - 15, row = 0; y > 0; y -= 8, row++)
-            {
-                c.Rect(0, y, w, 1, brick);
-                for (int x = (row % 2) * 12; x < w; x += 24) c.Rect(x, y - 7, 1, 7, brick);
-            }
-
-            return c.ToSprite("Background", new Vector2(-left * ppu, -bottom * ppu), ppu);
+            theme.paintBackground(c, theme, new System.Random(world)); // seeded by world, so a theme always looks the same
+            return c.ToSprite("Background " + theme.name, new Vector2(-ThemeBackgrounds.Left * ppu, -ThemeBackgrounds.Bottom * ppu), ppu);
         }
 
         // ---------------------------------------------------------------- Touch controls (live in the ground strip)
