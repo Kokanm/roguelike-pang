@@ -16,7 +16,6 @@ namespace Bubblewright
         public int Hearts;
         public int MaxHearts;
         public readonly int Seed;
-        public readonly System.Random Rng;
 
         // Upgrade numbers, all neutral at the start of a run.
         public float SpeedMultiplier = 1f;
@@ -31,11 +30,33 @@ namespace Bubblewright
         public Run(int seed)
         {
             Seed = seed;
-            Rng = new System.Random(seed);
             MaxHearts = Hearts = Tuning.I.hearts;
         }
 
-        public bool IsLastStage => Stage >= Tuning.I.runLength;
+        public bool IsLastStage => Stage >= Tuning.I.RunLength;
+
+        /// <summary>World 1 to 6.</summary>
+        public int World => WorldOf(Stage);
+        /// <summary>Stage inside its world, 1 to 6.</summary>
+        public int StageInWorld => StageInWorldOf(Stage);
+        /// <summary>The last stage of a world is its boss stage. Bosses come later; for now it is a bigger normal stage.</summary>
+        public bool IsBossStage => IsBossStageNumber(Stage);
+        public string WorldName => WorldNameOf(World);
+
+        public static int WorldOf(int stage) => (Mathf.Max(1, stage) - 1) / Tuning.I.stagesPerWorld + 1;
+        public static int StageInWorldOf(int stage) => (Mathf.Max(1, stage) - 1) % Tuning.I.stagesPerWorld + 1;
+        public static bool IsBossStageNumber(int stage) => StageInWorldOf(stage) == Tuning.I.stagesPerWorld;
+        public static string WorldNameOf(int world)
+        {
+            var names = Tuning.I.worldNames;
+            return names != null && world >= 1 && world <= names.Length ? names[world - 1] : $"World {world}";
+        }
+
+        /// <summary>
+        /// Random numbers depend only on the run seed, the stage and a salt, so a stage (and its upgrade cards)
+        /// can be rebuilt exactly later, for example from a saved run.
+        /// </summary>
+        public System.Random StageRng(int salt = 0) => new System.Random(unchecked(Seed * 7919 + Stage * 104729 + salt * 31));
 
         public int TimesTaken(Upgrade u)
         {
@@ -69,9 +90,10 @@ namespace Bubblewright
             var pool = new List<Upgrade>();
             foreach (var u in Upgrade.All) if (u.CanOffer(this)) pool.Add(u);
             var picks = new List<Upgrade>();
+            var rng = StageRng(1);
             while (picks.Count < count && pool.Count > 0)
             {
-                int i = Rng.Next(pool.Count);
+                int i = rng.Next(pool.Count);
                 picks.Add(pool[i]);
                 pool.RemoveAt(i);
             }
@@ -112,19 +134,34 @@ namespace Bubblewright
     /// </summary>
     public static class StageGenerator
     {
+        /// <summary>Bubble budget of a stage (1 to 36) from the world and the stage inside it.</summary>
         public static float Budget(int stage)
         {
             var t = Tuning.I;
-            return t.budgetStart + t.budgetGrowth * (stage - 1);
+            float budget = t.budgetBase + t.budgetPerWorld * (Run.WorldOf(stage) - 1) + t.budgetPerStage * (Run.StageInWorldOf(stage) - 1);
+            return Run.IsBossStageNumber(stage) ? budget * t.bossPlaceholderBudgetScale : budget;
         }
+
+        /// <summary>Most bubbles at the start: 4, 4, 5, 5, 6, 6 for worlds 1 to 6.</summary>
+        public static int MaxStartBubbles(int stage) => Tuning.I.startBubblesBase + (Run.WorldOf(stage) + 1) / 2;
+
+        /// <summary>Seconds on the storm clock for a stage (1 to 36).</summary>
+        public static float StageTime(int stage)
+        {
+            var t = Tuning.I;
+            return t.timeBase + t.timePerWorld * (Run.WorldOf(stage) - 1) + t.timePerStage * (Run.StageInWorldOf(stage) - 1);
+        }
+
+        public static List<SpawnSpec> Generate(Run run) => Generate(run.Stage, run.StageRng(0));
 
         public static List<SpawnSpec> Generate(int stage, System.Random rng)
         {
             var t = Tuning.I;
             float budget = Budget(stage);
+            int maxBubbles = MaxStartBubbles(stage);
             var picks = new List<(BubbleKind kind, int tier)>();
 
-            while (picks.Count < t.maxStartBubbles)
+            while (picks.Count < maxBubbles)
             {
                 var kind = PickKind(stage, rng);
                 int tier = BiggestAffordable(kind, budget);
@@ -164,7 +201,7 @@ namespace Bubblewright
         {
             var t = Tuning.I;
             double roll = rng.NextDouble();
-            if (stage >= t.leadFromStage && roll < 0.25) return BubbleKind.Lead;
+            if (Run.WorldOf(stage) >= t.leadFromWorld && roll < 0.25) return BubbleKind.Lead;
             if (stage >= t.trigloopFromStage && roll > 0.65) return BubbleKind.Trigloop;
             return BubbleKind.Gloop;
         }

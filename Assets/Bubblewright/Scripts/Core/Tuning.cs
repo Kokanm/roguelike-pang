@@ -112,31 +112,39 @@ namespace Bubblewright
         [Range(0f, 1f)] public float volume = 0.7f;
         public bool mute;
 
+        [Header("Worlds")]
+        [Tooltip("A run is this many worlds, each with stagesPerWorld stages. The last stage of a world is its boss stage.")]
+        public int worlds = 6;
+        public int stagesPerWorld = 6;
+        public string[] worldNames = { "Rooftops", "Forest", "Desert", "Winter", "Catacombs", "Lava" };
+
         [Header("Run (roguelike loop)")]
-        [Tooltip("Stages in a full run. Clear the last one to win.")]
-        public int runLength = 6;
-        [Tooltip("Bubble budget for stage 1. The sheet's costs: XL 8, L 4, M 2, S 1.")]
-        public float budgetStart = 8f;
-        [Tooltip("Budget added for every stage after the first.")]
-        public float budgetGrowth = 4f;
+        [Tooltip("Bubble budget = budgetBase + budgetPerWorld * (world - 1) + budgetPerStage * (stage in world - 1). The sheet's costs: XL 8, L 4, M 2, S 1.")]
+        public float budgetBase = 8f;
+        public float budgetPerWorld = 6f;
+        public float budgetPerStage = 2f;
         [Tooltip("Budget cost per tier: XL, L, M, S.")]
         public float[] tierCost = { 8f, 4f, 2f, 1f };
         [Tooltip("Cost multiplier per kind: Gloop, Trigloop, Lead, Lucky. A Trigloop XL takes 40 pops instead of 15.")]
         public float[] kindCostScale = { 1f, 2f, 1.25f, 1f };
-        [Tooltip("At most this many bubbles at the start of a stage; leftover budget is dropped.")]
-        public int maxStartBubbles = 4;
-        public int trigloopFromStage = 2;
-        public int leadFromStage = 3;
+        [Tooltip("Most bubbles at the start of a stage = startBubblesBase + (world + 1) / 2 (whole-number division); leftover budget is dropped.")]
+        public int startBubblesBase = 3;
+        [Tooltip("Trigloops can appear from this stage of the run on.")]
+        public int trigloopFromStage = 3;
+        [Tooltip("Leads can appear from this world on.")]
+        public int leadFromWorld = 2;
         [Tooltip("Chance per stage (from stage 2) of a free Lucky bubble on top of the budget.")]
         [Range(0f, 1f)] public float luckyChance = 0.25f;
+        [Tooltip("Boss stages (placeholder until the bosses exist) get this much more budget.")]
+        public float bossPlaceholderBudgetScale = 1.5f;
         [Tooltip("With more than one cable, the gap between shots while fire is held.")]
         public float multiShotGap = 0.15f;
 
         [Header("Storm timer")]
-        [Tooltip("Seconds on the clock for stage 1. The clock runs only while playing, not in the intro.")]
-        public float stageTime = 60f;
-        [Tooltip("Seconds added for every stage after the first (bigger budgets need longer).")]
-        public float stageTimeGrowth = 6f;
+        [Tooltip("Seconds on the clock = timeBase + timePerWorld * (world - 1) + timePerStage * (stage in world - 1). The clock runs only while playing, not in the intro.")]
+        public float timeBase = 60f;
+        public float timePerWorld = 8f;
+        public float timePerStage = 4f;
         [Tooltip("When the clock runs out, every bubble moves this much faster.")]
         public float stormSpeed = 1.6f;
         [Tooltip("Hearts a bubble takes during the storm.")]
@@ -144,6 +152,7 @@ namespace Bubblewright
         [Tooltip("The bar turns lemon and blinks for the last seconds.")]
         public float stormWarning = 10f;
 
+        public int RunLength => worlds * stagesPerWorld;
         public float HalfWidth => arenaWidth * 0.5f;
         public float Pixel => 1f / pixelsPerUnit;
 

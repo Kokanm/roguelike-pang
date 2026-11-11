@@ -230,9 +230,11 @@ namespace Bubblewright
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("STAGE", dbgLabel, GUILayout.Width(40 * k));
+            if (DbgButton("-W", k, 22)) debugStage = Mathf.Max(1, debugStage - T.stagesPerWorld);
             if (DbgButton("-", k, 18)) debugStage = Mathf.Max(1, debugStage - 1);
-            GUILayout.Label($"{debugStage}/{T.runLength}", dbgLabel, GUILayout.Width(28 * k));
-            if (DbgButton("+", k, 18)) debugStage = Mathf.Min(T.runLength, debugStage + 1);
+            GUILayout.Label($"{Run.WorldOf(debugStage)}-{Run.StageInWorldOf(debugStage)}", dbgLabel, GUILayout.Width(28 * k));
+            if (DbgButton("+", k, 18)) debugStage = Mathf.Min(T.RunLength, debugStage + 1);
+            if (DbgButton("+W", k, 22)) debugStage = Mathf.Min(T.RunLength, debugStage + T.stagesPerWorld);
             if (DbgButton("GO TO STAGE", k, 80)) DebugGoToStage(debugStage);
             GUILayout.EndHorizontal();
 
@@ -282,7 +284,7 @@ namespace Bubblewright
         void DebugGoToStage(int stage)
         {
             run.Hearts = Mathf.Max(1, wick.Hearts);
-            run.Stage = Mathf.Clamp(stage, 1, T.runLength);
+            run.Stage = Mathf.Clamp(stage, 1, T.RunLength);
             Resume();
             StartStage();
         }
