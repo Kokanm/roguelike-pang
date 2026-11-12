@@ -240,6 +240,37 @@ namespace Bubblewright
         [Tooltip("Seconds the boss shakes and sheds debris after its last health is gone, before it bursts.")]
         public float bossDeathShake = 0.6f;
 
+        [Header("Jump")]
+        [Tooltip("Height of a jump from standing, in units. Platforms are 5 units up, so a jump never reaches one.")]
+        public float jumpHeight = 1.9f;
+        [Tooltip("Seconds from take-off to the top of the jump. Jump gravity is 2 x height / time squared.")]
+        public float jumpTimeToApex = 0.28f;
+        [Tooltip("Seconds after walking off an edge in which a jump still works.")]
+        public float coyoteTime = 0.08f;
+        [Tooltip("A jump pressed this many seconds before landing still jumps on landing.")]
+        public float jumpBuffer = 0.1f;
+        [Tooltip("How far below the floor, in units, his feet go into a gap before he loses a heart and comes back.")]
+        public float gapFallDepth = 1.5f;
+        [Tooltip("Hearts lost by falling into a gap in the ground. Ignores the safe time after a hit.")]
+        public int gapDamage = 1;
+        [Tooltip("Rig scale (x, y) at take-off, easing back to 1 x 1 at the top of the jump.")]
+        public Vector2 jumpStretch = new Vector2(0.9f, 1.12f);
+        [Tooltip("Rig scale (x, y) when he lands from a jump, easing back to 1 x 1.")]
+        public Vector2 jumpLandSquash = new Vector2(1.15f, 0.85f);
+        [Tooltip("Seconds the landing squash lasts.")]
+        public float jumpLandTime = 0.08f;
+        [Tooltip("From world 2 on, the chance that a normal stage uses a layout with gaps in the ground.")]
+        [Range(0f, 1f)] public float gapLayoutChance = 0.33f;
+        [Tooltip("He must stand on solid ground this long before that spot counts as safe to come back to after a gap.")]
+        public float gapSafeStandTime = 0.2f;
+        [Tooltip("After a gap he reappears this many units further from the gap edge than his last safe spot.")]
+        public float gapRespawnInset = 0.5f;
+
+        /// <summary>Gravity during a jump, from jumpHeight and jumpTimeToApex.</summary>
+        public float JumpGravity => 2f * jumpHeight / Mathf.Max(0.001f, jumpTimeToApex * jumpTimeToApex);
+        /// <summary>Upward speed at take-off.</summary>
+        public float JumpSpeed => JumpGravity * jumpTimeToApex;
+
         public int RunLength => worlds * stagesPerWorld;
         public float HalfWidth => arenaWidth * 0.5f;
         public float Pixel => 1f / pixelsPerUnit;
