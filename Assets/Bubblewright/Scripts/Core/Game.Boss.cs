@@ -4,8 +4,9 @@ using UnityEngine;
 namespace Bubblewright
 {
     /// <summary>
-    /// Boss stages: the boss, its bullets, damage to the boss, hurt to Wick, the defeat sequence and the health bar.
-    /// A boss stage is one flat floor with no generated bubbles; it is cleared when the boss's health reaches 0.
+    /// Boss stages: the boss, its bullets and balloons, damage to the boss, hurt to Wick, the defeat sequence and the
+    /// health bar. A boss stage is one flat floor with no generated bubbles; the boss may release ordinary Gloops,
+    /// which behave and score like any other bubble. It is cleared when the boss's health reaches 0.
     /// </summary>
     public partial class Game
     {
@@ -32,6 +33,19 @@ namespace Bubblewright
             if (!run.IsBossStage) return;
             boss = Boss.Create(world, BossSpec.ForWorld(run.World), run.World, CurrentTheme);
             boss.OnShoot = FireBullet;
+            boss.OnBouncy = FireBouncy;
+            boss.OnBalloon = ReleaseBalloon;
+        }
+
+        void FireBouncy(Vector2 from, int dirX, int bounces)
+        {
+            bullets.Add(Bullet.CreateBouncy(world, from, dirX, bounces, CurrentTheme));
+        }
+
+        void ReleaseBalloon(Vector2 at, int dir, int tier)
+        {
+            SpawnBubble(BubbleKind.Gloop, tier, at, dir, 0f, false);
+            Sfx.Play(Sound.Bounce, 0.7f, 0.6f);
         }
 
         void FireBullet(Vector2 from, Vector2 direction)
@@ -58,7 +72,7 @@ namespace Bubblewright
                 return bossBurst;
             }
 
-            boss.Tick(dt, WickCentre, true, BossSpeedScale);
+            boss.Tick(dt, WickCentre, true, BossSpeedScale, bubbles.Count);
             TickBullets(dt);
 
             BossFight.HarpoonHits(boss, harpoons, DamageBoss);
@@ -84,7 +98,7 @@ namespace Bubblewright
             {
                 var b = bullets[i];
                 b.Tick(dt * scale);
-                if (!b.Dead && !wick.Dead && b.Overlaps(wick.Hitbox))
+                if (!b.Dead && !wick.Dead && b.CanHurt && b.Overlaps(wick.Hitbox))
                 {
                     b.Dead = true;
                     if (!debug.god && !wick.Invulnerable)
@@ -181,6 +195,12 @@ namespace Bubblewright
             foreach (var b in bullets)
                 DrawWorldRect(new Rect(b.Position.x - b.Radius, b.Position.y - b.Radius, b.Radius * 2f, b.Radius * 2f), Palette.Cream);
         }
+
+        bool DebugBossReady => boss != null && boss.Hp > 0 && !boss.Dying && boss.Entered && state == State.Play;
+
+        void DebugBossAimed() { if (DebugBossReady) boss.FireAimed(WickCentre); }
+        void DebugBossBouncy() { if (DebugBossReady) boss.FireBouncy(WickCentre); }
+        void DebugBossBalloon() { if (DebugBossReady) boss.ReleaseBalloon(); }
 
         void DebugBossDamage(int amount)
         {
