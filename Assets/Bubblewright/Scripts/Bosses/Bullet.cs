@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Bubblewright
@@ -96,6 +97,7 @@ namespace Bubblewright
         public bool Overlaps(Rect rect) => State.Overlaps(rect);
 
         /// <summary>How a bullet moves, as a value type.</summary>
+        [Serializable]
         public struct Flight
         {
             public Vector2 position, velocity;
