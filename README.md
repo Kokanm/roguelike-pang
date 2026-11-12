@@ -18,7 +18,7 @@ Plan:
 
 One stage of World 1 (Rooftops) built entirely from code, using the numbers from the design sheet:
 
-- **Wick** runs on the floor only (no jump): 9 u/s top speed, reached in 0.06 s, stops in 0.04 s. He plays with his back to the camera, faces it at stage start, turns with a 0.2 s squash, and turns back to celebrate after the last pop. His candle flame shows his 3 hearts.
+- **Wick** runs, climbs ladders and hops about 1.9 units high (0.56 s in the air; a jump never reaches the next platform, and he cannot fire in the air). From world 2 on some stages have gaps in the ground: falling in costs a heart and puts him back at the edge. Running: 9 u/s top speed, reached in 0.06 s, stops in 0.04 s. He plays with his back to the camera, faces it at stage start, turns with a 0.2 s squash, and turns back to celebrate after the last pop. His candle flame shows his 3 hearts.
 - **Harpoon**: one shot at a time, straight up from the launcher tip (+0.35 u right of centre) at 20 u/s. A 1 px twisted steel cable stays where it was fired; a bubble touching the cable or the barbed tip pops. The tip stops under the first solid tile above it (a platform or the ceiling) and the tail hangs down to the first surface below.
 - **Bubbles**: kinematic, with our own bounce maths (no physics engine). Constant 4 u/s sideways. Each tier always peaks at its height from the sheet (XL 13, L 11, M 8.5, S 6 u). They split into the next size (Trigloops into 3), kicked up and out. No eyes: type reads from colour plus a centre mark.
 - **Screen**: renders at 480 x 270 with the URP Pixel Perfect Camera (15 px per unit, upscale render texture). The arena is always 32 x 14 u with a 4 u ground strip; wider or taller screens show extra scenery. Phones are locked to landscape.
@@ -56,6 +56,7 @@ Timings come from the sheet's animation table and live in `Tuning.asset` under *
 | Move | Drag left or right anywhere in the left half (relative to where your thumb lands) | A / D or Left / Right | Left stick or d-pad left / right |
 | Climb | Drag up or down anywhere in the left half | W / S or Up / Down | Left stick or d-pad up / down |
 | Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J or K | A / Cross, X / Square, RT or RB |
+| Jump (crosses gaps; cannot reach a platform, no firing in the air) | Tap the round arrow button left of the fire button | L, Left Shift or Right Shift | B / Circle or Y / Triangle |
 | Menu / continue / pick a card or a door | Tap | Arrows or WASD, then Enter, Space or R (cards: 1-3, doors: 1-2) | Left stick or d-pad, then A or Start |
 | Back (character select) | Tap a card to start; no back button | Esc | B / Circle |
 | Pause | Top-right pause button | Esc or P (F2 opens debug) | Start |
