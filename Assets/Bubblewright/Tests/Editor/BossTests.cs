@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Bubblewright.Tests
 {
-    /// <summary>Boss framework: health, movement, aimed bullets, harpoon damage and the clear rule.</summary>
+    /// <summary>Boss framework and the six bosses: health, movement, aimed and bouncy bullets, balloons, harpoon damage and the clear rule.</summary>
     public class BossTests
     {
         const float Dt = 1f / 60f;
@@ -68,16 +68,40 @@ namespace Bubblewright.Tests
         }
 
         [Test]
-        public void PlaceholderSpecIsTheSameInEveryWorld()
+        public void SixBossesMatchTheTable()
         {
+            // name, w, h, speed, aimedEvery, aimedCount, aimedSpread, aimedBurst, bouncyEvery, bouncyBounces, balloonEvery, balloonTier, enrage, shape
+            var rows = new (string, float, float, float, float, int, float, int, float, int, float, int, bool, BossShape)[]
+            {
+                ("CHIMNEY KING",  4f,   3f,   3.0f, 2.0f, 1, 0f,  1, 0f,   0, 8f, 2, false, BossShape.Block),
+                ("OLD BRAMBLE",   5f,   2.5f, 3.5f, 0f,   1, 0f,  1, 2.2f, 2, 7f, 2, false, BossShape.Wide),
+                ("DUNE WARDEN",   3.5f, 3.5f, 4.0f, 2.5f, 3, 30f, 1, 0f,   0, 9f, 1, false, BossShape.Round),
+                ("FROSTMAW",      4.5f, 3f,   4.0f, 3.5f, 1, 0f,  1, 1.8f, 3, 8f, 2, false, BossShape.Jaw),
+                ("BONE ABBOT",    3f,   4f,   4.5f, 3.0f, 1, 0f,  3, 2.5f, 1, 8f, 1, false, BossShape.Tall),
+                ("CINDER TYRANT", 5f,   3.5f, 5.0f, 2.2f, 3, 30f, 1, 2.0f, 4, 6f, 1, true,  BossShape.Crown),
+            };
+            var names = new HashSet<string>();
             for (int world = 1; world <= 6; world++)
             {
                 var spec = BossSpec.ForWorld(world);
-                Assert.AreEqual("WARDEN", spec.name);
-                Assert.AreEqual(new Vector2(4f, 3f), spec.size);
-                Assert.AreEqual(3f, spec.speed, 1e-5f);
-                Assert.AreEqual(2f, spec.aimedEvery, 1e-5f);
+                var r = rows[world - 1];
+                string at = $"world {world}";
+                Assert.AreEqual(r.Item1, spec.name, at);
+                Assert.AreEqual(new Vector2(r.Item2, r.Item3), spec.size, at);
+                Assert.AreEqual(r.Item4, spec.speed, 1e-5f, at);
+                Assert.AreEqual(r.Item5, spec.aimedEvery, 1e-5f, at);
+                Assert.AreEqual(r.Item6, spec.aimedCount, at);
+                Assert.AreEqual(r.Item7, spec.aimedSpread, 1e-5f, at);
+                Assert.AreEqual(r.Item8, spec.aimedBurst, at);
+                Assert.AreEqual(r.Item9, spec.bouncyEvery, 1e-5f, at);
+                Assert.AreEqual(r.Item10, spec.bouncyBounces, at);
+                Assert.AreEqual(r.Item11, spec.balloonEvery, 1e-5f, at);
+                Assert.AreEqual(r.Item12, spec.balloonTier, at);
+                Assert.AreEqual(r.Item13, spec.enrageAtHalf, at);
+                Assert.AreEqual(r.Item14, spec.shape, at);
+                names.Add(spec.name);
             }
+            Assert.AreEqual(6, names.Count, "six different names");
         }
 
         [Test]
@@ -174,12 +198,14 @@ namespace Bubblewright.Tests
             float clock = 0f;
             boss.OnShoot = (f, d) => times.Add(clock);
             SlideIn(boss, WickCentreAt(0f));
-            for (int i = 0; i < 60 * 7; i++)
+            // World 1 shoots every 2 s, the first shot 1 s after sliding in: at 1, 3 and 5 s.
+            for (int i = 0; i < 60 * 6; i++)
             {
                 clock += Dt;
                 boss.Tick(Dt, WickCentreAt(0f), true);
             }
             Assert.AreEqual(3, times.Count);
+            Assert.AreEqual(BossSpec.AimedStart, times[0], 0.05f);
             Assert.AreEqual(2f, times[1] - times[0], 0.05f);
         }
 
@@ -196,7 +222,7 @@ namespace Bubblewright.Tests
             {
                 clock += Dt;
                 boss.Tick(Dt, WickCentreAt(0f), true);
-                if (boss.TellOn) { blinkFrames++; Assert.Greater(clock, 1.4f, "only in the last half second"); }
+                if (boss.TellOn) { blinkFrames++; Assert.Greater(clock, BossSpec.AimedStart - 0.55f, "only in the last half second"); }
             }
             Assert.AreEqual(1, shots);
             Assert.Greater(blinkFrames, 0);
@@ -336,21 +362,273 @@ namespace Bubblewright.Tests
             for (int world = 1; world <= 6; world++)
             {
                 var theme = Themes.ForWorld(world);
-                var sprites = PlaceholderArt.I.BossFor(theme, BossSpec.ForWorld(world));
+                var spec = BossSpec.ForWorld(world);
+                var sprites = PlaceholderArt.I.BossFor(theme, spec);
                 var tex = sprites.body.texture;
-                Assert.AreEqual(62, tex.width);
-                Assert.AreEqual(47, tex.height);
+                int w = Mathf.RoundToInt(spec.size.x * Tuning.I.pixelsPerUnit), h = Mathf.RoundToInt(spec.size.y * Tuning.I.pixelsPerUnit);
+                var (top, bottom) = PlaceholderArt.BossExtra(spec.shape);
+                Assert.AreEqual(w + 2, tex.width, $"{theme.name}: width");
+                Assert.AreEqual(h + top + bottom + 2, tex.height, $"{theme.name}: height");
                 var pixels = tex.GetPixels32();
-                Assert.AreEqual((Color32)Palette.Ink, pixels[tex.width / 2], $"{theme.name}: bottom edge is ink");
+                int lowest = 0;
+                while (lowest < tex.height && pixels[lowest * tex.width + tex.width / 2].a == 0) lowest++;
+                Assert.Less(lowest, tex.height);
+                Assert.AreEqual((Color32)Palette.Ink, pixels[lowest * tex.width + tex.width / 2], $"{theme.name}: bottom edge is ink");
                 bool fill = false, cap = false;
                 foreach (var p in pixels)
                 {
                     fill |= p.Equals(theme.tileFill);
                     cap |= p.Equals(theme.tileCap);
                     Assert.IsFalse(p.Equals(Palette.Saffron) || p.Equals(Palette.Mint), $"{theme.name}: no saffron or mint");
+                    Assert.IsFalse(p.Equals(Palette.Coral) || p.Equals(Palette.Azure) || p.Equals(Palette.Plum) || p.Equals(Palette.Lemon),
+                        $"{theme.name}: no bubble colours");
                 }
                 Assert.IsTrue(fill, $"{theme.name}: tileFill body");
                 Assert.IsTrue(cap, $"{theme.name}: tileCap band");
+            }
+        }
+
+        [Test]
+        public void TheVisorDoublesWhileReleasingABalloon()
+        {
+            for (int world = 1; world <= 6; world++)
+            {
+                var theme = Themes.ForWorld(world);
+                var sprites = PlaceholderArt.I.BossFor(theme, BossSpec.ForWorld(world));
+                int closed = 0, open = 0;
+                foreach (var p in sprites.body.texture.GetPixels32()) if (p.Equals(theme.skyTop)) closed++;
+                foreach (var p in sprites.open.texture.GetPixels32()) if (p.Equals(theme.skyTop)) open++;
+                Assert.Greater(open, closed, theme.name);
+            }
+        }
+
+        // ------------------------------------------------------------------ bouncy bullets
+
+        [Test]
+        public void BouncyBulletWithThreeBouncesTouchesTheFloorFourTimesAndHopsToThePeak()
+        {
+            var t = Tuning.I;
+            var b = Bullet.CreateBouncy(root.transform, new Vector2(0f, 9f), 1, 3, Themes.ForWorld(2));
+            int bouncesSeen = 0;
+            float top = float.MinValue;
+            int lastTouches = 0;
+            for (int i = 0; i < 60 * 20 && !b.Out; i++)
+            {
+                b.Tick(Dt);
+                if (b.FloorTouches != lastTouches)
+                {
+                    // A touch ends a hop: every hop after the first bounce must top out at bouncyPeak.
+                    if (lastTouches >= 1)
+                    {
+                        Assert.AreEqual(t.bouncyPeak, top, 0.1f, $"hop {lastTouches}");
+                        bouncesSeen++;
+                    }
+                    lastTouches = b.FloorTouches;
+                    top = float.MinValue;
+                }
+                top = Mathf.Max(top, b.Position.y + b.Radius);
+                Assert.GreaterOrEqual(b.Position.x - b.Radius, -t.HalfWidth - 1e-4f);
+                Assert.LessOrEqual(b.Position.x + b.Radius, t.HalfWidth + 1e-4f);
+            }
+            Assert.IsTrue(b.Out, "removed in the end");
+            Assert.AreEqual(4, b.FloorTouches, "three bounces and the touch it falls through on");
+            Assert.AreEqual(3, bouncesSeen);
+        }
+
+        [Test]
+        public void AfterItsLastBounceABouncyBulletFallsThroughTheFloorAndCannotHurt()
+        {
+            var b = Bullet.CreateBouncy(root.transform, new Vector2(0f, 4f), -1, 1, Themes.ForWorld(2));
+            Assert.IsTrue(b.CanHurt);
+            bool wentBelow = false;
+            for (int i = 0; i < 60 * 10 && !b.Out; i++)
+            {
+                b.Tick(Dt);
+                if (b.Position.y < 0f)
+                {
+                    wentBelow = true;
+                    Assert.IsTrue(b.Sinking);
+                    Assert.IsFalse(b.CanHurt, "cannot hurt once its centre is under the floor");
+                    var wick = new Rect(b.Position.x - 0.5f, b.Position.y - 0.5f, 1f, 1f);
+                    Assert.IsTrue(b.Overlaps(wick) && !b.CanHurt);
+                }
+            }
+            Assert.IsTrue(wentBelow);
+            Assert.IsTrue(b.Out);
+            Assert.LessOrEqual(b.Position.y, -1f + 0.5f, "removed about 1 unit under the floor");
+        }
+
+        [Test]
+        public void BouncyBulletHeadsTowardWick()
+        {
+            var boss = MakeBoss(2);
+            SlideIn(boss, Vector2.zero);
+            int dir = 0;
+            boss.OnBouncy = (from, d, n) => dir = d;
+            boss.FireBouncy(WickCentreAt(-10f));
+            Assert.AreEqual(-1, dir);
+            boss.FireBouncy(WickCentreAt(10f));
+            Assert.AreEqual(1, dir);
+        }
+
+        // ------------------------------------------------------------------ balloons
+
+        [Test]
+        public void NoBalloonWhileTheBubbleCapIsReachedThenOneWithinItsInterval()
+        {
+            var boss = MakeBoss(2); // OLD BRAMBLE: a balloon every 7 s
+            Assert.AreEqual(7f, boss.Spec.balloonEvery, 1e-5f);
+            SlideIn(boss, WickCentreAt(0f));
+            int balloons = 0, tier = -1;
+            Vector2 at = default;
+            boss.OnBalloon = (p, d, tr) => { balloons++; tier = tr; at = p; };
+            int cap = Tuning.I.bossMaxBubbles;
+            for (int i = 0; i < 60 * 30; i++) boss.Tick(Dt, WickCentreAt(0f), true, 1f, cap);
+            Assert.AreEqual(0, balloons, "none while the cap is reached");
+
+            float clock = 0f;
+            for (int i = 0; i < 60 * 7 && balloons == 0; i++)
+            {
+                clock += Dt;
+                boss.Tick(Dt, WickCentreAt(0f), true, 1f, cap - 1);
+            }
+            Assert.AreEqual(1, balloons, "one within 7 s once a bubble is popped");
+            Assert.LessOrEqual(clock, 7f + 1e-3f);
+            Assert.AreEqual(2, tier, "a medium Gloop");
+            Assert.IsTrue(boss.Open, "the visor is open while it drops");
+            Assert.Less(at.y, boss.Body.yMin, "drops from under the body");
+            Assert.AreEqual(boss.Centre.x, at.x, 1e-4f, "from the bottom centre");
+        }
+
+        // ------------------------------------------------------------------ enrage
+
+        [Test]
+        public void EnragedBossIsFasterBelowHalfHealth()
+        {
+            var boss = MakeBoss(6);
+            Assert.IsTrue(boss.Spec.enrageAtHalf);
+            Assert.AreEqual(boss.Spec.speed, boss.CurrentSpeed, 1e-5f);
+            boss.Damage(boss.MaxHp - boss.MaxHp / 2); // exactly half
+            Assert.AreEqual(boss.Spec.speed, boss.CurrentSpeed, 1e-5f, "not yet at exactly half");
+            boss.Damage(1); // half minus one
+            Assert.AreEqual(boss.Spec.speed * 1.3f, boss.CurrentSpeed, 1e-4f);
+
+            var calm = MakeBoss(1);
+            calm.Damage(calm.MaxHp / 2 + 1);
+            Assert.AreEqual(calm.Spec.speed, calm.CurrentSpeed, 1e-5f, "a boss without enrageAtHalf never speeds up");
+        }
+
+        // ------------------------------------------------------------------ walkability
+
+        /// <summary>
+        /// Hits Wick takes in 30 s against one boss. Each bullet that touches him counts once and is removed; there is
+        /// no invulnerability, so standing still is punished for every bullet. Balloons are left out: they are ordinary
+        /// bubbles, shot and dodged as in any stage.
+        /// </summary>
+        int HitsIn30Seconds(int world, bool dodge)
+        {
+            var t = Tuning.I;
+            var theme = Themes.ForWorld(world);
+            var boss = MakeBoss(world);
+            var flights = new List<Bullet.Flight>();
+            boss.OnShoot = (from, dir) => flights.Add(Bullet.Flight.Aimed(from, dir * t.bulletSpeed));
+            boss.OnBouncy = (from, dir, n) => flights.Add(Bullet.Flight.BouncyFrom(from, dir, n));
+            float x = 0f;
+            SlideIn(boss, WickCentreAt(x));
+            int hits = 0;
+            for (int i = 0; i < 60 * 30; i++)
+            {
+                if (dodge) x = Clamp(x + Dodge(x, flights, boss.Centre.x) * t.runSpeed * Dt);
+                boss.Tick(Dt, WickCentreAt(x), true);
+                hits += StepFlights(flights, x, Dt);
+            }
+            Object.DestroyImmediate(boss.gameObject);
+            return hits;
+        }
+
+        static float Clamp(float x)
+        {
+            var t = Tuning.I;
+            float limit = t.HalfWidth - t.hitbox.x * 0.5f;
+            return Mathf.Clamp(x, -limit, limit);
+        }
+
+        static Rect WickBoxAt(float x)
+        {
+            var t = Tuning.I;
+            return new Rect(x - t.hitbox.x * 0.5f, 0f, t.hitbox.x, t.hitbox.y);
+        }
+
+        /// <summary>Moves every bullet one step; the ones that hit Wick at x or leave are removed. Returns the hits.</summary>
+        static int StepFlights(List<Bullet.Flight> flights, float x, float dt)
+        {
+            int hits = 0;
+            var box = WickBoxAt(x);
+            for (int i = flights.Count - 1; i >= 0; i--)
+            {
+                var f = flights[i];
+                f.Step(dt);
+                if (f.CanHurt && f.Overlaps(box)) { hits++; flights.RemoveAt(i); continue; }
+                if (f.Out) { flights.RemoveAt(i); continue; }
+                flights[i] = f;
+            }
+            return hits;
+        }
+
+        /// <summary>Where a threat is: an aimed bullet's point at Wick's height, a bouncy bullet's x.</summary>
+        static float ThreatX(Bullet.Flight f, float y)
+        {
+            if (f.bouncy || f.velocity.y >= -1e-4f) return f.position.x;
+            float time = Mathf.Max(0f, (f.position.y - y) / -f.velocity.y);
+            return f.position.x + f.velocity.x * time;
+        }
+
+        /// <summary>
+        /// A simple dodger: it wants to walk away from the nearest threat (or back to the middle when there is none). It
+        /// looks 0.75 s ahead and takes that way if it is safe, otherwise standing or the other way, whichever is hit least.
+        /// </summary>
+        static int Dodge(float x, List<Bullet.Flight> flights, float bossX)
+        {
+            float y = Tuning.I.hitbox.y * 0.5f, best = float.MaxValue, threat = 0f;
+            bool any = false;
+            foreach (var f in flights)
+            {
+                if (!f.CanHurt) continue;
+                float tx = ThreatX(f, y), d = Mathf.Abs(tx - x);
+                if (d < best) { best = d; threat = tx; any = true; }
+            }
+            int want = !any ? (Mathf.Abs(x) < 1f ? 0 : x > 0f ? -1 : 1)
+                : x > threat ? 1 : x < threat ? -1 : x >= bossX ? 1 : -1;
+            int choice = want, fewest = int.MaxValue;
+            foreach (int dir in new[] { want, 0, -want, -1, 1 })
+            {
+                int h = LookAhead(x, dir, flights, 0.75f);
+                if (h < fewest) { fewest = h; choice = dir; }
+            }
+            return choice;
+        }
+
+        static int LookAhead(float x, int dir, List<Bullet.Flight> flights, float seconds)
+        {
+            var copy = new List<Bullet.Flight>(flights);
+            int hits = 0;
+            for (int i = 0; i < Mathf.RoundToInt(seconds * 60f); i++)
+            {
+                x = Clamp(x + dir * Tuning.I.runSpeed * Dt);
+                hits += StepFlights(copy, x, Dt);
+            }
+            return hits;
+        }
+
+        [Test]
+        public void EveryBossCanBeDodgedOnFoot()
+        {
+            for (int world = 1; world <= 6; world++)
+            {
+                int still = HitsIn30Seconds(world, false);
+                int dodger = HitsIn30Seconds(world, true);
+                Assert.Greater(still, 0, $"world {world}: standing still gets hit");
+                Assert.Less(dodger * 2, still, $"world {world}: the dodger took {dodger} hits, standing still {still}");
             }
         }
     }
