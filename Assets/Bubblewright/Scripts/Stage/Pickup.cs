@@ -21,6 +21,9 @@ namespace Bubblewright
         {
             var go = new GameObject("Heart Pickup");
             go.transform.SetParent(parent, false);
+            // Never come to rest over a gap in the ground: drop onto the nearest solid ground column instead.
+            var map = Game.Map;
+            if (map != null && map.FloorBelow(at.x, at.y) < 0f) at.x = map.NearestSolidGroundX(at.x);
             go.transform.position = at;
 
             var pickup = go.AddComponent<Pickup>();

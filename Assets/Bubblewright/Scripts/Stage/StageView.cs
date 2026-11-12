@@ -11,8 +11,11 @@ namespace Bubblewright
 
         readonly Color32[] pixels = new Color32[Width * Height];
         const int CapRows = 3;
+        /// <summary>The ground sprite reaches this far below the floor line: deep enough for a gap's dark opening.</summary>
+        const int GroundRows = 12;
+        const int GroundCapY = GroundRows - CapRows;
 
-        readonly Color32[] groundPixels = new Color32[Width * CapRows];
+        readonly Color32[] groundPixels = new Color32[Width * GroundRows];
         PixelCanvas pixelCanvas;
         SpriteRenderer spriteRenderer;
         Texture2D texture, groundTexture;
@@ -43,17 +46,18 @@ namespace Bubblewright
             Sorting.Apply(view.spriteRenderer, Layer.Stage);
             Game.ApplySpriteMaterial(view.spriteRenderer);
 
-            // The floor at y = 0 is not a tile: a 3 px strip just below the floor line shows ice or sand there.
+            // The floor at y = 0 is not a tile: a 3 px strip just below the floor line shows ice or sand there,
+            // and a gap in the ground shows as a 12 px dark opening.
             var groundGo = new GameObject("Ground Surface");
             groundGo.transform.SetParent(go.transform, false);
-            groundGo.transform.localPosition = new Vector3(0f, -CapRows * Tuning.I.Pixel, 0f);
-            view.groundTexture = new Texture2D(Width, CapRows, TextureFormat.RGBA32, false)
+            groundGo.transform.localPosition = new Vector3(0f, -GroundRows * Tuning.I.Pixel, 0f);
+            view.groundTexture = new Texture2D(Width, GroundRows, TextureFormat.RGBA32, false)
             {
                 name = "Ground Surface",
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,
             };
-            view.groundSprite = Sprite.Create(view.groundTexture, new Rect(0f, 0f, Width, CapRows), Vector2.zero,
+            view.groundSprite = Sprite.Create(view.groundTexture, new Rect(0f, 0f, Width, GroundRows), Vector2.zero,
                 TilePixels, 0, SpriteMeshType.FullRect);
             view.groundSprite.name = "Ground Surface";
             var groundRenderer = groundGo.AddComponent<SpriteRenderer>();
@@ -83,7 +87,8 @@ namespace Bubblewright
             }
 
             for (int c = 0; c < StageMap.Cols; c++)
-                if (map.GetGround(c) != Surface.Normal) PaintGroundCap(c, map.GetGround(c));
+                if (!map.IsGap(c) && map.GetGround(c) != Surface.Normal) PaintGroundCap(c, map.GetGround(c));
+            PaintGaps(map);
 
             texture.SetPixels32(pixels);
             texture.Apply(false, false);
@@ -149,17 +154,47 @@ namespace Bubblewright
         /// <summary>The 3 px cap of a ground column, drawn just below the floor line (same art as a tile cap).</summary>
         void PaintGroundCap(int c, Surface surface)
         {
-            PaintCap(groundPixels, Width, c * TilePixels, 0, surface);
+            PaintCap(groundPixels, Width, c * TilePixels, GroundCapY, surface, false);
             if (surface != Surface.Sand) return;
             for (int x = 1; x < TilePixels; x += 2)
-                groundPixels[2 * Width + c * TilePixels + x] = Palette.Clear;
+                groundPixels[(GroundCapY + 2) * Width + c * TilePixels + x] = Palette.Clear;
+        }
+
+        /// <summary>
+        /// A gap: a dark opening (the theme's skyTop) from the floor line down 12 px, a 1 px rim in the theme's near colour
+        /// on both sides, and at the floor line a broken 1 px line of the accent at 50% (bubbles still bounce there).
+        /// </summary>
+        void PaintGaps(StageMap map)
+        {
+            Color32 dark = theme.skyTop;
+            Color32 rim = theme.near;
+            Color32 line = Palette.Mix(theme.accent, theme.skyTop, 0.5f);
+            int top = GroundRows - 1;
+            int c = 0;
+            while (c < StageMap.Cols)
+            {
+                if (!map.IsGap(c)) { c++; continue; }
+                int start = c;
+                while (c < StageMap.Cols && map.IsGap(c)) c++;
+                int x0 = start * TilePixels, x1 = c * TilePixels - 1;
+                for (int y = 0; y < GroundRows; y++)
+                    for (int x = x0; x <= x1; x++)
+                        groundPixels[y * Width + x] = dark;
+                for (int y = 0; y < GroundRows; y++)
+                {
+                    groundPixels[y * Width + x0] = rim;
+                    groundPixels[y * Width + x1] = rim;
+                }
+                for (int x = x0 + 2; x <= x1 - 2; x++)
+                    if ((x - x0 - 2) % 4 < 2) groundPixels[top * Width + x] = line;
+            }
         }
 
         /// <summary>
         /// Paints a 15 x 3 cap into a pixel buffer, with its bottom row at capY. Ice: pale cap, 2 px glints at x = 3 and 10,
         /// and a darker row under it on a tile. Sand: tan cap with four darker grains.
         /// </summary>
-        static void PaintCap(Color32[] buffer, int bufferWidth, int x0, int capY, Surface surface)
+        static void PaintCap(Color32[] buffer, int bufferWidth, int x0, int capY, Surface surface, bool shadeBelow = true)
         {
             Color32 cap = surface == Surface.Ice ? Palette.Ice : Palette.Sand;
             for (int y = 0; y < CapRows; y++)
@@ -169,7 +204,7 @@ namespace Bubblewright
             if (surface == Surface.Ice)
             {
                 // The row under the cap is only part of a tile; the ground strip has no row below it.
-                if (capY > 0)
+                if (shadeBelow && capY > 0)
                     for (int x = 0; x < TilePixels; x++)
                         buffer[(capY - 1) * bufferWidth + x0 + x] = Palette.IceShade;
                 for (int g = 0; g < 2; g++)

@@ -5,7 +5,7 @@ namespace Bubblewright
 {
     /// <summary>
     /// What each world does to a freshly parsed stage map. Sand covers all of Desert, patchy ice covers Winter,
-    /// and Lava (not its boss stage) grows retracting spike strips. Every other world is left alone, because
+    /// and Lava (not its boss stage) grows retracting spike strips. Desert also narrows gaps in the ground to 2 columns. Every other world is left alone, because
     /// each hazard belongs to one world only.
     /// </summary>
     public static class WorldRules
@@ -29,10 +29,27 @@ namespace Bubblewright
 
         public static void Apply(StageMap map, int world, Random rng, int stageInWorld = 0, bool boss = false)
         {
+            NarrowGaps(map, MaxGap(world));
             if (world == DesertWorld) PaintAll(map, Surface.Sand);
             else if (world == WinterWorld) PatchyIce(map, rng);
             if (world == LavaWorld && !boss && stageInWorld >= 1 && stageInWorld <= 5)
                 PlaceSpikes(map, stageInWorld, rng);
+        }
+
+        /// <summary>Widest gap in the ground a world allows. On sand the jump is shorter, so Desert gaps are 2 columns at most.</summary>
+        public static int MaxGap(int world) => world == DesertWorld ? 2 : 3;
+
+        /// <summary>Fills in the right-hand end of any gap wider than maxGap columns.</summary>
+        public static void NarrowGaps(StageMap map, int maxGap)
+        {
+            int c = 0;
+            while (c < StageMap.Cols)
+            {
+                if (!map.IsGap(c)) { c++; continue; }
+                int start = c;
+                while (c < StageMap.Cols && map.IsGap(c)) c++;
+                for (int i = start + maxGap; i < c; i++) map.SetGap(i, false);
+            }
         }
 
         /// <summary>Every ground column and every solid tile gets this surface.</summary>
@@ -155,6 +172,7 @@ namespace Bubblewright
                 {
                     if (c >= GroundClearFirst && c <= GroundClearLast) return false;
                     if (map.IsSolid(c, 0)) return false;
+                    if (map.IsGap(c)) return false;
                 }
                 else if (!map.IsSolid(c, row) || map.IsSolid(c, row + 1))
                     return false;

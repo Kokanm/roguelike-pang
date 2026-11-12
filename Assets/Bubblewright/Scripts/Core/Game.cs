@@ -320,7 +320,10 @@ namespace Bubblewright
 
         void TickPlay(float dt)
         {
-            wick.Tick(input.Move, input.Climb, dt, true);
+            wick.GapDamageEnabled = !debug.god;
+            wick.Tick(input.Move, input.Climb, input.JumpPressed, dt, true);
+            if (wick.ConsumeGapFall()) AfterWickHurt(); // a gap took a heart: same freeze, sound and game over as any hit
+            if (state != State.Play) return;
 
             // Up to run.Shots cables at once. Holding fire spaces extra cables out so they do not stack on one spot.
             shotTimer += dt;
@@ -672,7 +675,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
-                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   Pad: stick/d-pad + A   1-4: spawn   F1: hitboxes   F3: next layout",
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   Pad: stick/d-pad + A, B/Y jump   1-4: spawn   F1: hitboxes   F3: next layout",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }

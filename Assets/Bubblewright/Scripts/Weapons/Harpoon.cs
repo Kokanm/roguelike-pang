@@ -87,7 +87,7 @@ namespace Bubblewright
             baseY = from.y;
             var map = Game.Map;
             topY = map != null ? map.CeilingAbove(x, from.y, out _) : T.arenaHeight;
-            bottomY = (map != null ? map.FloorBelow(x, from.y) : 0f) + TailBottomPixels * px;
+            bottomY = (map != null ? Mathf.Max(0f, map.FloorBelow(x, from.y)) : 0f) + TailBottomPixels * px; // the cable never hangs into a gap
             this.chipColumn = chipColumn;
             chipNextRow = map != null ? Mathf.Max(0, StageMap.Row(map.FloorBelow(x, from.y))) : 0;
             tipY = from.y;

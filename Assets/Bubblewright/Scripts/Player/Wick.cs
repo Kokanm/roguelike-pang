@@ -5,7 +5,8 @@ namespace Bubblewright
     public enum Mode { Ground, Fall, Climb }
 
     /// <summary>
-    /// The lamplighter. Stands on floors and platforms, falls off edges and climbs ladders (still no jump). Pivot at his feet.
+    /// The lamplighter. Stands on floors and platforms, falls off edges, climbs ladders and hops. Pivot at his feet.
+    /// A jump is Mode.Fall with an upward speed and its own gravity (Tuning > Jump); it cannot reach the next platform.
     /// Rig: Wick (position) > Rig (squash, lean, hop) > Back / Front groups (body, launcher, flame; the front adds a free hand).
     /// He plays with his back to the camera and faces it only for the stage intro and the celebration.
     /// All animation is procedural, with timings from the sheet's animation table (Tuning > Wick animation).
@@ -24,6 +25,12 @@ namespace Bubblewright
         public bool FacingFront { get; private set; }
         public bool Invulnerable => invulnerable > 0f;
         public bool Dead => Hearts <= 0;
+        /// <summary>True from take-off until he lands. Mode is Fall the whole time.</summary>
+        public bool Jumping { get; private set; }
+        /// <summary>Upward speed in units per second (negative while falling).</summary>
+        public float VelocityY => -fallSpeed;
+        /// <summary>Off in debug god mode: a gap still sends him back to the edge, but costs no heart.</summary>
+        public bool GapDamageEnabled { get; set; } = true;
         /// <summary>Set by the game during the stage intro: he waves his free hand while facing the camera.</summary>
         public bool Waving { get; set; }
         /// <summary>Run upgrades: multiplies top speed, and adds seconds of safety after a hit.</summary>
@@ -67,6 +74,12 @@ namespace Bubblewright
         bool climbMoving;
         float climbClock;
         float landSquash = -1f;
+
+        float coyoteClock, jumpBufferClock, airTopSpeed, groundTopSpeed;
+        float jumpRise = -1f, jumpLand = -1f;
+        Vector3 safeSpot;
+        float safeStandClock;
+        bool gapFallPending;
 
         float invulnerable;
         float knockTimer, knockVelocity;
@@ -143,6 +156,13 @@ namespace Bubblewright
             fallSpeed = 0f;
             climbMoving = false;
             climbClock = 0f;
+            Jumping = false;
+            coyoteClock = jumpBufferClock = 0f;
+            jumpRise = jumpLand = -1f;
+            airTopSpeed = groundTopSpeed = RunSpeed;
+            safeSpot = transform.position;
+            safeStandClock = 0f;
+            gapFallPending = false;
             Hearts = hearts;
             invulnerable = 0f;
             knockTimer = 0f;
@@ -257,10 +277,23 @@ namespace Bubblewright
             celebrateLandings = 0;
         }
 
-        public void Tick(float move, float dt, bool controllable) => Tick(move, 0f, dt, controllable);
+        public void Tick(float move, float dt, bool controllable) => Tick(move, 0f, false, dt, controllable);
 
-        /// <summary>Physics and procedural animation. move and climb are -1..1. dt is game time.</summary>
-        public void Tick(float move, float climb, float dt, bool controllable)
+        public void Tick(float move, float climb, float dt, bool controllable) => Tick(move, climb, false, dt, controllable);
+
+        /// <summary>
+        /// True once after he fell into a gap and came back at the edge and lost a heart this way.
+        /// The game uses it for the hurt freeze, sound and game over.
+        /// </summary>
+        public bool ConsumeGapFall()
+        {
+            bool fell = gapFallPending;
+            gapFallPending = false;
+            return fell;
+        }
+
+        /// <summary>Physics and procedural animation. move and climb are -1..1; jump is "pressed this frame". dt is game time.</summary>
+        public void Tick(float move, float climb, bool jump, float dt, bool controllable)
         {
             var map = Game.Map ?? StageMap.Flat();
             float wantMove = controllable && !Dead ? Mathf.Clamp(move, -1f, 1f) : 0f;
@@ -268,7 +301,13 @@ namespace Bubblewright
             var pos = transform.position;
             climbMoving = false;
 
-            if (Mode != Mode.Climb && knockTimer <= 0f && wantClimb != 0f &&
+            // A press is remembered for jumpBuffer seconds, so pressing just before landing still jumps.
+            jumpBufferClock = Mathf.Max(0f, jumpBufferClock - dt);
+            if (jump && controllable && !Dead) jumpBufferClock = Mathf.Max(T.jumpBuffer, 1e-4f);
+            coyoteClock = Mathf.Max(0f, coyoteClock - dt);
+
+            // No ladder grabs in the middle of a jump.
+            if (Mode != Mode.Climb && !Jumping && knockTimer <= 0f && wantClimb != 0f &&
                 TryFindLadder(map, pos.x, pos.y, wantClimb, Mode, out int grabCol, out int grabRow))
             {
                 StartClimb(map, grabCol, grabRow);
@@ -281,6 +320,7 @@ namespace Bubblewright
                 {
                     Mode = Mode.Fall;
                     fallSpeed = 0f;
+                    coyoteClock = 0f; // stepping off a ladder is not walking off an edge
                 }
             }
 
@@ -303,6 +343,8 @@ namespace Bubblewright
                     // The floor under his feet sets how he speeds up and slows down (only while on the ground).
                     Surface surface = Mode == Mode.Ground ? map.SurfaceUnder(pos.x, FeetY) : Surface.Normal;
                     float topSpeed = surface == Surface.Sand ? RunSpeed * T.sandSpeedScale : RunSpeed;
+                    if (Mode == Mode.Ground) groundTopSpeed = topSpeed;
+                    else if (Jumping) topSpeed = airTopSpeed; // a jump keeps the top speed of the floor it left (shorter on sand)
                     float accelTime = surface == Surface.Ice ? T.iceAccelTime : surface == Surface.Sand ? T.sandAccelTime : T.accelTime;
                     float stopTime = surface == Surface.Ice ? T.iceStopTime : T.stopTime;
                     float target = wantMove * topSpeed;
@@ -317,38 +359,84 @@ namespace Bubblewright
                 }
 
                 ResolveHorizontal(map, prevX, ref pos);
+                KeepInsideGap(map, ref pos);
 
+                bool walkedOff = false;
                 if (Mode == Mode.Ground)
                 {
                     if (!IsSupported(map, pos.x, pos.y))
                     {
+                        walkedOff = true;
                         Mode = Mode.Fall;
                         fallSpeed = 0f;
+                        coyoteClock = T.coyoteTime; // walked off an edge: a jump still works for a moment
                     }
                     transform.position = pos;
                 }
-                else // Mode.Fall
+
+                // Jump from the ground, or just after walking off an edge. Never from a ladder or during knockback.
+                if (controllable && !Dead && jumpBufferClock > 0f && knockTimer <= 0f &&
+                    (Mode == Mode.Ground || Mode == Mode.Fall && !Jumping && coyoteClock > 0f))
+                {
+                    StartJump();
+                    walkedOff = false;
+                }
+
+                // Walking off an edge starts falling next frame, as before; a jump moves this frame.
+                if (Mode == Mode.Fall && !walkedOff)
                 {
                     float previousFeetY = pos.y;
-                    fallSpeed = Mathf.Min(T.maxFallSpeed, fallSpeed + T.fallGravity * dt);
-                    pos.y -= fallSpeed * dt;
+                    float gravity = Jumping ? T.JumpGravity : T.fallGravity;
+                    float newSpeed = Mathf.Min(T.maxFallSpeed, fallSpeed + gravity * dt);
+                    // A jump integrates exactly (average speed over the frame) so its height does not depend on the frame rate.
+                    pos.y -= (Jumping ? (fallSpeed + newSpeed) * 0.5f : newSpeed) * dt;
+                    bool wasRising = fallSpeed < 0f;
+                    fallSpeed = newSpeed;
+                    if (wasRising && fallSpeed >= 0f) jumpRise = -1f; // the top: back to 1 x 1
+
+                    // Head bump: the top of his hitbox stops under any solid tile.
+                    if (pos.y > previousFeetY)
+                    {
+                        float ceiling = HeadCeiling(map, pos.x, previousFeetY);
+                        if (pos.y + T.hitbox.y >= ceiling)
+                        {
+                            pos.y = Mathf.Max(previousFeetY, ceiling - T.hitbox.y);
+                            fallSpeed = 0f;
+                            jumpRise = -1f;
+                        }
+                    }
 
                     float halfFeet = T.feetWidth * 0.5f;
-                    float floor = Mathf.Max(
+                    // Once below the floor line he is inside a gap: nothing to land on until he comes back at the edge.
+                    float floor = previousFeetY < -1e-4f ? float.NegativeInfinity : Mathf.Max(
                         map.FloorBelow(pos.x - halfFeet, previousFeetY),
                         map.FloorBelow(pos.x + halfFeet, previousFeetY));
-                    if (pos.y <= floor)
+                    if (fallSpeed >= 0f && pos.y <= floor)
                     {
                         pos.y = floor;
                         fallSpeed = 0f;
                         Mode = Mode.Ground;
-                        landSquash = 0f;
+                        coyoteClock = 0f;
+                        if (Jumping)
+                        {
+                            Jumping = false;
+                            jumpRise = -1f;
+                            jumpLand = 0f;
+                            landSquash = -1f;
+                        }
+                        else landSquash = 0f;
                         transform.position = pos;
                         if (fx != null)
                         {
                             fx.Dust(Feet(-4), -1f);
                             fx.Dust(Feet(4), 1f);
                         }
+                        // A buffered press jumps again straight away.
+                        if (controllable && !Dead && jumpBufferClock > 0f && knockTimer <= 0f) StartJump();
+                    }
+                    else if (pos.y < -T.gapFallDepth)
+                    {
+                        FallIntoGap(map, ref pos);
                     }
                     else
                     {
@@ -357,8 +445,107 @@ namespace Bubblewright
                 }
             }
 
+            TrackSafeSpot(map, dt);
+
             if (invulnerable > 0f) invulnerable -= dt;
             Animate(dt);
+        }
+
+        void StartJump()
+        {
+            Mode = Mode.Fall;
+            Jumping = true;
+            fallSpeed = -T.JumpSpeed;
+            airTopSpeed = groundTopSpeed;
+            jumpBufferClock = 0f;
+            coyoteClock = 0f;
+            jumpRise = 0f;
+            jumpLand = landSquash = runStart = skid = -1f;
+            if (fx != null) fx.Dust(Feet(0), 0f);
+            Sfx.Play(Sound.Turn, 1.9f, 0.7f);
+        }
+
+        /// <summary>Lowest underside of a solid tile above either edge of his hitbox (or the arena ceiling).</summary>
+        float HeadCeiling(StageMap map, float x, float feetY)
+        {
+            float half = T.hitbox.x * 0.5f - 0.01f;
+            float top = feetY + T.hitbox.y;
+            return Mathf.Min(
+                map.CeilingAbove(x - half, top, out _),
+                map.CeilingAbove(x + half, top, out _));
+        }
+
+        /// <summary>Below the floor line, the sides of a gap are walls: his feet stay over the gap's columns.</summary>
+        void KeepInsideGap(StageMap map, ref Vector3 pos)
+        {
+            if (pos.y >= 0f) return;
+            int c = Mathf.Clamp(StageMap.Col(pos.x), 0, StageMap.Cols - 1);
+            if (!map.IsGap(c)) return;
+            int left = c, right = c;
+            while (left > 0 && map.IsGap(left - 1)) left--;
+            while (right < StageMap.Cols - 1 && map.IsGap(right + 1)) right++;
+            float halfFeet = T.feetWidth * 0.5f;
+            float minX = StageMap.CellRect(left, 0).xMin + halfFeet;
+            float maxX = StageMap.CellRect(right, 0).xMax - halfFeet;
+            if (pos.x < minX) { pos.x = minX; VelocityX = 0f; }
+            if (pos.x > maxX) { pos.x = maxX; VelocityX = 0f; }
+        }
+
+        bool StandsOnSolid(StageMap map, float x, float y)
+        {
+            float halfFeet = T.feetWidth * 0.5f;
+            return Mathf.Abs(map.FloorBelow(x - halfFeet, y + FootSupportTolerance) - y) <= FootSupportTolerance &&
+                   Mathf.Abs(map.FloorBelow(x + halfFeet, y + FootSupportTolerance) - y) <= FootSupportTolerance;
+        }
+
+        /// <summary>Remembers where he last stood with both feet on solid ground for gapSafeStandTime seconds.</summary>
+        void TrackSafeSpot(StageMap map, float dt)
+        {
+            var p = transform.position;
+            if (Mode == Mode.Ground && knockTimer <= 0f && StandsOnSolid(map, p.x, p.y))
+            {
+                safeStandClock += dt;
+                if (safeStandClock >= T.gapSafeStandTime) safeSpot = p;
+            }
+            else safeStandClock = 0f;
+        }
+
+        /// <summary>
+        /// Fell below the floor through a gap: lose gapDamage hearts (ignoring the safe time) and come back standing at the
+        /// last safe spot, moved further from the gap, with the normal safe time and blink.
+        /// </summary>
+        void FallIntoGap(StageMap map, ref Vector3 pos)
+        {
+            float fallX = pos.x;
+            Vector3 p = safeSpot;
+            float dir = p.x >= fallX ? 1f : -1f;
+            float wallX = T.HalfWidth - 11.5f * Px;
+            Vector3 candidate = p;
+            candidate.x = Mathf.Clamp(p.x + dir * T.gapRespawnInset, -wallX, wallX);
+            for (int i = 0; i < 40 && !StandsOnSolid(map, candidate.x, candidate.y); i++)
+                candidate.x = Mathf.Clamp(candidate.x + dir * 0.1f, -wallX, wallX);
+            if (StandsOnSolid(map, candidate.x, candidate.y)) p = candidate;
+
+            pos = p;
+            transform.position = pos;
+            Mode = Mode.Ground;
+            Jumping = false;
+            fallSpeed = VelocityX = 0f;
+            knockTimer = 0f;
+            coyoteClock = jumpBufferClock = 0f;
+            jumpRise = jumpLand = landSquash = runStart = skid = -1f;
+            lastWantDir = 0;
+            safeStandClock = 0f;
+            if (fx != null) fx.Dust(Feet(0), 0f);
+
+            if (!GapDamageEnabled || Dead) return;
+            Hearts = Mathf.Max(0, Hearts - Mathf.Max(1, T.gapDamage));
+            invulnerable = Dead ? 0f : (BaseInvulnerable + ExtraInvulnerable) * InvulnerableScale;
+            hurtFlash = T.hurtFlashTime;
+            ApplyFlash(true);
+            SetVisible(true);
+            if (Dead) flameBack.enabled = flameFront.enabled = false;
+            gapFallPending = true;
         }
 
         Rect BodyBox(float x, float y) =>
@@ -498,6 +685,8 @@ namespace Bubblewright
         void StartClimb(StageMap map, int c, int seedRow)
         {
             Mode = Mode.Climb;
+            Jumping = false;
+            coyoteClock = 0f;
             ladderCol = c;
             GetLadderSpan(map, c, seedRow, out ladderBottomRow, out ladderTopRow);
             ladderMapVersion = map.Version;
@@ -695,6 +884,21 @@ namespace Bubblewright
                 if (k >= 1f) skid = -1f;
                 else if (k < 0.5f) holdSkidLean = true;
                 else scale = Vector3.Scale(scale, Squash(T.skidSettle, (k - 0.5f) * 2f));
+            }
+            // Jump: stretch at take-off easing to 1 x 1 at the top, then a short squash on landing.
+            if (jumpRise >= 0f)
+            {
+                jumpRise += dt;
+                float k = jumpRise / Mathf.Max(0.001f, T.jumpTimeToApex);
+                if (k >= 1f) jumpRise = -1f;
+                else scale = Vector3.Scale(scale, Squash(T.jumpStretch, k));
+            }
+            if (jumpLand >= 0f)
+            {
+                jumpLand += dt;
+                float k = jumpLand / Mathf.Max(0.001f, T.jumpLandTime);
+                if (k >= 1f) jumpLand = -1f;
+                else scale = Vector3.Scale(scale, Squash(T.jumpLandSquash, k));
             }
             if (landSquash >= 0f)
             {

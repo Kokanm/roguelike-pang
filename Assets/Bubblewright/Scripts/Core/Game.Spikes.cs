@@ -55,6 +55,12 @@ namespace Bubblewright
         void HurtWick(float fromX, int damage)
         {
             wick.Hurt(fromX, damage);
+            AfterWickHurt();
+        }
+
+        /// <summary>Everything after Wick loses hearts, whatever took them (a hit, spikes, or a gap).</summary>
+        void AfterWickHurt()
+        {
             freeze = T.hurtFreeze;
             shake = T.shakeTime;
             Sfx.Play(Sound.Hurt);

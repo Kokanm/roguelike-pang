@@ -354,11 +354,19 @@ namespace Bubblewright
             if (world >= 2 && stageInWorld >= 2)
                 wantedLevels = rng.Next(3) == 0 ? 2 : 3;
 
+            // From world 2 on, about one stage in three has gaps in the ground (never a boss stage: those returned above).
+            bool wantGaps = world >= 2 && rng.NextDouble() < Tuning.I.gapLayoutChance;
+
             var choices = new List<LayoutDef>();
             foreach (var layout in StageLayouts.All)
-                if (layout.levels == wantedLevels && layout.minWorld <= world &&
+                if (layout.levels == wantedLevels && layout.minWorld <= world && layout.HasGaps == wantGaps &&
                     (layout.onlyWorld == 0 || layout.onlyWorld == world))
                     choices.Add(layout);
+            if (choices.Count == 0)
+                foreach (var layout in StageLayouts.All)
+                    if (layout.levels == wantedLevels && layout.minWorld <= world &&
+                        (layout.onlyWorld == 0 || layout.onlyWorld == world))
+                        choices.Add(layout);
 
             // minWorld can remove a whole tier from a future data set; fall back to any eligible non-flat layout.
             if (choices.Count == 0)
@@ -478,16 +486,59 @@ namespace Bubblewright
 
                 Vector2 resolved = candidate;
                 Contact contact = map.ResolveCircle(ref resolved, clearance);
-                if ((resolved - candidate).sqrMagnitude <= 0.000001f &&
-                    !contact.landed && !contact.bumped && contact.side == 0)
+                if (IsClear(candidate, resolved, contact))
                 {
                     position = candidate;
                     return true;
                 }
             }
+
+            // The two tries above are the only heights where the largest bubble fits, and each one
+            // draws a single x. When that x is on Wick, a later random y never lands on the centre
+            // again and the bubble is dropped. Search those rows, then the rest of the open air.
+            if (SearchClear(map, clearance, minY, minX, maxX, maxY, wickX, out position))
+                return true;
             position = default;
             return false;
         }
+
+        static bool SearchClear(StageMap map, float clearance, float minY, float minX, float maxX, float maxY, float wickX, out Vector2 position)
+        {
+            if (SearchRow(map, clearance, minY > 5f ? 12f : 7f, minY, minX, maxX, maxY, wickX, out position)) return true;
+            if (SearchRow(map, clearance, 12f, minY, minX, maxX, maxY, wickX, out position)) return true;
+
+            int rows = Mathf.Max(1, Mathf.CeilToInt((maxY - minY) / 0.25f));
+            for (int i = 0; i <= rows; i++)
+            {
+                float y = Mathf.Lerp(maxY, minY, i / (float)rows);
+                if (SearchRow(map, clearance, y, minY, minX, maxX, maxY, wickX, out position)) return true;
+            }
+            position = default;
+            return false;
+        }
+
+        static bool SearchRow(StageMap map, float clearance, float y, float minY, float minX, float maxX, float maxY, float wickX, out Vector2 position)
+        {
+            position = default;
+            if (y < minY || y > maxY) return false;
+            int steps = Mathf.Max(1, Mathf.CeilToInt((maxX - minX) / 0.25f));
+            for (int i = 0; i <= steps; i++)
+            {
+                float x = Mathf.Lerp(maxX, minX, i / (float)steps);
+                if (Mathf.Abs(x - wickX) < 5f) continue;
+                var candidate = new Vector2(x, y);
+                Vector2 resolved = candidate;
+                Contact contact = map.ResolveCircle(ref resolved, clearance);
+                if (!IsClear(candidate, resolved, contact)) continue;
+                position = candidate;
+                return true;
+            }
+            return false;
+        }
+
+        static bool IsClear(Vector2 candidate, Vector2 resolved, Contact contact) =>
+            (resolved - candidate).sqrMagnitude <= 0.000001f &&
+            !contact.landed && !contact.bumped && contact.side == 0;
 
         static BubbleKind PickKind(int stage, System.Random rng)
         {

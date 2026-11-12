@@ -74,6 +74,46 @@ namespace Bubblewright
             Version++;
         }
 
+        /// <summary>
+        /// Ground columns that are a gap (no floor). Bubbles and bullets still bounce at y = 0 above a gap;
+        /// only Wick (and resting pickups) fall in. Change it through SetGap so the view repaints.
+        /// </summary>
+        public readonly bool[] gap = new bool[Cols];
+
+        public bool IsGap(int c) => c >= 0 && c < Cols && gap[c];
+
+        public void SetGap(int c, bool isGap)
+        {
+            if (c < 0 || c >= Cols) return;
+            gap[c] = isGap;
+            Version++;
+        }
+
+        public bool HasGaps
+        {
+            get
+            {
+                for (int c = 0; c < Cols; c++) if (gap[c]) return true;
+                return false;
+            }
+        }
+
+        /// <summary>The centre of the ground column nearest to x that is not a gap (x itself when it is not over one).</summary>
+        public float NearestSolidGroundX(float x)
+        {
+            int col = Mathf.Clamp(Col(x), 0, Cols - 1);
+            if (!gap[col]) return x;
+            for (int d = 1; d < Cols; d++)
+            {
+                int a = col - d, b = col + d;
+                bool aOk = a >= 0 && !gap[a], bOk = b < Cols && !gap[b];
+                if (aOk && bOk) return Mathf.Abs(x - CenterX(a)) <= Mathf.Abs(x - CenterX(b)) ? CenterX(a) : CenterX(b);
+                if (aOk) return CenterX(a);
+                if (bOk) return CenterX(b);
+            }
+            return x;
+        }
+
         public static int Col(float x) => Mathf.FloorToInt(x + HalfWidth);
         public static int Row(float y) => Mathf.FloorToInt(y);
         public static Rect CellRect(int c, int r) => new Rect(-HalfWidth + c, r, 1f, 1f);
@@ -108,7 +148,8 @@ namespace Bubblewright
             if (c < 0 || c >= Cols) return 0f;
             for (int r = Mathf.Min(Rows - 1, Row(y)); r >= 0; r--)
                 if (r + 1f <= y && IsSolid(c, r)) return r + 1f;
-            return 0f;
+            // A gap has no floor: report a surface well below where Wick loses a heart, so he falls in.
+            return gap[c] ? -Tuning.I.gapFallDepth - 1f : 0f;
         }
 
         public float CeilingAbove(float x, float y, out int hitRow)
