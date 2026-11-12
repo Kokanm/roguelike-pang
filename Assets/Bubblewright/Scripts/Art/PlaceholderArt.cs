@@ -622,61 +622,200 @@ namespace Bubblewright
 
         // ------------------------------------------------------------------ bosses
 
-        /// <summary>A boss body, its cream hit-flash silhouette, and the cream lower band that blinks before a shot.</summary>
+        /// <summary>
+        /// A boss body, the same body with the visor open (releasing a balloon), its cream hit-flash silhouette, and the
+        /// cream lower band that blinks before a shot.
+        /// </summary>
         public class BossSprites
         {
-            public Sprite body, flash, tell;
+            public Sprite body, open, flash, tell;
         }
 
         readonly Dictionary<string, BossSprites> bossCache = new Dictionary<string, BossSprites>();
         readonly Dictionary<string, Sprite> bulletCache = new Dictionary<string, Sprite>();
+        readonly Dictionary<string, Sprite> bouncyCache = new Dictionary<string, Sprite>();
 
         /// <summary>Height in pixels of the band at the bottom of a boss that blinks as the tell.</summary>
         public const int BossTellBand = 4;
 
+        /// <summary>Pixels the shape's detail adds above and below the body rectangle (chimney, thorns, hood, spikes, teeth).</summary>
+        public static (int top, int bottom) BossExtra(BossShape shape)
+        {
+            switch (shape)
+            {
+                case BossShape.Block: return (15, 0); // a 22 px chimney, 7 px of it sunk into the body
+                case BossShape.Wide: return (8, 0);   // thorns
+                case BossShape.Tall: return (10, 0);  // hood point
+                case BossShape.Crown: return (12, 0); // spikes
+                case BossShape.Jaw: return (0, 6);    // teeth
+                default: return (0, 0);
+            }
+        }
+
         /// <summary>
-        /// Placeholder boss painted from its size and the world's colours: a rounded body in tileFill, a tileCap band across
-        /// the top third, a skyTop visor slit 60% of the width, three rivets and a 1 px ink outline. The sprite is
-        /// the body plus a 1 px margin for the outline, with the pivot at the centre of the body.
+        /// Placeholder boss painted from its spec and the world's colours (docs/design/expansion-art.md): a tileFill body
+        /// in the spec's shape, a tileCap band across the top third (the middle for the round one), a skyTop visor slit 60%
+        /// of the width, three tileShade rivets and a 1 px ink outline. The sprite is the body plus the shape's extra detail
+        /// and a 1 px margin for the outline, with the pivot at the centre of the body rectangle.
         /// </summary>
         public BossSprites BossFor(Theme theme, BossSpec spec)
         {
             int w = Mathf.RoundToInt(spec.size.x * ppu), h = Mathf.RoundToInt(spec.size.y * ppu);
-            string key = $"{theme.name}|{w}x{h}";
+            string key = $"{theme.name}|{w}x{h}|{spec.shape}";
             if (bossCache.TryGetValue(key, out var cached) && cached.body != null && cached.body.texture != null) return cached;
 
-            var c = new PixelCanvas(w + 2, h + 2);
-            const int ox = 1, oy = 1;
-            c.Rect(ox, oy, w, h, theme.tileFill);
-            // Rounded corners: clip three pixels at each.
-            foreach (var (cx, cy, dx, dy) in new[] { (ox, oy, 1, 1), (ox + w - 1, oy, -1, 1), (ox, oy + h - 1, 1, -1), (ox + w - 1, oy + h - 1, -1, -1) })
-            {
-                c.Set(cx, cy, Palette.Clear);
-                c.Set(cx + dx, cy, Palette.Clear);
-                c.Set(cx, cy + dy, Palette.Clear);
-            }
-            c.RectOnFilled(ox, oy + h - h / 3, w, h / 3, theme.tileCap);       // band across the top third
-            c.RectOnFilled(ox, oy, w, BossTellBand, theme.tileShade);          // the lower band that blinks before a shot
-            int visorW = Mathf.RoundToInt(w * 0.6f);
-            c.Rect(ox + (w - visorW) / 2, oy + h / 2 - 2, visorW, 5, theme.skyTop); // visor slit
-            for (int i = 1; i <= 3; i++)
-                c.Rect(ox + w * i / 4 - 1, oy + BossTellBand + 3, 3, 3, theme.tileShade); // rivets
+            var (top, bottom) = BossExtra(spec.shape);
+            int cw = w + 2, ch = h + top + bottom + 2;
+            int ox = 1, oy = 1 + bottom;
 
-            var tell = new PixelCanvas(w + 2, h + 2);
+            var closed = new PixelCanvas(cw, ch);
+            PaintBoss(closed, theme, spec.shape, ox, oy, w, h, false);
+            var opened = new PixelCanvas(cw, ch);
+            PaintBoss(opened, theme, spec.shape, ox, oy, w, h, true);
+
+            var tell = new PixelCanvas(cw, ch);
             for (int y = oy; y < oy + BossTellBand; y++)
                 for (int x = ox; x < ox + w; x++)
-                    if (c.Filled(x, y)) tell.Set(x, y, Palette.Cream);
+                    if (closed.Filled(x, y)) tell.Set(x, y, Palette.Cream);
 
-            c.Outline(Palette.Ink);
+            closed.Outline(Palette.Ink);
+            opened.Outline(Palette.Ink);
             var pivot = new Vector2(ox + w * 0.5f, oy + h * 0.5f);
             var sprites = new BossSprites
             {
-                body = c.ToSprite($"Boss_{key}", pivot, ppu),
-                flash = c.Silhouette(Palette.Cream).ToSprite($"Boss_{key}_Flash", pivot, ppu),
+                body = closed.ToSprite($"Boss_{key}", pivot, ppu),
+                open = opened.ToSprite($"Boss_{key}_Open", pivot, ppu),
+                flash = closed.Silhouette(Palette.Cream).ToSprite($"Boss_{key}_Flash", pivot, ppu),
                 tell = tell.ToSprite($"Boss_{key}_Tell", pivot, ppu),
             };
             bossCache[key] = sprites;
             return sprites;
+        }
+
+        static void PaintBoss(PixelCanvas c, Theme theme, BossShape shape, int ox, int oy, int w, int h, bool open)
+        {
+            // Body.
+            switch (shape)
+            {
+                case BossShape.Round:
+                    c.Circle(ox + w * 0.5f, oy + h * 0.5f, Mathf.Min(w, h) * 0.5f, theme.tileFill);
+                    break;
+                case BossShape.Wide:
+                    RoundedRect(c, ox, oy, w, h, 8, theme.tileFill);
+                    break;
+                default:
+                    RoundedRect(c, ox, oy, w, h, 2, theme.tileFill);
+                    break;
+            }
+
+            // The light band: across the top third, or across the middle of the round one.
+            if (shape == BossShape.Round) c.RectOnFilled(ox, oy + h / 2 - h / 8, w, h / 4, theme.tileCap);
+            else c.RectOnFilled(ox, oy + h - h / 3, w, h / 3, theme.tileCap);
+            c.RectOnFilled(ox, oy, w, BossTellBand, theme.tileShade); // the lower band that blinks before a shot
+
+            // Detail that grows past the body rectangle.
+            switch (shape)
+            {
+                case BossShape.Block:
+                {
+                    // A brick chimney, 1 x 1.5 units, its foot sunk 7 px into the top band; a rim of four merlons and three notches.
+                    int chW = 15, chH = 22, chX = ox + Mathf.RoundToInt(w * 0.68f) - chW / 2, chY = oy + h - 7;
+                    c.Rect(chX, chY, chW, chH, theme.tileFill);
+                    for (int row = 0; row < chH - 4; row += 4)
+                    {
+                        c.Rect(chX, chY + row + 3, chW, 1, theme.tileShade); // mortar line
+                        int off = (row / 4) % 2 == 0 ? 4 : 0;
+                        for (int bx = chX + off; bx < chX + chW; bx += 8) c.Rect(bx, chY + row, 1, 3, theme.tileShade);
+                    }
+                    int rimX = chX - 1, rimY = chY + chH - 4;
+                    c.Rect(rimX, rimY, chW + 2, 4, theme.tileCap);
+                    for (int n = 0; n < 3; n++) c.Rect(rimX + 2 + n * 5, rimY + 2, 3, 2, Palette.Clear);
+                    break;
+                }
+                case BossShape.Wide:
+                    // Five triangular thorns along the top.
+                    for (int i = 0; i < 5; i++)
+                    {
+                        int cx = ox + w * (2 * i + 1) / 10;
+                        Triangle(c, cx, oy + h - 1, 9, 8, true, theme.tileShade);
+                    }
+                    break;
+                case BossShape.Tall:
+                    // A pointed hood that rises from the top band, and rib lines on the lower body.
+                    Triangle(c, ox + w / 2, oy + h - 1, w, 10, true, theme.tileCap);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        int ribW = Mathf.RoundToInt(w * 0.5f);
+                        c.RectOnFilled(ox + (w - ribW) / 2, oy + BossTellBand + 8 + i * 4, ribW, 1, theme.tileShade);
+                    }
+                    break;
+                case BossShape.Crown:
+                    // Three tall spikes on top.
+                    for (int i = 1; i <= 3; i++)
+                        Triangle(c, ox + w * i / 4, oy + h - 1, 9, 12, true, theme.tileCap);
+                    break;
+                case BossShape.Jaw:
+                    // Six downward teeth hanging under the body.
+                    for (int i = 0; i < 6; i++)
+                    {
+                        int cx = ox + w * (2 * i + 1) / 12;
+                        Triangle(c, cx, oy, Mathf.Max(3, w / 6 - 1), 6, false, theme.tileCap);
+                    }
+                    break;
+            }
+
+            // The visor slit, doubled in height while open.
+            int visorW = Mathf.RoundToInt(w * 0.6f);
+            int visorH = open ? 10 : 5;
+            int visorX = ox + (w - visorW) / 2, visorY = oy + h / 2 - visorH / 2;
+            c.Rect(visorX, visorY, visorW, visorH, theme.skyTop);
+            if (shape == BossShape.Crown) c.Rect(visorX + 1, visorY + visorH / 2, visorW - 2, 1, theme.accent); // glow line
+
+            if (shape != BossShape.Tall)
+                for (int i = 1; i <= 3; i++)
+                    c.RectOnFilled(ox + w * i / 4 - 1, oy + BossTellBand + 3, 3, 3, theme.tileShade); // rivets
+        }
+
+        /// <summary>A filled rectangle with corners rounded by radius r pixels.</summary>
+        static void RoundedRect(PixelCanvas c, int x, int y, int w, int h, int r, Color32 col)
+        {
+            r = Mathf.Clamp(r, 0, Mathf.Min(w, h) / 2);
+            for (int j = 0; j < h; j++)
+                for (int i = 0; i < w; i++)
+                {
+                    float dx = i < r ? r - (i + 0.5f) : i >= w - r ? (i + 0.5f) - (w - r) : 0f;
+                    float dy = j < r ? r - (j + 0.5f) : j >= h - r ? (j + 0.5f) - (h - r) : 0f;
+                    if (dx * dx + dy * dy <= r * r) c.Set(x + i, y + j, col);
+                }
+        }
+
+        /// <summary>
+        /// An isosceles triangle standing on (or hanging from) the row baseY, centred on cx. up = true points up from
+        /// baseY + 1; up = false points down from baseY - 1.
+        /// </summary>
+        static void Triangle(PixelCanvas c, int cx, int baseY, int baseW, int height, bool up, Color32 col)
+        {
+            for (int k = 0; k < height; k++)
+            {
+                float half = baseW * 0.5f * (1f - k / (float)height);
+                int from = Mathf.RoundToInt(cx - half), to = Mathf.RoundToInt(cx + half);
+                if (to <= from) to = from + 1;
+                int y = up ? baseY + 1 + k : baseY - 1 - k;
+                for (int x = from; x < to; x++) c.Set(x, y, col);
+            }
+        }
+
+        /// <summary>A 9 px bouncy bullet: a tileCap disc with a 1 px ring in the theme's accent inside the ink outline.</summary>
+        public Sprite BouncyBulletFor(Theme theme)
+        {
+            if (bouncyCache.TryGetValue(theme.name, out var cached) && cached != null && cached.texture != null) return cached;
+            var c = new PixelCanvas(9, 9);
+            c.Circle(4.5f, 4.5f, 3.5f, theme.accent);
+            c.Circle(4.5f, 4.5f, 2.5f, theme.tileCap);
+            c.Outline(Palette.Ink);
+            var sprite = c.ToSprite($"BouncyBullet_{theme.name}", new Vector2(4.5f, 4.5f), ppu);
+            bouncyCache[theme.name] = sprite;
+            return sprite;
         }
 
         /// <summary>A 7 px aimed bullet: cream core, a 1 px ring in the theme's accent, 1 px ink outline (docs/design/expansion-art.md).</summary>

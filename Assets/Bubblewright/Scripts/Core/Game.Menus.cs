@@ -257,6 +257,16 @@ namespace Bubblewright
             if (DbgButton("BOSS -5 HP", k, 90)) DebugBossDamage(5);
             GUILayout.EndHorizontal();
 
+            if (boss != null)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("BOSS", dbgLabel, GUILayout.Width(40 * k));
+                if (DbgButton("AIMED", k, 60)) DebugBossAimed();
+                if (DbgButton("BOUNCY", k, 60)) DebugBossBouncy();
+                if (DbgButton("BALLOON", k, 70)) DebugBossBalloon();
+                GUILayout.EndHorizontal();
+            }
+
             GUILayout.BeginHorizontal();
             bool spikesOn = DbgToggle("SPIKES", debug.spikes, k, 90);
             if (spikesOn != debug.spikes) SetDebugSpikes(spikesOn);

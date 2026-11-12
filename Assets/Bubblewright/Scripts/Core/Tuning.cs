@@ -239,6 +239,18 @@ namespace Bubblewright
         public int bossHitStopFrames = 2;
         [Tooltip("Seconds the boss shakes and sheds debris after its last health is gone, before it bursts.")]
         public float bossDeathShake = 0.6f;
+        [Tooltip("Gravity on bouncy bullets, in units per second squared.")]
+        public float bouncyGravity = 22f;
+        [Tooltip("Height above the floor that the top of a bouncy bullet reaches on each hop. Wick is 2 units tall, so he can walk under the top of a hop.")]
+        public float bouncyPeak = 3.5f;
+        [Tooltip("Constant sideways speed of a bouncy bullet, in units per second. It heads toward the side Wick was on when it was fired.")]
+        public float bouncySpeedX = 3.5f;
+        [Tooltip("Radius of a bouncy bullet's hit circle, in pixels (the sprite is a 9 px disc).")]
+        public int bouncyRadiusPixels = 4;
+        [Tooltip("A boss does not release a balloon while this many bubbles are alive.")]
+        public int bossMaxBubbles = 6;
+        [Tooltip("A boss that enrages at half health multiplies its speed and every attack rate by this below half health.")]
+        public float bossEnrageScale = 1.3f;
 
         [Header("Jump")]
         [Tooltip("Height of a jump from standing, in units. Platforms are 5 units up, so a jump never reaches one.")]

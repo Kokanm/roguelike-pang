@@ -70,7 +70,24 @@ Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble
 
 ### Boss stages
 
-The last stage of each world is a boss stage: one flat floor, no generated bubbles, and one boss (a placeholder blocky "WARDEN" for every world until step 18). It slides in from above during the intro, then walks left and right near the ceiling and fires a bullet at Wick about every two seconds; its lower band blinks cream half a second before each shot. Any harpoon touch (tip or cable) takes 1 health; health is 12 in world 1 and 4 more in each later world. Bullets and touching the body each cost a heart (bullets cost more in the storm). The storm clock runs on boss stages too (120 s), and the storm speeds up the boss and its bullets. When its health reaches 0 any leftover bubbles pop without children, the boss shakes and bursts, and the world is cleared. All numbers are in Tuning > Bosses. The debug panel's **BOSS -5 HP** button takes off five health.
+The last stage of each world is a boss stage: one flat floor, no generated bubbles, and that world's boss. It slides in from above during the intro (the banner shows its name), then walks left and right near the ceiling and attacks. Any harpoon touch (tip or cable) takes 1 health; health is 12 in world 1 and 4 more in each later world, and the bar at the top shows the boss's name. Bullets and touching the body each cost a heart (bullets cost more in the storm). The storm clock runs on boss stages too (120 s), and the storm speeds up the boss and its bullets. When its health reaches 0 any leftover bubbles pop without children, all bullets vanish, the boss shakes and bursts, and the world is cleared.
+
+A boss mixes three attacks, each on its own timer (the first aimed shot comes 1.0 s after it slides in, the first bouncy bullet at 1.8 s, the first balloon at 3.0 s):
+
+- **Aimed bullets** fly straight at where Wick was: one, a fan of three across 30 degrees, or a burst of three 0.25 s apart. The boss's lower band blinks cream half a second before each aimed attack.
+- **Bouncy bullets** drop from the boss, hop along the floor toward Wick's side a set number of times (the top of each hop is 3.5 units up, so Wick can walk under it), bounce off the walls, then fall through the floor.
+- **Balloons**: the visor opens and an ordinary Gloop (L or M) drops out. It behaves, splits and scores like any bubble. No balloon comes while six bubbles are alive.
+
+| World | Boss | Size | Speed | Aimed | Bouncy | Balloons |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | CHIMNEY KING | 4 x 3 | 3.0 | 1 every 2.0 s | none | M every 8 s |
+| 2 | OLD BRAMBLE | 5 x 2.5 | 3.5 | none | every 2.2 s, 2 bounces | M every 7 s |
+| 3 | DUNE WARDEN | 3.5 x 3.5 | 4.0 | fan of 3 every 2.5 s | none | L every 9 s |
+| 4 | FROSTMAW | 4.5 x 3 | 4.0 | 1 every 3.5 s | every 1.8 s, 3 bounces | M every 8 s |
+| 5 | BONE ABBOT | 3 x 4 | 4.5 | burst of 3 every 3.0 s | every 2.5 s, 1 bounce | L every 8 s |
+| 6 | CINDER TYRANT | 5 x 3.5 | 5.0 | fan of 3 every 2.2 s | every 2.0 s, 4 bounces | L every 6 s |
+
+CINDER TYRANT enrages below half health: its speed and every attack rate go up by 1.3 times. These six are placeholders; the whole table is `BossSpec.ForWorld` in `Scripts/Bosses/BossSpec.cs`, and the shared numbers are in Tuning > Bosses. On a boss stage the debug panel has **AIMED**, **BOUNCY** and **BALLOON** buttons that fire one attack, and **BOSS -5 HP** takes off five health.
 
 ### The left or right road
 
