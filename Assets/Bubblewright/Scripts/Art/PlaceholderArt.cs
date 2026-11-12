@@ -17,7 +17,7 @@ namespace Bubblewright
         public Sprite[] BubbleFlash; // cream silhouette per tier, for the pop flash frame
         public Sprite[] PopRings; // per tier
         public Sprite HarpoonTip, Rope;
-        public Sprite FireButton, FireButtonPressed, MoveHint, MoveKnob, MoveDot, ClimbUpHint, ClimbDownHint;
+        public Sprite FireButton, FireButtonPressed, JumpButton, JumpButtonPressed, MoveHint, MoveKnob, MoveDot, ClimbUpHint, ClimbDownHint;
         public Sprite Droplet, Pixel, Dust, MuzzleFlash;
         public Sprite SpikeHidden, SpikeWarn, SpikeRaised;
 
@@ -74,6 +74,8 @@ namespace Bubblewright
             Rope = BuildRope();
             FireButton = BuildFireButton(false);
             FireButtonPressed = BuildFireButton(true);
+            JumpButton = BuildJumpButton(false);
+            JumpButtonPressed = BuildJumpButton(true);
             MoveHint = BuildMoveHint();
             MoveKnob = BuildDisc(14, Palette.Lilac, "MoveKnob");
             MoveDot = BuildDisc(8, Palette.Cream, "MoveDot");
@@ -455,6 +457,21 @@ namespace Bubblewright
             for (int i = 0; i < 6; i++) c.Rect(ix - 6 + i, iy + 15 + i, 12 - 2 * i, 1, Palette.Ink);
             c.Outline(Palette.Ink);
             return c.ToSprite(pressed ? "FireButton_Pressed" : "FireButton", new Vector2(23f, 23f), ppu);
+        }
+
+        /// <summary>Same mint disc as the fire button, with a fat up arrow over a short floor bar.</summary>
+        Sprite BuildJumpButton(bool pressed)
+        {
+            var c = new PixelCanvas(46, 46);
+            var face = pressed ? Palette.Shade(Palette.Mint, 0.8f) : Palette.Mint;
+            c.Circle(23f, 23f, 21f, Palette.Shade(Palette.Mint, 0.62f));
+            c.Circle(23f, pressed ? 22f : 24f, 20f, face);
+            int iy = pressed ? 10 : 12;
+            c.Rect(15, iy, 16, 2, Palette.Ink);                 // floor bar
+            c.Rect(20, iy + 4, 6, 9, Palette.Ink);              // stem
+            for (int i = 0; i < 7; i++) c.Rect(16 + i, iy + 13 + i, 14 - 2 * i, 1, Palette.Ink); // head
+            c.Outline(Palette.Ink);
+            return c.ToSprite(pressed ? "JumpButton_Pressed" : "JumpButton", new Vector2(23f, 23f), ppu);
         }
 
         Sprite BuildMoveHint()

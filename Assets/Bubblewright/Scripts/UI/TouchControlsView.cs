@@ -5,11 +5,11 @@ namespace Bubblewright
     /// <summary>
     /// Draws the thumb controls inside the ground strip, as world sprites so they stay pixel perfect.
     /// Left: move pad hint, plus a knob where the thumb landed and a dot that follows it.
-    /// Right: the big mint fire button. Shown on phones, or on desktop once the mouse has been used as a finger.
+    /// Right: the big mint fire button, with the round jump button 3.5 units to its left. Shown on phones, or on desktop once the mouse has been used as a finger.
     /// </summary>
     public class TouchControlsView : MonoBehaviour
     {
-        SpriteRenderer hint, knob, dot, climbUp, climbDown, fire;
+        SpriteRenderer hint, knob, dot, climbUp, climbDown, fire, jump;
         Camera cam;
 
         public static TouchControlsView Create(Transform parent, Camera cam)
@@ -25,6 +25,7 @@ namespace Bubblewright
             v.climbUp = v.Part("Climb Up", art.ClimbUpHint, 1);
             v.climbDown = v.Part("Climb Down", art.ClimbDownHint, 1);
             v.fire = v.Part("Fire Button", art.FireButton, 0);
+            v.jump = v.Part("Jump Button", art.JumpButton, 0);
             return v;
         }
 
@@ -56,7 +57,21 @@ namespace Bubblewright
 
             fire.enabled = show;
             fire.sprite = input.TouchFireHeld ? PlaceholderArt.I.FireButtonPressed : PlaceholderArt.I.FireButton;
-            fire.transform.position = Snap(new Vector2(rightX - 3f, stripMid), t);
+            Vector2 firePos = new Vector2(rightX - 3f, stripMid);
+            fire.transform.position = Snap(firePos, t);
+
+            // Jump: same size as fire, centre 3.5 units further left. The input reads its circle in screen pixels.
+            jump.enabled = show;
+            jump.sprite = input.TouchJumpHeld ? PlaceholderArt.I.JumpButtonPressed : PlaceholderArt.I.JumpButton;
+            Vector3 jumpPos = Snap(firePos - new Vector2(3.5f, 0f), t);
+            jump.transform.position = jumpPos;
+            if (show)
+            {
+                Vector2 centre = cam.WorldToScreenPoint(jumpPos);
+                Vector2 edge = cam.WorldToScreenPoint(jumpPos + new Vector3(JumpButtonRadiusPixels * px, 0f, 0f));
+                input.SetJumpButton(centre, Mathf.Abs(edge.x - centre.x));
+            }
+            else input.SetJumpButton(Vector2.zero, 0f);
 
             knob.enabled = dot.enabled = show && input.PadActive;
             Vector2 arrowAnchor = hintPos;
@@ -77,6 +92,9 @@ namespace Bubblewright
                 climbDown.transform.position = Snap(arrowAnchor - new Vector2(0f, arrowOffset), t);
             }
         }
+
+        /// <summary>Radius of the drawn jump (and fire) disc, in art pixels.</summary>
+        const float JumpButtonRadiusPixels = 21f;
 
         static Vector3 Snap(Vector2 p, Tuning t)
         {

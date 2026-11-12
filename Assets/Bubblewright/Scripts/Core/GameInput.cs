@@ -13,6 +13,7 @@ namespace Bubblewright
     ///
     /// Touch (from the sheet): left half of the screen is a RELATIVE drag pad. Where your thumb lands
     /// is the centre; drag left or right of it to run. Right half is the fire button; hold to keep firing.
+    /// The round jump button sits left of the fire button: a touch that begins inside it jumps and never fires.
     /// The mouse acts as one finger, so the touch controls can be tried on desktop too.
     ///
     /// Uses the Input System package when it is the active input backend, otherwise the legacy Input Manager.
@@ -24,6 +25,8 @@ namespace Bubblewright
         public float MoveY { get; private set; }
         public bool FireHeld { get; private set; }
         public bool FirePressed { get; private set; }
+        /// <summary>Jump pressed this frame: L or Shift, pad B / Circle or Y / Triangle, or the touch jump button.</summary>
+        public bool JumpPressed { get; private set; }
         public bool ConfirmPressed { get; private set; }
         public bool AnyInput { get; private set; }
         /// <summary>Confirm from keys or pad only, for menus where a tap should hit a button instead.</summary>
@@ -47,11 +50,30 @@ namespace Bubblewright
         public Vector2 PadOrigin { get; private set; }
         public Vector2 PadCurrent { get; private set; }
         public bool TouchFireHeld { get; private set; }
+        public bool TouchJumpHeld { get; private set; }
+
+        /// <summary>Where the jump button is on screen (pixels, origin bottom left). Set every frame by the touch view.</summary>
+        Vector2 jumpButtonCentre;
+        float jumpButtonRadius;
+        /// <summary>A touch counts as a jump this much further out than the drawn button.</summary>
+        const float JumpTouchSlack = 1.2f;
+
+        public void SetJumpButton(Vector2 screenCentre, float screenRadius)
+        {
+            jumpButtonCentre = screenCentre;
+            jumpButtonRadius = screenRadius;
+        }
+
+        public bool InJumpButton(Vector2 screenPosition) =>
+            jumpButtonRadius > 0f && (screenPosition - jumpButtonCentre).sqrMagnitude <= Sq(jumpButtonRadius * JumpTouchSlack);
+
+        static float Sq(float v) => v * v;
 
         const int NoPointer = int.MinValue;
         const int MousePointer = -1000;
         int padPointer = NoPointer;
         readonly HashSet<int> firePointers = new HashSet<int>();
+        readonly HashSet<int> jumpPointers = new HashSet<int>();
         readonly List<PointerSample> pointers = new List<PointerSample>(8);
 
         struct PointerSample
@@ -80,7 +102,7 @@ namespace Bubblewright
         {
             pointers.Clear();
             float keyMove = 0f, keyMoveY = 0f, keyClimb = 0f;
-            bool keyFire = false, keyFirePressed = false, confirm = false, any = false;
+            bool keyFire = false, keyFirePressed = false, keyJump = false, confirm = false, any = false;
             DebugSpawn = 0;
             DebugToggleHitboxes = false;
             DebugTestLayoutPressed = false;
@@ -98,6 +120,7 @@ namespace Bubblewright
                 if (kb.wKey.isPressed || kb.upArrowKey.isPressed) { keyMoveY += 1f; keyClimb += 1f; }
                 keyFire |= kb.spaceKey.isPressed || kb.jKey.isPressed || kb.kKey.isPressed;
                 keyFirePressed |= kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame || kb.kKey.wasPressedThisFrame;
+                keyJump |= kb.lKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame || kb.rightShiftKey.wasPressedThisFrame;
                 confirm |= kb.rKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame;
                 any |= kb.anyKey.wasPressedThisFrame;
                 if (kb.digit1Key.wasPressedThisFrame) DebugSpawn = 1;
@@ -123,10 +146,12 @@ namespace Bubblewright
                 if (pad.dpad.down.isPressed || stickY < -0.5f) keyClimb -= 1f;
                 keyFire |= pad.buttonSouth.isPressed || pad.buttonWest.isPressed || pad.rightTrigger.isPressed || pad.rightShoulder.isPressed;
                 keyFirePressed |= pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame || pad.rightTrigger.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame;
+                bool padJump = pad.buttonEast.wasPressedThisFrame || pad.buttonNorth.wasPressedThisFrame;
+                keyJump |= padJump;
                 confirm |= pad.startButton.wasPressedThisFrame || pad.buttonSouth.wasPressedThisFrame;
                 PausePressed |= pad.startButton.wasPressedThisFrame;
                 BackPressed |= pad.buttonEast.wasPressedThisFrame;
-                any |= keyFirePressed || Mathf.Abs(x) > 0.35f || keyClimb != 0f;
+                any |= keyFirePressed || padJump || Mathf.Abs(x) > 0.35f || keyClimb != 0f;
             }
             var ts = Touchscreen.current;
             if (ts != null)
@@ -157,6 +182,9 @@ namespace Bubblewright
                 keyFire |= Input.GetKey(k);
                 keyFirePressed |= Input.GetKeyDown(k);
             }
+            // Jump: L, either Shift, pad B / Circle (button 1) or Y / Triangle (button 3).
+            KeyCode[] jumpKeys = { KeyCode.L, KeyCode.LeftShift, KeyCode.RightShift, KeyCode.JoystickButton1, KeyCode.JoystickButton3 };
+            foreach (var k in jumpKeys) keyJump |= Input.GetKeyDown(k);
             confirm |= Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space)
                        || Input.GetKeyDown(KeyCode.JoystickButton7) || Input.GetKeyDown(KeyCode.JoystickButton0);
             any |= Input.anyKeyDown;
@@ -176,7 +204,7 @@ namespace Bubblewright
                 pointers.Add(new PointerSample { id = MousePointer, position = Input.mousePosition, began = Input.GetMouseButtonDown(0) });
 #endif
 
-            float touchMove = UpdateTouch(out float touchClimb, out bool touchFire, out bool touchFirePressed, out bool touchBegan);
+            float touchMove = UpdateTouch(out float touchClimb, out bool touchFire, out bool touchFirePressed, out bool touchJumpPressed, out bool touchBegan);
 
             if (touchClimb != 0f)
             {
@@ -196,16 +224,18 @@ namespace Bubblewright
             MoveY = Mathf.Clamp(touchClimb != 0f ? touchClimb : keyMoveY, -1f, 1f);
             FireHeld = keyFire || touchFire;
             FirePressed = keyFirePressed || touchFirePressed;
+            JumpPressed = keyJump || touchJumpPressed;
             ConfirmPressed = confirm || touchBegan;
             KeyConfirmPressed = confirm;
             AnyInput = any || touchBegan;
         }
 
-        float UpdateTouch(out float climb, out bool fire, out bool firePressed, out bool anyBegan)
+        float UpdateTouch(out float climb, out bool fire, out bool firePressed, out bool jumpPressed, out bool anyBegan)
         {
             climb = 0f;
             fire = false;
             firePressed = false;
+            jumpPressed = false;
             anyBegan = false;
             TapPosition = null;
             float half = Screen.width * 0.5f;
@@ -213,6 +243,7 @@ namespace Bubblewright
             // Drop pointers that lifted.
             if (padPointer != NoPointer && !Contains(padPointer)) padPointer = NoPointer;
             firePointers.RemoveWhere(id => !Contains(id));
+            jumpPointers.RemoveWhere(id => !Contains(id));
 
             foreach (var p in pointers)
             {
@@ -220,7 +251,12 @@ namespace Bubblewright
                 anyBegan = true;
                 TouchUsed = true;
                 TapPosition ??= p.position;
-                if (p.position.x < half && padPointer == NoPointer)
+                if (InJumpButton(p.position))
+                {
+                    jumpPointers.Add(p.id); // a jump touch never fires or moves, wherever it slides to
+                    jumpPressed = true;
+                }
+                else if (p.position.x < half && padPointer == NoPointer)
                 {
                     padPointer = p.id;
                     PadOrigin = p.position;
@@ -262,6 +298,9 @@ namespace Bubblewright
                 }
             }
             TouchFireHeld = fire;
+            bool jumpHeld = false;
+            foreach (var p in pointers) jumpHeld |= jumpPointers.Contains(p.id);
+            TouchJumpHeld = jumpHeld;
             return move;
         }
 
