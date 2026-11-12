@@ -354,11 +354,19 @@ namespace Bubblewright
             if (world >= 2 && stageInWorld >= 2)
                 wantedLevels = rng.Next(3) == 0 ? 2 : 3;
 
+            // From world 2 on, about one stage in three has gaps in the ground (never a boss stage: those returned above).
+            bool wantGaps = world >= 2 && rng.NextDouble() < Tuning.I.gapLayoutChance;
+
             var choices = new List<LayoutDef>();
             foreach (var layout in StageLayouts.All)
-                if (layout.levels == wantedLevels && layout.minWorld <= world &&
+                if (layout.levels == wantedLevels && layout.minWorld <= world && layout.HasGaps == wantGaps &&
                     (layout.onlyWorld == 0 || layout.onlyWorld == world))
                     choices.Add(layout);
+            if (choices.Count == 0)
+                foreach (var layout in StageLayouts.All)
+                    if (layout.levels == wantedLevels && layout.minWorld <= world &&
+                        (layout.onlyWorld == 0 || layout.onlyWorld == world))
+                        choices.Add(layout);
 
             // minWorld can remove a whole tier from a future data set; fall back to any eligible non-flat layout.
             if (choices.Count == 0)
