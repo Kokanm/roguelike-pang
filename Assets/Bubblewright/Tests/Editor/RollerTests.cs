@@ -298,9 +298,13 @@ namespace Bubblewright.Tests
                     var plan = StageGenerator.Generate(stage, new System.Random(seed * 31 + stage));
                     int world = Run.WorldOf(stage);
                     string where = $"seed {seed} stage {stage}";
-                    if (world < t.rollerFromWorld || world == 1) Assert.AreEqual(0, plan.rollers.Count, $"{where}: no rollers in world 1");
+                    int pearl = 0, steel = 0;
+                    foreach (var ro in plan.rollers) { if (ro.steel) steel++; else pearl++; }
+                    if (world < t.rollerFromWorld || world == 1) Assert.AreEqual(0, pearl, $"{where}: no rollers in world 1");
+                    if (world < t.steelFromWorld) Assert.AreEqual(0, steel, $"{where}: no steel before world {t.steelFromWorld}");
                     if (Run.IsBossStageNumber(stage)) Assert.AreEqual(0, plan.rollers.Count, $"{where}: no rollers on a boss stage");
-                    Assert.LessOrEqual(plan.rollers.Count, t.rollerMaxPerStage, where);
+                    Assert.LessOrEqual(pearl, t.rollerMaxPerStage, where);
+                    Assert.LessOrEqual(steel, t.steelMaxPerStage, where);
 
                     foreach (var spec in plan.rollers)
                     {

@@ -32,6 +32,12 @@ namespace Bubblewright
         /// <summary>The way it is rolling right now.</summary>
         public Vector2 Tangent => OnGround ? new Vector2(Direction, 0f) : Direction * new Vector2(Normal.y, -Normal.x);
         public bool Popped { get; private set; }
+        /// <summary>A steel ball cannot be destroyed and is not needed to clear the stage. Harpoons just bounce off it.</summary>
+        public bool Steel { get; private set; }
+        /// <summary>A ceramic ball takes Tuning.ceramicHits harpoon hits to break.</summary>
+        public bool Ceramic { get; private set; }
+        /// <summary>Hits left before it breaks (1 for an ordinary ball).</summary>
+        public int Armor { get; private set; } = 1;
         public bool Falling { get; private set; }
         /// <summary>The frame of the rolling bands, 0 to 3.</summary>
         public int Frame { get; private set; }
@@ -64,14 +70,18 @@ namespace Bubblewright
         public float BottomY => transform.position.y - Radius;
 
         /// <summary>A roller resting on the surface at height surfaceY (0 is the ground, 5 is platform row A), centred on x.</summary>
-        public static Roller Create(Transform parent, int tier, float x, float surfaceY, int direction)
+        public static Roller Create(Transform parent, int tier, float x, float surfaceY, int direction, bool steel = false, bool ceramic = false)
         {
             tier = ClampTier(tier);
-            var go = new GameObject(tier == 0 ? "Roller big" : "Roller small");
+            ceramic &= !steel;
+            var go = new GameObject(steel ? "Roller steel" : ceramic ? "Roller ceramic" : tier == 0 ? "Roller big" : "Roller small");
             go.transform.SetParent(parent, false);
             go.transform.position = new Vector2(x, surfaceY + RadiusOf(tier));
             var r = go.AddComponent<Roller>();
             r.Tier = tier;
+            r.Steel = steel;
+            r.Ceramic = ceramic;
+            r.Armor = ceramic ? Mathf.Max(2, Tuning.I.ceramicHits) : 1;
             r.Direction = direction >= 0 ? 1 : -1;
             r.OnGround = surfaceY <= 0.01f;
             r.sr = go.AddComponent<SpriteRenderer>();
@@ -329,8 +339,22 @@ namespace Bubblewright
             float stepUnits = PixelsPerFrame * T.Pixel;
             int f = Mathf.FloorToInt(travel / Mathf.Max(0.0001f, stepUnits));
             Frame = ((f % Frames) + Frames) % Frames;
-            if (sr != null) sr.sprite = PlaceholderArt.I.RollerFrame(Tier, Frame);
+            int look = Steel ? 3 : Ceramic ? (Armor < Mathf.Max(2, T.ceramicHits) ? 2 : 1) : 0;
+            if (sr != null) sr.sprite = PlaceholderArt.I.RollerFrame(Tier, Frame, look);
             if (!Popped) transform.localScale = Vector3.one;
+        }
+
+        /// <summary>
+        /// A harpoon hit that does not break it: always for steel, and for a ceramic ball that still has armor (which
+        /// cracks). Returns true when the hit was absorbed, false when this hit breaks it.
+        /// </summary>
+        public bool AbsorbHit()
+        {
+            if (Steel) return true;
+            if (Armor <= 1) return false;
+            Armor--;
+            ApplyVisual();
+            return true;
         }
 
         /// <summary>Hit: swell during the hit-stop, then the game pops it.</summary>

@@ -298,6 +298,26 @@ namespace Bubblewright
         [Tooltip("Colour of rolling balloons, used for their pop effect.")]
         public Color rollerColor = Palette.Pearl;
 
+        [Header("Steel and ceramic")]
+        [Tooltip("Steel rolling balls (indestructible, not needed to clear the stage) can appear on normal stages from this world on.")]
+        public int steelFromWorld = 3;
+        [Tooltip("Chance per stage, from Steel From World on, that the stage gets steel rolling balls. They cost no budget.")]
+        [Range(0f, 1f)] public float steelChance = 0.35f;
+        [Tooltip("Most steel rolling balls a stage starts with.")]
+        public int steelMaxPerStage = 1;
+        [Tooltip("Ceramic bubbles and ceramic rolling balls can appear on normal stages from this world on.")]
+        public int ceramicFromWorld = 3;
+        [Tooltip("Chance that a generated bubble is ceramic (only tiers up to Ceramic Max Tier).")]
+        [Range(0f, 1f)] public float ceramicChance = 0.2f;
+        [Tooltip("Largest tier that can be ceramic: 0 XL, 1 L, 2 M, 3 S.")]
+        public int ceramicMaxTier = 2;
+        [Tooltip("Chance that a generated big rolling ball is ceramic.")]
+        [Range(0f, 1f)] public float ceramicRollerChance = 0.3f;
+        [Tooltip("Harpoon hits a ceramic bubble or rolling ball takes before it breaks. The pieces it leaves are ordinary.")]
+        public int ceramicHits = 2;
+        [Tooltip("A ceramic bubble or rolling ball costs this many times the budget of an ordinary one.")]
+        public float ceramicCostScale = 1.5f;
+
         [Header("Balance")]
         [Tooltip("Every bubble budget is multiplied by this, because jumping makes dodging easier.")]
         public float jumpBudgetBonus = 1.1f;
@@ -386,5 +406,6 @@ namespace Bubblewright
         [Range(0, 3)] public int tier;
         public Vector2 position;
         [Tooltip("-1 left, +1 right")] public int direction;
+        [Tooltip("Takes Tuning.ceramicHits hits to break.")] public bool ceramic;
     }
 }

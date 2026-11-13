@@ -324,10 +324,34 @@ namespace Bubblewright
 
         // ---------------------------------------------------------------- Bubbles (no eyes: colour + centre mark)
 
-        Sprite BuildBubble(BubbleKind kind, Color32 color, int d)
+        Sprite[,,] ceramicBubbles; // [kind, tier, 0 whole / 1 cracked], built on first use
+
+        /// <summary>
+        /// A ceramic bubble: the kind's colour washed toward cream like glazed china, a lilac rim ring inside the ink
+        /// outline, and the same centre mark as the ordinary bubble so its kind still reads. Cracked adds dark hairlines.
+        /// </summary>
+        public Sprite CeramicBubble(BubbleKind kind, int tier, bool cracked)
+        {
+            var t = Tuning.I;
+            int kinds = System.Enum.GetValues(typeof(BubbleKind)).Length;
+            if (ceramicBubbles == null || ceramicBubbles.GetLength(1) != t.tiers.Length)
+                ceramicBubbles = new Sprite[kinds, t.tiers.Length, 2];
+            int ci = cracked ? 1 : 0;
+            var s = ceramicBubbles[(int)kind, tier, ci];
+            if (s == null || s.texture == null)
+            {
+                int d = Mathf.RoundToInt(t.tiers[tier].diameter * ppu);
+                s = ceramicBubbles[(int)kind, tier, ci] = BuildBubble(kind, t.Kind(kind).color, d, true, cracked);
+            }
+            return s;
+        }
+
+        Sprite BuildBubble(BubbleKind kind, Color32 color, int d, bool ceramic = false, bool cracked = false)
         {
             var c = new PixelCanvas(d, d);
             float cx = d * 0.5f, cy = d * 0.5f, r = d * 0.5f - 1f;
+            var baseColor = color;
+            if (ceramic) color = Palette.Mix(color, Palette.Cream, 0.55f);
             c.Circle(cx, cy, r, color);
 
             // Darker crescent on the lower right
@@ -340,8 +364,8 @@ namespace Bubblewright
                     if (dx * dx + dy * dy > r * r * 0.97f) c.Set(x, y, shade);
                 }
 
-            // Centre mark per type (colour-blind backup)
-            var mark = Palette.Shade(color, 0.68f);
+            // Centre mark per type (colour-blind backup). A ceramic bubble keeps its kind's own mark colour.
+            var mark = Palette.Shade(baseColor, 0.68f);
             switch (kind)
             {
                 case BubbleKind.Trigloop:
@@ -374,28 +398,38 @@ namespace Bubblewright
             c.Ellipse(cx - r * 0.42f, cy + r * 0.42f, Mathf.Max(1f, r * 0.22f), Mathf.Max(0.8f, r * 0.14f), Palette.Cream);
             if (d >= 24) c.Circle(cx - r * 0.1f, cy + r * 0.66f, Mathf.Max(0.8f, r * 0.07f), Palette.Cream);
 
+            if (ceramic)
+            {
+                AddCeramicRim(c, cx, cy, r);
+                if (cracked) AddCracks(c, cx, cy, r, Palette.Shade(color, 0.5f));
+            }
             c.Outline(Palette.Ink);
-            return c.ToSprite($"Bubble_{kind}_{d}px", new Vector2(cx, cy), ppu);
+            return c.ToSprite($"Bubble_{kind}_{d}px{(ceramic ? (cracked ? "_cracked" : "_ceramic") : "")}", new Vector2(cx, cy), ppu);
         }
 
         // ---------------------------------------------------------------- Rolling balloons (no face: pearl + crossing bands)
 
-        Sprite[,] rollerFrames;
+        public const int RollerLooks = 4; // 0 pearl, 1 ceramic, 2 cracked ceramic, 3 steel
+        Sprite[,,] rollerFrames;
 
-        /// <summary>A rolling balloon's sprite: tier 0 big (18 px), 1 small (12 px); frame 0 to 3 turns the bands 22.5 degrees clockwise each.</summary>
-        public Sprite RollerFrame(int tier, int frame)
+        /// <summary>
+        /// A rolling balloon's sprite: tier 0 big (18 px), 1 small (12 px); frame 0 to 3 turns the bands 22.5 degrees
+        /// clockwise each. look: 0 pearl, 1 ceramic (lilac glaze ring), 2 cracked ceramic, 3 steel.
+        /// </summary>
+        public Sprite RollerFrame(int tier, int frame, int look = 0)
         {
             var t = Tuning.I;
             int tiers = Mathf.Max(1, t.rollerDiameters.Length);
             if (rollerFrames == null || rollerFrames.GetLength(0) != tiers)
-                rollerFrames = new Sprite[tiers, Roller.Frames];
+                rollerFrames = new Sprite[tiers, Roller.Frames, RollerLooks];
             tier = Mathf.Clamp(tier, 0, tiers - 1);
+            look = Mathf.Clamp(look, 0, RollerLooks - 1);
             frame = ((frame % Roller.Frames) + Roller.Frames) % Roller.Frames;
-            var s = rollerFrames[tier, frame];
+            var s = rollerFrames[tier, frame, look];
             if (s == null || s.texture == null)
             {
                 int d = Mathf.Max(4, Mathf.RoundToInt(t.rollerDiameters[tier] * ppu));
-                s = rollerFrames[tier, frame] = BuildRoller(d, frame);
+                s = rollerFrames[tier, frame, look] = BuildRoller(d, frame, look);
             }
             return s;
         }
@@ -404,22 +438,25 @@ namespace Bubblewright
         /// Pearl disc with a PearlShade crescent low on the right like a bubble's, two thin crossing bands in a darker
         /// PearlShade turned by 22.5 degrees per frame, a 1 px cream highlight near the top left and a 1 px ink outline.
         /// </summary>
-        Sprite BuildRoller(int d, int frame)
+        Sprite BuildRoller(int d, int frame, int look = 0)
         {
+            bool steel = look == 3, ceramic = look == 1 || look == 2;
+            Color32 body = steel ? Palette.Steel : Palette.Pearl;
+            Color32 shadow = steel ? Palette.SteelDark : Palette.PearlShade;
             var c = new PixelCanvas(d, d);
             float cx = d * 0.5f, cy = d * 0.5f, r = d * 0.5f - 1f;
-            c.Circle(cx, cy, r, Palette.Pearl);
+            c.Circle(cx, cy, r, body);
 
             for (int y = 0; y < d; y++)
                 for (int x = 0; x < d; x++)
                 {
                     if (!c.Filled(x, y)) continue;
                     float dx = x + 0.5f - (cx - r * 0.18f), dy = y + 0.5f - (cy + r * 0.18f);
-                    if (dx * dx + dy * dy > r * r * 0.97f) c.Set(x, y, Palette.PearlShade);
+                    if (dx * dx + dy * dy > r * r * 0.97f) c.Set(x, y, shadow);
                 }
 
             // Rolling right turns the ball clockwise, so each later frame turns the bands clockwise.
-            var band = Palette.Shade(Palette.PearlShade, 0.8f);
+            var band = steel ? Palette.Shade(Palette.SteelDark, 0.7f) : Palette.Shade(Palette.PearlShade, 0.8f);
             float a = -frame * 22.5f * Mathf.Deg2Rad;
             float inner = (r - 0.5f) * (r - 0.5f);
             for (int y = 0; y < d; y++)
@@ -436,9 +473,41 @@ namespace Bubblewright
                     }
                 }
 
-            c.Set(Mathf.FloorToInt(cx - r * 0.5f), Mathf.FloorToInt(cy + r * 0.5f), Palette.Cream);
+            if (ceramic) AddCeramicRim(c, cx, cy, r);
+            if (look == 2) AddCracks(c, cx, cy, r, Palette.Shade(Palette.PearlShade, 0.6f));
+            c.Set(Mathf.FloorToInt(cx - r * 0.5f), Mathf.FloorToInt(cy + r * 0.5f), steel ? Palette.SteelLight : Palette.Cream);
             c.Outline(Palette.Ink);
-            return c.ToSprite($"Roller_{d}px_{frame}", new Vector2(cx, cy), ppu);
+            return c.ToSprite($"Roller_{d}px_{frame}_{look}", new Vector2(cx, cy), ppu);
+        }
+
+        /// <summary>A 1 px lilac ring just inside the edge: the glaze line that tells ceramic from an ordinary ball.</summary>
+        static void AddCeramicRim(PixelCanvas c, float cx, float cy, float r)
+        {
+            for (int y = 0; y < c.Height; y++)
+                for (int x = 0; x < c.Width; x++)
+                {
+                    if (!c.Filled(x, y)) continue;
+                    float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (dist > r - 1.1f && dist <= r + 0.5f) c.Set(x, y, Palette.Lilac);
+                }
+        }
+
+        /// <summary>Two zigzag hairlines from the upper left toward the middle, drawn over filled pixels only.</summary>
+        static void AddCracks(PixelCanvas c, float cx, float cy, float r, Color32 line)
+        {
+            int steps = Mathf.Max(3, Mathf.RoundToInt(r * 1.1f));
+            for (int branch = 0; branch < 2; branch++)
+            {
+                float x = cx - r * 0.45f + branch * r * 0.5f, y = cy + r * 0.8f;
+                for (int i = 0; i < steps; i++)
+                {
+                    int px = Mathf.FloorToInt(x), py = Mathf.FloorToInt(y);
+                    if (c.Filled(px, py)) c.Set(px, py, line);
+                    y -= 1f;
+                    x += (i % 2 == 0 ? 1f : -0.5f) * (branch == 0 ? 1f : 0.6f);
+                }
+            }
         }
 
         Sprite BuildRing(int d)

@@ -128,6 +128,9 @@ namespace Bubblewright
                 if (kb.digit3Key.wasPressedThisFrame) DebugSpawn = 3;
                 if (kb.digit4Key.wasPressedThisFrame) DebugSpawn = 4;
                 if (kb.digit5Key.wasPressedThisFrame) DebugSpawn = 5; // a rolling balloon
+                if (kb.digit6Key.wasPressedThisFrame) DebugSpawn = 6; // a steel rolling ball
+                if (kb.digit7Key.wasPressedThisFrame) DebugSpawn = 7; // a ceramic Gloop
+                if (kb.digit8Key.wasPressedThisFrame) DebugSpawn = 8; // a ceramic rolling ball
                 DebugToggleHitboxes = kb.f1Key.wasPressedThisFrame;
                 DebugTestLayoutPressed = kb.f3Key.wasPressedThisFrame;
                 PausePressed |= kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame;
@@ -189,7 +192,7 @@ namespace Bubblewright
             confirm |= Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space)
                        || Input.GetKeyDown(KeyCode.JoystickButton7) || Input.GetKeyDown(KeyCode.JoystickButton0);
             any |= Input.anyKeyDown;
-            for (int d = 1; d <= 5; d++) if (Input.GetKeyDown(KeyCode.Alpha0 + d)) DebugSpawn = d; // 5: a rolling balloon
+            for (int d = 1; d <= 8; d++) if (Input.GetKeyDown(KeyCode.Alpha0 + d)) DebugSpawn = d; // 5 roller, 6 steel roller, 7 ceramic Gloop, 8 ceramic roller
             DebugToggleHitboxes = Input.GetKeyDown(KeyCode.F1);
             DebugTestLayoutPressed = Input.GetKeyDown(KeyCode.F3);
             PausePressed = Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P) || Input.GetKeyDown(KeyCode.JoystickButton7);
