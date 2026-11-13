@@ -224,7 +224,7 @@ namespace Bubblewright
             FillRect(Grow(panel, -k), WithAlpha(Palette.Ink, 0.95f));
 
             GUILayout.BeginArea(Grow(panel, -6 * k));
-            GUILayout.Label("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5 roller, F1 hitboxes, F3 test layout", dbgTitle);
+            GUILayout.Label("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, F1 hitboxes, F3 test layout", dbgTitle);
             if (balancePage)
             {
                 DrawBalancePage(k);

@@ -14,6 +14,10 @@ namespace Bubblewright
         public int Tier { get; private set; }
         public Vector2 Velocity;
         public bool Popped { get; set; }
+        /// <summary>A ceramic bubble takes Tuning.ceramicHits harpoon hits to break.</summary>
+        public bool Ceramic { get; private set; }
+        /// <summary>Hits left before it breaks (1 for an ordinary bubble).</summary>
+        public int Armor { get; private set; } = 1;
 
         Tuning T => Tuning.I;
         SpriteRenderer sr;
@@ -25,7 +29,7 @@ namespace Bubblewright
         public float Radius => FullRadius * grow;
         public Vector2 Position => transform.position;
 
-        public static Bubble Create(Transform parent, BubbleKind kind, int tier, Vector2 position, Vector2 velocity, bool child)
+        public static Bubble Create(Transform parent, BubbleKind kind, int tier, Vector2 position, Vector2 velocity, bool child, bool ceramic = false)
         {
             var go = new GameObject($"Bubble {kind} {Tuning.I.tiers[tier].name}");
             go.transform.SetParent(parent, false);
@@ -35,7 +39,9 @@ namespace Bubblewright
             b.Tier = tier;
             b.Velocity = velocity;
             b.sr = go.AddComponent<SpriteRenderer>();
-            b.sr.sprite = PlaceholderArt.I.Bubbles[(int)kind, tier];
+            b.Ceramic = ceramic;
+            b.Armor = ceramic ? Mathf.Max(2, Tuning.I.ceramicHits) : 1;
+            b.sr.sprite = ceramic ? PlaceholderArt.I.CeramicBubble(kind, tier, false) : PlaceholderArt.I.Bubbles[(int)kind, tier];
             Sorting.Apply(b.sr, Layer.Bubbles, 3 - tier); // smaller bubbles draw over bigger ones
             Game.ApplySpriteMaterial(b.sr);
             if (child)
@@ -102,6 +108,19 @@ namespace Bubblewright
                     : new Vector3(0.9f * grow, 1.12f * grow, 1f);
             s.z = 1f;
             transform.localScale = s;
+        }
+
+        /// <summary>
+        /// A hit on a ceramic bubble that still has armor: it cracks and squashes instead of breaking. Returns true when
+        /// the hit was absorbed (the bubble lives on), false when this hit breaks it.
+        /// </summary>
+        public bool AbsorbHit()
+        {
+            if (Armor <= 1) return false;
+            Armor--;
+            sr.sprite = PlaceholderArt.I.CeramicBubble(Kind, Tier, true);
+            squashTimer = 0f;
+            return true;
         }
 
         /// <summary>Hit: swell during the hit-stop, then the game pops it.</summary>

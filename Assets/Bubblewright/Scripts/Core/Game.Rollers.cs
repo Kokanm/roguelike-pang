@@ -25,12 +25,12 @@ namespace Bubblewright
         void SpawnRollers(StagePlan plan)
         {
             if (run.IsBossStage || plan.rollers == null) return;
-            foreach (var s in plan.rollers) SpawnRoller(s.tier, s.x, s.surfaceY, s.direction);
+            foreach (var s in plan.rollers) SpawnRoller(s.tier, s.x, s.surfaceY, s.direction, s.steel, s.ceramic);
         }
 
-        Roller SpawnRoller(int tier, float x, float surfaceY, int dir)
+        Roller SpawnRoller(int tier, float x, float surfaceY, int dir, bool steel = false, bool ceramic = false)
         {
-            var r = Roller.Create(bubbleRoot, tier, x, surfaceY, dir);
+            var r = Roller.Create(bubbleRoot, tier, x, surfaceY, dir, steel, ceramic);
             rollers.Add(r);
             return r;
         }
@@ -58,8 +58,23 @@ namespace Bubblewright
             }
         }
 
+        /// <summary>Rolling balls that must be popped to clear the stage: every one except steel.</summary>
+        int RequiredRollers()
+        {
+            int n = 0;
+            foreach (var r in rollers) if (!r.Steel) n++;
+            return n + hitRollers.Count;
+        }
+
         void HitRoller(Roller r)
         {
+            if (r.AbsorbHit())
+            {
+                // Steel rings and sparks; a ceramic ball cracks. Either way the shot is spent and nothing pops.
+                fx.Sparkle(r.Position, r.Steel ? Palette.SteelLight : Palette.Cream);
+                Sfx.Play(Sound.Bounce, r.Steel ? 2f : 1.6f, 0.6f);
+                return;
+            }
             r.Swell(T.popSwell);
             hitRollers.Add(r);
             freeze = Mathf.Max(freeze, T.popHitStop);
@@ -98,8 +113,8 @@ namespace Bubblewright
             return false;
         }
 
-        /// <summary>Debug key 5: a big roller on the ground at a random x, on solid ground with room above it.</summary>
-        void DebugSpawnRoller()
+        /// <summary>Debug keys 5 (pearl), 6 (steel) and 8 (ceramic): a big roller on the ground at a random x, on solid ground with room above it.</summary>
+        void DebugSpawnRoller(bool steel = false, bool ceramic = false)
         {
             if (run == null || run.IsBossStage || Map == null) return;
             float r = Roller.RadiusOf(0);
@@ -109,7 +124,7 @@ namespace Bubblewright
                 x = Map.NearestSolidGroundX(x);
                 if (Map.IsGap(StageMap.Col(x))) continue;
                 if (Map.OverlapsSolid(new Rect(x - r, 0.001f, r * 2f, r * 2f))) continue;
-                SpawnRoller(0, x, 0f, Random.value < 0.5f ? -1 : 1);
+                SpawnRoller(0, x, 0f, Random.value < 0.5f ? -1 : 1, steel, ceramic);
                 return;
             }
         }

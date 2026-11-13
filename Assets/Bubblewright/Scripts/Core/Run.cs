@@ -326,6 +326,10 @@ namespace Bubblewright
         public float x;
         public float surfaceY;
         [Tooltip("-1 left, +1 right")] public int direction;
+        /// <summary>Indestructible and not needed to clear the stage. Costs no budget.</summary>
+        public bool steel;
+        /// <summary>Takes Tuning.ceramicHits hits to break.</summary>
+        public bool ceramic;
     }
 
     public static class StageGenerator
@@ -454,7 +458,8 @@ namespace Bubblewright
             var rollers = new List<RollerSpec>();
             float rollerSpend = AddRollers(map, stage, rng, ref budget, rollers, 0f);
             int maxBubbles = MaxStartBubbles(stage);
-            var picks = new List<(BubbleKind kind, int tier)>();
+            var picks = new List<(BubbleKind kind, int tier, bool ceramic)>();
+            bool ceramicWorld = Run.WorldOf(stage) >= t.ceramicFromWorld;
 
             while (picks.Count < maxBubbles)
             {
@@ -468,10 +473,18 @@ namespace Bubblewright
                 if (tier < 0) break;
                 // After the first bubble, sometimes go one size down so stages are not all XLs.
                 if (picks.Count > 0 && tier < t.tiers.Length - 1 && rng.NextDouble() < 0.35) tier++;
-                budget -= Cost(kind, tier);
-                picks.Add((kind, tier));
+                // From ceramicFromWorld on some bubbles are ceramic: they take more hits, so they cost more budget.
+                bool ceramic = ceramicWorld && kind != BubbleKind.Lucky && tier <= t.ceramicMaxTier && rng.NextDouble() < t.ceramicChance;
+                float cost = Cost(kind, tier) * (ceramic ? t.ceramicCostScale : 1f);
+                if (ceramic && cost > budget + 0.001f)
+                {
+                    ceramic = false;
+                    cost = Cost(kind, tier);
+                }
+                budget -= cost;
+                picks.Add((kind, tier, ceramic));
             }
-            if (stage > 1 && rng.NextDouble() < t.luckyChance) picks.Add((BubbleKind.Lucky, 2));
+            if (stage > 1 && rng.NextDouble() < t.luckyChance) picks.Add((BubbleKind.Lucky, 2, false));
 
             // Biggest first. Flat stages assign the furthest random positions to the biggest bubbles.
             picks.Sort((a, b) => a.tier.CompareTo(b.tier));
@@ -521,20 +534,44 @@ namespace Bubblewright
         static float AddRollers(StageMap map, int stage, System.Random rng, ref float budget, List<RollerSpec> into, float wickX)
         {
             var t = Tuning.I;
-            int count = RollersFor(stage);
-            if (count <= 0 || rng.NextDouble() >= t.rollerChance) return 0f;
-
+            if (Run.IsBossStageNumber(stage)) return 0f;
+            int world = Run.WorldOf(stage);
             float spent = 0f;
-            var spots = RollerSpots(map, wickX);
-            for (int i = 0; i < count && spots.Count > 0; i++)
+            List<Vector2> spots = null;
+
+            int count = RollersFor(stage);
+            if (count > 0 && rng.NextDouble() < t.rollerChance)
             {
-                if (budget - t.rollerCost < 1f - 0.001f) break;
-                Vector2 spot = spots[rng.Next(spots.Count)];
-                into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1 });
-                budget -= t.rollerCost;
-                spent += t.rollerCost;
-                // Keep the next one away from this one on the same surface, so they do not start touching.
-                spots.RemoveAll(s => Mathf.Approximately(s.y, spot.y) && Mathf.Abs(s.x - spot.x) < 3f);
+                spots = RollerSpots(map, wickX);
+                for (int i = 0; i < count && spots.Count > 0; i++)
+                {
+                    if (budget - t.rollerCost < 1f - 0.001f) break;
+                    Vector2 spot = spots[rng.Next(spots.Count)];
+                    bool ceramic = world >= t.ceramicFromWorld && rng.NextDouble() < t.ceramicRollerChance;
+                    float cost = t.rollerCost * (ceramic ? t.ceramicCostScale : 1f);
+                    if (ceramic && budget - cost < 1f - 0.001f)
+                    {
+                        ceramic = false;
+                        cost = t.rollerCost;
+                    }
+                    into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1, ceramic = ceramic });
+                    budget -= cost;
+                    spent += cost;
+                    // Keep the next one away from this one on the same surface, so they do not start touching.
+                    spots.RemoveAll(sp => Mathf.Approximately(sp.y, spot.y) && Mathf.Abs(sp.x - spot.x) < 3f);
+                }
+            }
+
+            // Steel balls cost no budget: they cannot be popped and are not needed to clear the stage.
+            if (world >= t.steelFromWorld && t.steelMaxPerStage > 0 && rng.NextDouble() < t.steelChance)
+            {
+                if (spots == null) spots = RollerSpots(map, wickX);
+                for (int i = 0; i < t.steelMaxPerStage && spots.Count > 0; i++)
+                {
+                    Vector2 spot = spots[rng.Next(spots.Count)];
+                    into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1, steel = true });
+                    spots.RemoveAll(sp => Mathf.Approximately(sp.y, spot.y) && Mathf.Abs(sp.x - spot.x) < 3f);
+                }
             }
             return spent;
         }
@@ -605,11 +642,12 @@ namespace Bubblewright
         /// <summary>Budget cost of one bubble (kind and tier), as the generator spends it.</summary>
         public static float BubbleCost(BubbleKind kind, int tier) => Cost(kind, tier);
 
-        static SpawnSpec Spec((BubbleKind kind, int tier) pick, Vector2 position, System.Random rng) =>
+        static SpawnSpec Spec((BubbleKind kind, int tier, bool ceramic) pick, Vector2 position, System.Random rng) =>
             new SpawnSpec
             {
                 kind = pick.kind,
                 tier = pick.tier,
+                ceramic = pick.ceramic,
                 position = position,
                 direction = rng.NextDouble() < 0.5 ? -1 : 1,
             };

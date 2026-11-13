@@ -41,7 +41,7 @@ namespace Bubblewright
                 float left = Mathf.Max(0f, r.budget - r.bubbleSpend - r.rollerSpend);
                 GUILayout.Label($"BUDGET {r.budget:0.#}  =  bubbles {r.bubbleSpend:0.#}  +  rollers {r.rollerSpend:0.#}  +  unspent {left:0.#}", dbgLabel);
                 GUILayout.Label($"BUBBLES  {r.BubbleSummary()}", dbgLabel);
-                GUILayout.Label($"ROLLERS  {r.rollers} big", dbgLabel);
+                GUILayout.Label($"BUBBLES CERAMIC {r.ceramicBubbles}  ·  ROLLERS {r.rollers} big ({r.ceramicRollers} ceramic)  ·  STEEL {r.steelRollers}", dbgLabel);
             }
             GUILayout.Label($"TIME LIMIT {r.time:0} s  ·  SPIKE STRIPS {r.spikeStrips}  ·  GAPS {r.gaps}  ·  BREAKABLE TILES {r.breakables}", dbgLabel);
             GUILayout.Label($"Jump budget bonus x{T.jumpBudgetBonus:0.##}  ·  hard budget x{T.hardBudgetScale:0.##}  ·  seed {run.Seed}", dbgLabel);

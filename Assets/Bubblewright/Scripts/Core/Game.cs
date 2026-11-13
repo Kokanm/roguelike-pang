@@ -204,7 +204,7 @@ namespace Bubblewright
             foreach (var s in plan.spawns)
             {
                 int tier = Mathf.Clamp(s.tier, 0, T.tiers.Length - 1);
-                SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false);
+                SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false, s.ceramic);
             }
             SpawnRollers(plan);
             SetupBoss();
@@ -247,9 +247,9 @@ namespace Bubblewright
             stateTime = 0f;
         }
 
-        Bubble SpawnBubble(BubbleKind kind, int tier, Vector2 pos, int dir, float vy, bool child)
+        Bubble SpawnBubble(BubbleKind kind, int tier, Vector2 pos, int dir, float vy, bool child, bool ceramic = false)
         {
-            var b = Bubble.Create(bubbleRoot, kind, tier, pos, Vector2.zero, child);
+            var b = Bubble.Create(bubbleRoot, kind, tier, pos, Vector2.zero, child, ceramic);
             b.Velocity = new Vector2(dir * b.SpeedX, vy);
             bubbles.Add(b);
             return b;
@@ -396,7 +396,7 @@ namespace Bubblewright
 
             // A boss stage is cleared by the boss falling (after its defeat sequence), not by an empty bubble list.
             // A normal stage needs every bubble and every rolling balloon gone (hit ones stay in their lists until they pop).
-            bool cleared = boss != null ? TickBossPlay(dt) : StageCleared(bubbles.Count + hitBubbles.Count, rollers.Count + hitRollers.Count);
+            bool cleared = boss != null ? TickBossPlay(dt) : StageCleared(bubbles.Count + hitBubbles.Count, RequiredRollers());
             if (state == State.Play && cleared)
             {
                 slowMo = T.lastPopSlowMo;
@@ -531,6 +531,13 @@ namespace Bubblewright
         /// <summary>The bubble swells and the game freezes for the hit-stop; it pops when the freeze ends.</summary>
         void Hit(Bubble b)
         {
+            if (b.AbsorbHit())
+            {
+                // A ceramic bubble cracks: the shot is spent, nothing pops yet.
+                fx.Sparkle(b.Position, Palette.Cream);
+                Sfx.Play(Sound.Bounce, 1.6f, 0.6f);
+                return;
+            }
             b.Swell(T.popSwell);
             hitBubbles.Add(b);
             freeze = Mathf.Max(freeze, T.popHitStop);
@@ -608,14 +615,17 @@ namespace Bubblewright
             if (input.DebugSpawn > 0 && !paused && (state == State.Play || state == State.Intro))
             {
                 if (input.DebugSpawn == 5) DebugSpawnRoller();
+                else if (input.DebugSpawn == 6) DebugSpawnRoller(steel: true);
+                else if (input.DebugSpawn == 7) DebugSpawn(BubbleKind.Gloop, true);
+                else if (input.DebugSpawn == 8) DebugSpawnRoller(ceramic: true);
                 else DebugSpawn((BubbleKind)(input.DebugSpawn - 1));
             }
         }
 
-        void DebugSpawn(BubbleKind kind)
+        void DebugSpawn(BubbleKind kind, bool ceramic = false)
         {
             float x = Random.Range(-T.HalfWidth + 3f, T.HalfWidth - 3f);
-            SpawnBubble(kind, 0, new Vector2(x, 9f), Random.value < 0.5f ? -1 : 1, 0f, false);
+            SpawnBubble(kind, 0, new Vector2(x, 9f), Random.value < 0.5f ? -1 : 1, 0f, false, ceramic);
         }
 
         // ------------------------------------------------------------------ HUD (placeholder, OnGUI)
@@ -690,7 +700,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
-                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   Pad: stick/d-pad + A, B/Y jump   1-4: spawn   5: roller   F1: hitboxes   F3: next layout",
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   Pad: stick/d-pad + A, B/Y jump   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   F1: hitboxes   F3: next layout",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }
