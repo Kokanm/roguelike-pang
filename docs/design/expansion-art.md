@@ -70,3 +70,24 @@ Bullets: aimed = 7 px disc, **cream core** with a 1 px ring in the theme `accent
 ## Rolling balloon (step 20)
 
 Pearl `EDE6F7`, shade `B7A9D6`, 1 px ink outline, no face. Two thin crossing bands in `PearlShade` darkened, 4 frames rotated 22.5 degrees each, one frame per 3 px travelled, reversing with direction. Big 18 px, small 12 px. A white 1 px highlight near the top left.
+
+## Enemies (approved 2026-11-13)
+
+Six new bubble kinds for the enemy variety work (design: `docs/superpowers/specs/2026-11-13-enemy-variety-design.md`). Visual reference: the "Bubblewright Enemy Sheet" artifact (https://claude.ai/artifact/9b1V2EpYCF1o1u13pM5qme). The fire enemy is called **Scorch**, not Ember, because Ember is a character. Same rules as every bubble: no face, a kind is read by colour plus a centre mark, darker crescent low on the right, cream shine, 1 px ink outline, ceramic versions use the existing `CeramicBubble` look.
+
+| Kind | Hex | Centre mark | Sizes | Home |
+| --- | --- | --- | --- | --- |
+| Clinger | F0489E | Chevron pointing down, half width max(2, round(r x 0.36)), 2 px thick from 24 px up | XL L M S (XL on the ceiling only) | World 2 Forest |
+| Sinker | 18B8B0 | Ballast: every pixel below cy - r x 0.36 in the mark shade, the row above it mixed 35% toward cream | L M S | World 3 Desert |
+| Frost bubble | 8FE8F5 | White diamond (F2FBFF), half size max(1, round(r x 0.3)) | XL L M S | World 4 Winter |
+| Ghost | A6F28F | Hollow ring: disc of diameter max(4, round(r x 0.84)) in the mark shade, inner disc in the body colour mixed 60% toward cream | XL L M S | World 5 Catacombs |
+| Scorch | D8352A | White-hot core: disc of diameter max(5, round(r x 0.92)) in the body colour mixed 50% toward cream, inner disc in cream | XL L M S (S leaves no flame) | World 6 Lava |
+| Drifter | 7C74FF | Arrowhead pointing the way it flies: pixels (u, v) with u + v >= 0, a = max(2, round(r x 0.4)), mirrored with the flight direction | L M S | None (guest from world 2) |
+
+Mark shade is the body colour at 68% brightness unless said otherwise.
+
+- **Clinger pad:** while hanging, a pad of width max(4, round(diameter x 0.34)) px and 3 px height in the Clinger colour at 68%, top row mixed 30% toward cream, ink outline, sits between the bubble and the surface. Wobble tell: cream sparkle plus fast squash and stretch.
+- **Faded Ghost:** no ink outline. Rim drawn only on every second of 16 angle segments (10 at S) at 80% alpha, body at 20% alpha, ring mark at 45% alpha. Flicker frame: whole rim at 95%, body 45%, ring 80%.
+- **Scorch flame:** 13 x 10 px, three pointed tongues in the Scorch colour (about 6, 10 and 6 px tall), an inner tongue mixed 50% toward cream, two cream pixels at the base, ink outline. Two frames swapped every 0.12 s (side tongue heights swap, middle tip moves 2 px).
+- **Frost bubble ice patch:** the normal ice look from "Surfaces". Nothing new.
+- **Reinforcement warning marker:** 9 x 8 px lemon triangle pointing down, flat side against the ceiling, ink exclamation mark, ink outline, blinking 0.1 s on and 0.05 s off, with a dotted lemon line (2 px on, 2 px off, 1 px wide, 2 units long) under it. **Wave pips:** 5 x 5 px cream dots to the right of the storm bar, filled for a wave still to come, hollow for a wave already called.
