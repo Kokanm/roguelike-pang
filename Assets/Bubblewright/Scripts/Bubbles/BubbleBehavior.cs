@@ -21,6 +21,7 @@ namespace Bubblewright
         {
             switch (kind)
             {
+                case BubbleKind.Sinker: return new SinkerBehavior();
                 default: return null;
             }
         }
