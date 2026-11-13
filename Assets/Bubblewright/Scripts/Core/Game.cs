@@ -255,8 +255,9 @@ namespace Bubblewright
 
         Bubble SpawnBubble(BubbleKind kind, int tier, Vector2 pos, int dir, float vy, bool child, bool ceramic = false)
         {
-            var b = Bubble.Create(bubbleRoot, kind, tier, pos, Vector2.zero, child, ceramic);
-            b.Velocity = new Vector2(dir * b.SpeedX, vy);
+            // The velocity is given at creation so a kind's OnSpawn can read the direction.
+            var v = new Vector2(dir * T.bubbleSpeedX * T.Kind(kind).speedScale, vy);
+            var b = Bubble.Create(bubbleRoot, kind, tier, pos, v, child, ceramic);
             bubbles.Add(b);
             return b;
         }

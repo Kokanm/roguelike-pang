@@ -21,6 +21,7 @@ namespace Bubblewright
         {
             switch (kind)
             {
+                case BubbleKind.Drifter: return new DrifterBehavior();
                 default: return null;
             }
         }
