@@ -33,6 +33,7 @@ namespace Bubblewright
             }
             string where = r.boss ? $"WORLD {r.World} BOSS" : $"WORLD {r.World}-{r.StageInWorld}";
             string recipe = string.IsNullOrEmpty(r.recipe) ? "" : $"  ·  RECIPE {r.recipe.ToUpperInvariant()}";
+            if (!string.IsNullOrEmpty(r.pattern)) recipe += $"  ·  PATTERN {r.pattern.ToUpperInvariant()}";
             GUILayout.Label($"{where} {Run.WorldNameOf(r.World).ToUpperInvariant()}  ·  {(r.hard ? "HARD" : "CALM")}  ·  LAYOUT {r.layout.ToUpperInvariant()}{recipe}" +
                             (currentReroll > 0 ? $" (re-rolled {currentReroll})" : ""), dbgTitle);
             if (r.boss)

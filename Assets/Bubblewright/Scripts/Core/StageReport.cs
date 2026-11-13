@@ -15,6 +15,8 @@ namespace Bubblewright
         public string layout;
         /// <summary>The recipe that shaped the stage, or null when it had none.</summary>
         public string recipe;
+        /// <summary>The placement pattern, or null when the stage had no recipe.</summary>
+        public string pattern;
         public bool hard, boss;
         public float budget, bubbleSpend, rollerSpend;
         /// <summary>Bubbles at the start, [kind, tier]. The free Lucky bubble is counted but costs nothing.</summary>
@@ -35,6 +37,7 @@ namespace Bubblewright
                 stage = stage,
                 layout = plan.layoutName ?? "?",
                 recipe = plan.recipeName,
+                pattern = plan.patternName,
                 hard = hard,
                 boss = Run.IsBossStageNumber(stage),
                 bubbles = new int[kinds, t.tiers.Length],
@@ -96,7 +99,7 @@ namespace Bubblewright
         public static string Header()
         {
             var t = Tuning.I;
-            var sb = new StringBuilder("stage\tworld\tlayout\trecipe\troad\tbudget\tbubble spend\troller spend\tleft");
+            var sb = new StringBuilder("stage\tworld\tlayout\trecipe\tpattern\troad\tbudget\tbubble spend\troller spend\tleft");
             foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
                 for (int tier = 0; tier < t.tiers.Length; tier++)
                     sb.Append('\t').Append(kind).Append(' ').Append(t.tiers[tier].name);
@@ -113,6 +116,7 @@ namespace Bubblewright
             sb.Append(Run.WorldNameOf(World)).Append('\t');
             sb.Append(layout).Append('\t');
             sb.Append(recipe ?? "").Append('\t');
+            sb.Append(pattern ?? "").Append('\t');
             sb.Append(hard ? "hard" : "calm").Append('\t');
             sb.Append(budget.ToString("0.#", inv)).Append('\t');
             sb.Append(bubbleSpend.ToString("0.#", inv)).Append('\t');

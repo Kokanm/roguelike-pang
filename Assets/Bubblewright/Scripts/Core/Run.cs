@@ -316,6 +316,8 @@ namespace Bubblewright
         public string layoutName;
         /// <summary>The recipe that shaped this stage. Null on a boss stage and when no recipe was used.</summary>
         public string recipeName;
+        /// <summary>The placement pattern that put the bubbles down. Null when no recipe was used.</summary>
+        public string patternName;
         /// <summary>The whole budget of the stage (jump bonus and hard world included), and the part rollers took.</summary>
         public float budget, rollerSpend;
     }
@@ -547,7 +549,17 @@ namespace Bubblewright
             // Biggest first. Flat stages assign the furthest random positions to the biggest bubbles.
             picks.Sort((a, b) => a.tier.CompareTo(b.tier));
             var specs = new List<SpawnSpec>();
-            if (layout.levels == 1)
+            // A recipe names the placement patterns it may use. One is drawn only when there is a choice, so a
+            // recipe with just Scattered draws the same random numbers as before patterns existed.
+            PlacementPattern pattern = PlacementPattern.Scattered;
+            if (recipe != null && recipe.patterns != null && recipe.patterns.Length > 0)
+                pattern = recipe.patterns.Length == 1 ? recipe.patterns[0] : recipe.patterns[rng.Next(recipe.patterns.Length)];
+            List<SpawnSpec> patterned = pattern == PlacementPattern.Scattered ? null : PlacementPatterns.Place(pattern, map, picks, bubbleMinY, rng);
+            if (patterned != null)
+            {
+                specs.AddRange(patterned);
+            }
+            else if (layout.levels == 1)
             {
                 var positions = new List<Vector2>();
                 float largestClearance = t.tiers[0].diameter * 0.5f + 0.25f;
@@ -572,6 +584,7 @@ namespace Bubblewright
             {
                 map = map, spawns = specs, rollers = rollers, wickX = 0f,
                 layoutName = layout.name, recipeName = recipe == null ? null : recipe.name,
+                patternName = recipe == null ? null : PlacementPatterns.NameOf(pattern),
                 budget = fullBudget, rollerSpend = rollerSpend,
             };
         }
@@ -776,7 +789,7 @@ namespace Bubblewright
                 direction = rng.NextDouble() < 0.5 ? -1 : 1,
             };
 
-        static bool TryPosition(StageMap map, float clearance, float minY, float wickX, System.Random rng, out Vector2 position)
+        internal static bool TryPosition(StageMap map, float clearance, float minY, float wickX, System.Random rng, out Vector2 position)
         {
             var t = Tuning.I;
             float minX = -t.HalfWidth + clearance;
@@ -845,7 +858,7 @@ namespace Bubblewright
             return false;
         }
 
-        static bool IsClear(Vector2 candidate, Vector2 resolved, Contact contact) =>
+        internal static bool IsClear(Vector2 candidate, Vector2 resolved, Contact contact) =>
             (resolved - candidate).sqrMagnitude <= 0.000001f &&
             !contact.landed && !contact.bumped && contact.side == 0;
 
