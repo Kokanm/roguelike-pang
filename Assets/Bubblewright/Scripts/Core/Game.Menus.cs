@@ -224,7 +224,13 @@ namespace Bubblewright
             FillRect(Grow(panel, -k), WithAlpha(Palette.Ink, 0.95f));
 
             GUILayout.BeginArea(Grow(panel, -6 * k));
-            GUILayout.Label("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, F1 hitboxes, F3 test layout", dbgTitle);
+            GUILayout.Label("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5 roller, F1 hitboxes, F3 test layout", dbgTitle);
+            if (balancePage)
+            {
+                DrawBalancePage(k);
+                GUILayout.EndArea();
+                return;
+            }
 
             GUILayout.BeginHorizontal();
             debug.god = DbgToggle("GOD MODE", debug.god, k, 100);
@@ -255,6 +261,7 @@ namespace Bubblewright
             if (DbgButton(DebugSurfaceLabel(), k, 100)) DebugCycleSurface();
             if (DbgButton(DebugThemeLabel(), k, 120)) DebugCycleTheme();
             if (DbgButton("BOSS -5 HP", k, 90)) DebugBossDamage(5);
+            if (DbgButton("BALANCE", k, 80)) { balancePage = true; balanceNote = null; }
             GUILayout.EndHorizontal();
 
             if (boss != null)
@@ -302,6 +309,7 @@ namespace Bubblewright
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
+            ClearRollers();
             if (boss != null && boss.Hp > 0) boss.Damage(boss.Hp);
             if (state == State.Intro)
             {
