@@ -245,6 +245,11 @@ namespace Bubblewright
                     continue;
                 }
 
+                // A step along the tangent past a convex corner leaves the centre outside the arc.
+                // Pull it back to exactly one radius so it keeps touching the tiles instead of spiralling away.
+                if (!pushed && dist > r && (q - near).sqrMagnitude > 1e-8f)
+                    q = near + (q - near) * (r / dist);
+
                 Vector2 n2 = pushed ? push : (q - near).sqrMagnitude > 1e-8f ? (q - near).normalized : Normal;
                 p = q;
                 Normal = n2;
