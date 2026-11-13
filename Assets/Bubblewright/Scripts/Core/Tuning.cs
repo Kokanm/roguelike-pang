@@ -324,6 +324,30 @@ namespace Bubblewright
         [Tooltip("A ceramic bubble or rolling ball costs this many times the budget of an ordinary one.")]
         public float ceramicCostScale = 1.5f;
 
+        [Header("Stage recipes")]
+        [Tooltip("How a normal stage spends its budget. World 1 stages 1 and 2 always use Mixed. Every other normal stage draws one row with In Pool on and From World at or below that world, and a row is not drawn again in that world until every such row has been used. Boss stages are not recipes.")]
+        public RecipeDef[] recipes =
+        {
+            new RecipeDef { id = RecipeId.Mixed, name = "Mixed", fromWorld = 1, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true },
+            new RecipeDef { id = RecipeId.Giants, name = "Giants", fromWorld = 1, minTier = 0, maxTier = 0, startCapScale = 1f, startCapMax = 2, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true },
+            new RecipeDef { id = RecipeId.Swarm, name = "Swarm", fromWorld = 1, minTier = 2, maxTier = 3, startCapScale = 2f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true },
+            new RecipeDef { id = RecipeId.RollingFloor, name = "Rolling floor", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 3, rollerShare = 0.6f, rollerMax = 4, ceramicChance = -1f, allRollersCeramic = false, inPool = true },
+            new RecipeDef { id = RecipeId.HardShell, name = "Hard shell", fromWorld = 3, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = 0.7f, allRollersCeramic = true, inPool = true },
+        };
+        [Tooltip("Bubbles a Giants stage may start with from Giants Late From World on, in place of that row's Start Cap Max.")]
+        public int giantsMaxLate = 3;
+        [Tooltip("From this world on, Giants uses Giants Max Late instead of its Start Cap Max.")]
+        public int giantsLateFromWorld = 4;
+
+        /// <summary>The row for this id, or the first row when the id is missing.</summary>
+        public RecipeDef Recipe(RecipeId id)
+        {
+            if (recipes != null)
+                foreach (var row in recipes)
+                    if (row != null && row.id == id) return row;
+            return recipes != null && recipes.Length > 0 ? recipes[0] : null;
+        }
+
         [Header("Balance")]
         [Tooltip("Every bubble budget is multiplied by this, because jumping makes dodging easier.")]
         public float jumpBudgetBonus = 1.1f;
