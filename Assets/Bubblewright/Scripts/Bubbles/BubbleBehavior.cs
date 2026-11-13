@@ -21,6 +21,7 @@ namespace Bubblewright
         {
             switch (kind)
             {
+                case BubbleKind.Ghost: return new GhostBehavior();
                 default: return null;
             }
         }

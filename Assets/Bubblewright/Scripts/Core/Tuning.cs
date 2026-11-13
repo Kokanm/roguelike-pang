@@ -324,6 +324,14 @@ namespace Bubblewright
         [Tooltip("A ceramic bubble or rolling ball costs this many times the budget of an ordinary one.")]
         public float ceramicCostScale = 1.5f;
 
+        [Header("Ghost")]
+        [Tooltip("Seconds a Ghost stays solid before it fades.")]
+        public float ghostSolidTime = 2.5f;
+        [Tooltip("Seconds a Ghost stays faded: the harpoon passes through it and it cannot hurt Wick.")]
+        public float ghostFadedTime = 1.5f;
+        [Tooltip("Seconds at the end of the fade in which the Ghost flickers as a warning that it is about to turn solid.")]
+        public float ghostFlickerTime = 0.3f;
+
         [Header("Stage recipes")]
         [Tooltip("How a normal stage spends its budget. World 1 stages 1 and 2 always use Mixed. Every other normal stage draws one row with In Pool on and From World at or below that world, and a row is not drawn again in that world until every such row has been used. Boss stages are not recipes.")]
         public RecipeDef[] recipes =
