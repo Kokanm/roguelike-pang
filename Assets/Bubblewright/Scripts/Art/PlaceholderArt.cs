@@ -346,6 +346,58 @@ namespace Bubblewright
             return s;
         }
 
+        Sprite[,] ghostFaded; // [tier, 0 faint / 1 strong], built on first use
+
+        /// <summary>
+        /// A faded Ghost: no ink outline, a see-through body and a broken rim in the Ghost colour. Strong is the brighter
+        /// frame the Ghost alternates with while it flickers before turning solid again.
+        /// </summary>
+        public Sprite GhostFaded(int tier, bool strong)
+        {
+            var t = Tuning.I;
+            if (ghostFaded == null || ghostFaded.GetLength(0) != t.tiers.Length)
+                ghostFaded = new Sprite[t.tiers.Length, 2];
+            int si = strong ? 1 : 0;
+            var s = ghostFaded[tier, si];
+            if (s == null || s.texture == null)
+            {
+                int d = Mathf.RoundToInt(t.tiers[tier].diameter * ppu);
+                s = ghostFaded[tier, si] = BuildGhostFaded(t.Kind(BubbleKind.Ghost).color, d, strong);
+            }
+            return s;
+        }
+
+        Sprite BuildGhostFaded(Color32 color, int d, bool strong)
+        {
+            var c = new PixelCanvas(d, d);
+            float cx = d * 0.5f, cy = d * 0.5f, r = d * 0.5f - 1f;
+            int segments = d >= 24 ? 16 : 10;
+            var rim = Alpha(color, strong ? 0.95f : 0.8f);
+            var body = Alpha(color, strong ? 0.45f : 0.2f);
+            var ring = Alpha(color, strong ? 0.8f : 0.45f);
+            float ringRadius = Mathf.Max(4, Mathf.RoundToInt(r * 0.8f)) * 0.5f;
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (dist > r) continue;
+                    if (Mathf.Abs(dist - ringRadius) <= 0.5f) { c.Set(x, y, ring); continue; }
+                    if (r - dist <= 1.3f)
+                    {
+                        if (strong) { c.Set(x, y, rim); continue; }
+                        float turn = Mathf.Atan2(dy, dx) / (2f * Mathf.PI);
+                        int seg = Mathf.FloorToInt((turn < 0f ? turn + 1f : turn) * segments);
+                        if (seg % 2 == 0) c.Set(x, y, rim);
+                        continue;
+                    }
+                    c.Set(x, y, body);
+                }
+            return c.ToSprite($"Bubble_Ghost_{d}px_faded{(strong ? "_strong" : "")}", new Vector2(cx, cy), ppu);
+        }
+
+        static Color32 Alpha(Color32 c, float a) => new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
+
         Sprite BuildBubble(BubbleKind kind, Color32 color, int d, bool ceramic = false, bool cracked = false)
         {
             var c = new PixelCanvas(d, d);

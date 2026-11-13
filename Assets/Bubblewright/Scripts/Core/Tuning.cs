@@ -324,6 +324,14 @@ namespace Bubblewright
         [Tooltip("A ceramic bubble or rolling ball costs this many times the budget of an ordinary one.")]
         public float ceramicCostScale = 1.5f;
 
+        [Header("Ghost")]
+        [Tooltip("Seconds a Ghost stays solid before it fades.")]
+        public float ghostSolidTime = 2.5f;
+        [Tooltip("Seconds a Ghost stays faded: the harpoon passes through it and it cannot hurt Wick.")]
+        public float ghostFadedTime = 1.5f;
+        [Tooltip("Seconds at the end of the fade in which the Ghost flickers as a warning that it is about to turn solid.")]
+        public float ghostFlickerTime = 0.3f;
+
         [Header("Sinker")]
         [Tooltip("On sand, each landing keeps this share of the last bounce's height.")]
         [Range(0.1f, 1f)] public float sinkerKeepSand = 0.75f;
