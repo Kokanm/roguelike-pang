@@ -20,6 +20,7 @@ namespace Bubblewright
         public Sprite FireButton, FireButtonPressed, JumpButton, JumpButtonPressed, MoveHint, MoveKnob, MoveDot, ClimbUpHint, ClimbDownHint;
         public Sprite Droplet, Pixel, Dust, MuzzleFlash;
         public Sprite SpikeHidden, SpikeWarn, SpikeRaised;
+        public Sprite ScorchFlameA, ScorchFlameB;
 
         /// <summary>Height of the harpoon tip sprite above its pivot, in pixels.</summary>
         public const int HarpoonTipHeight = 8;
@@ -84,6 +85,8 @@ namespace Bubblewright
             SpikeHidden = BuildSpikeHidden();
             SpikeWarn = BuildSpikeWarn();
             SpikeRaised = BuildSpikeRaised();
+            ScorchFlameA = BuildScorchFlame(false);
+            ScorchFlameB = BuildScorchFlame(true);
 
             var drop = new PixelCanvas(2, 2);
             drop.Rect(0, 0, 2, 2, Palette.Cream);
@@ -728,6 +731,40 @@ namespace Bubblewright
                 doors[i, h] = DoorArt.Paint(Themes.All[i], hard).ToSprite($"Door {Themes.All[i].name}{(hard ? " hard" : " calm")}",
                     new Vector2(DoorArt.Width * 0.5f, 0f), ppu);
             return doors[i, h];
+        }
+
+        // ---------------------------------------------------------------- Scorch flame (13 x 10 body, two frames)
+
+        /// <summary>Three pointed tongues in the Scorch colour with a paler core and two cream pixels at the base. Pivot: bottom centre.</summary>
+        Sprite BuildScorchFlame(bool second)
+        {
+            const int w = 13, h = 10;
+            // Pad by the 1 px ink outline on every side.
+            var c = new PixelCanvas(w + 2, h + 2);
+            Color32 body = Palette.Scorch;
+            Color32 core = Palette.Mix(body, Palette.Cream, 0.5f);
+            int leftH = second ? 6 : 4, rightH = second ? 4 : 6, midShift = second ? 2 : 0;
+            Tongue(c, 1 + 2, 1, 5, leftH, 0, body);
+            Tongue(c, 1 + 6, 1, 5, h, midShift, body);
+            Tongue(c, 1 + 10, 1, 5, rightH, 0, body);
+            Tongue(c, 1 + 6, 1, 3, 6, midShift, core);
+            c.Set(1 + 5, 1, Palette.Cream);
+            c.Set(1 + 7, 1, Palette.Cream);
+            c.Outline(Palette.Ink);
+            return c.ToSprite(second ? "ScorchFlameB" : "ScorchFlameA", new Vector2((w + 2) * 0.5f, 0f), ppu);
+        }
+
+        /// <summary>A pointed tongue: baseWidth wide at y0, narrowing to one pixel at height tall, its tip moved sideways by shift.</summary>
+        static void Tongue(PixelCanvas c, int centreX, int y0, int baseWidth, int height, int shift, Color32 color)
+        {
+            for (int row = 0; row < height; row++)
+            {
+                float t = height <= 1 ? 1f : row / (float)(height - 1);
+                int width = Mathf.Max(1, Mathf.RoundToInt(Mathf.Lerp(baseWidth, 1, t)));
+                int x0 = centreX - width / 2 + Mathf.RoundToInt(shift * t);
+                for (int i = 0; i < width; i++)
+                    if (c.InBounds(x0 + i, y0 + row)) c.Set(x0 + i, y0 + row, color);
+            }
         }
 
         // ---------------------------------------------------------------- Lava spikes (one tile wide, tiled along a strip)
