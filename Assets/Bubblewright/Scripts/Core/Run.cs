@@ -133,7 +133,13 @@ namespace Bubblewright
         /// Random numbers depend only on the run seed, the stage and a salt, so a stage (and its upgrade cards)
         /// can be rebuilt exactly later, for example from a saved run.
         /// </summary>
-        public System.Random StageRng(int salt = 0) => new System.Random(unchecked(Seed * 7919 + Stage * 104729 + salt * 31));
+        public System.Random StageRng(int salt = 0) => StageRngFor(Stage, salt);
+
+        /// <summary>The same random numbers StageRng gives when the run is on that stage (for the balance log).</summary>
+        public System.Random StageRngFor(int stage, int salt = 0) => new System.Random(unchecked(Seed * 7919 + stage * 104729 + salt * 31));
+
+        /// <summary>Whether a world (1 to 6) of this run is hard.</summary>
+        public bool IsHardWorld(int world) => world >= 1 && world < hardWorld.Length && hardWorld[world];
 
         public int TimesTaken(Upgrade u)
         {
@@ -304,7 +310,22 @@ namespace Bubblewright
     {
         public StageMap map;
         public List<SpawnSpec> spawns;
+        public List<RollerSpec> rollers = new List<RollerSpec>();
         public float wickX;
+        /// <summary>The layout's name, for the balance page.</summary>
+        public string layoutName;
+        /// <summary>The whole budget of the stage (jump bonus and hard world included), and the part rollers took.</summary>
+        public float budget, rollerSpend;
+    }
+
+    /// <summary>A rolling balloon at the start of a stage: resting on surfaceY (0 ground, 5 or 10 a platform), centred on x.</summary>
+    [Serializable]
+    public struct RollerSpec
+    {
+        public int tier;
+        public float x;
+        public float surfaceY;
+        [Tooltip("-1 left, +1 right")] public int direction;
     }
 
     public static class StageGenerator
@@ -314,6 +335,7 @@ namespace Bubblewright
         {
             var t = Tuning.I;
             float budget = t.budgetBase + t.budgetPerWorld * (Run.WorldOf(stage) - 1) + t.budgetPerStage * (Run.StageInWorldOf(stage) - 1);
+            budget *= t.jumpBudgetBonus; // jumping makes dodging easier
             return hard ? budget * t.hardBudgetScale : budget;
         }
 
@@ -395,22 +417,42 @@ namespace Bubblewright
 
         public static StagePlan Generate(Run run) => Generate(run.Stage, run.StageRng(0), run.IsHard, null);
 
+        /// <summary>
+        /// The stage with only its layout re-rolled (debug NEXT LAYOUT): the stage's own random numbers still choose
+        /// the bubbles, a separate stream chooses the layout. layoutReroll 0 is the stage as normally generated.
+        /// </summary>
+        public static StagePlan Generate(Run run, int layoutReroll) =>
+            layoutReroll <= 0 ? Generate(run) : Generate(run.Stage, run.StageRng(0), run.IsHard, null, run.StageRng(100 + layoutReroll));
+
         public static StagePlan Generate(Run run, LayoutDef layout) =>
             Generate(run.Stage, run.StageRng(0), run.IsHard, layout);
 
         public static StagePlan Generate(int stage, System.Random rng, bool hard = false) =>
             Generate(stage, rng, hard, null);
 
-        static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride)
+        static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride, System.Random layoutRng = null)
         {
             var t = Tuning.I;
             LayoutDef layout = layoutOverride ?? PickLayout(stage, rng);
+            if (layoutOverride == null && layoutRng != null)
+            {
+                // Try a few times for a different layout; small pools may only offer the same one mirrored.
+                string first = layout.name;
+                for (int i = 0; i < 8; i++)
+                {
+                    layout = PickLayout(stage, layoutRng);
+                    if (layout.name != first) break;
+                }
+            }
             StageMap map = StageLayout.Parse(layout.rows);
             WorldRules.Apply(map, Run.WorldOf(stage), rng, Run.StageInWorldOf(stage), Run.IsBossStageNumber(stage));
             if (Run.IsBossStageNumber(stage))
-                return new StagePlan { map = map, spawns = new List<SpawnSpec>(), wickX = 0f }; // the boss is the whole stage
+                return new StagePlan { map = map, spawns = new List<SpawnSpec>(), wickX = 0f, layoutName = layout.name }; // the boss is the whole stage
             float bubbleMinY = layout.bubbleMinY > 0f ? layout.bubbleMinY : 5f;
             float budget = Budget(stage, hard);
+            float fullBudget = budget;
+            var rollers = new List<RollerSpec>();
+            float rollerSpend = AddRollers(map, stage, rng, ref budget, rollers, 0f);
             int maxBubbles = MaxStartBubbles(stage);
             var picks = new List<(BubbleKind kind, int tier)>();
 
@@ -455,8 +497,113 @@ namespace Bubblewright
                         specs.Add(Spec(pick, position, rng));
                 }
             }
-            return new StagePlan { map = map, spawns = specs, wickX = 0f };
+            return new StagePlan
+            {
+                map = map, spawns = specs, rollers = rollers, wickX = 0f,
+                layoutName = layout.name, budget = fullBudget, rollerSpend = rollerSpend,
+            };
         }
+
+        /// <summary>Most rollers a stage of this world starts with: 0 before rollerFromWorld, 2 from rollerTwoFromWorld, capped.</summary>
+        public static int RollersFor(int stage)
+        {
+            var t = Tuning.I;
+            int world = Run.WorldOf(stage);
+            if (Run.IsBossStageNumber(stage) || world < t.rollerFromWorld) return 0;
+            return Mathf.Clamp(world >= t.rollerTwoFromWorld ? 2 : 1, 0, t.rollerMaxPerStage);
+        }
+
+        /// <summary>
+        /// From rollerFromWorld on, on normal stages, with rollerChance a stage swaps some budget for big rollers. Each
+        /// costs rollerCost from the budget before bubbles are picked, and at least one budget point is left for bubbles.
+        /// Returns the budget spent.
+        /// </summary>
+        static float AddRollers(StageMap map, int stage, System.Random rng, ref float budget, List<RollerSpec> into, float wickX)
+        {
+            var t = Tuning.I;
+            int count = RollersFor(stage);
+            if (count <= 0 || rng.NextDouble() >= t.rollerChance) return 0f;
+
+            float spent = 0f;
+            var spots = RollerSpots(map, wickX);
+            for (int i = 0; i < count && spots.Count > 0; i++)
+            {
+                if (budget - t.rollerCost < 1f - 0.001f) break;
+                Vector2 spot = spots[rng.Next(spots.Count)];
+                into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1 });
+                budget -= t.rollerCost;
+                spent += t.rollerCost;
+                // Keep the next one away from this one on the same surface, so they do not start touching.
+                spots.RemoveAll(s => Mathf.Approximately(s.y, spot.y) && Mathf.Abs(s.x - spot.x) < 3f);
+            }
+            return spent;
+        }
+
+        /// <summary>Shortest stretch of surface, in tiles, a roller is placed on.</summary>
+        public const int RollerMinStretch = 5;
+        /// <summary>A roller starts at least this far (horizontally) from Wick's start.</summary>
+        public const float RollerMinWickDistance = 6f;
+
+        /// <summary>
+        /// Where a big roller may start: (centre x, surface y) at a column centre on the ground or a platform top, on a
+        /// stretch of at least RollerMinStretch tiles it can roll along, not at either end of it, at least
+        /// RollerMinWickDistance from wickX, and with no spike strip under it or its neighbours.
+        /// </summary>
+        public static List<Vector2> RollerSpots(StageMap map, float wickX)
+        {
+            var spots = new List<Vector2>();
+            float diameter = Roller.RadiusOf(0) * 2f;
+            // row -1 is the ground; any other row is a tile row whose top is a surface.
+            for (int row = -1; row < StageMap.Rows - 1; row++)
+            {
+                float surface = row + 1f;
+                if (surface + diameter > StageMap.Rows) break;
+                int start = -1;
+                for (int c = 0; c <= StageMap.Cols; c++)
+                {
+                    bool ok = c < StageMap.Cols && Rollable(map, c, row, surface, diameter);
+                    if (ok && start < 0) start = c;
+                    if (ok || start < 0) continue;
+                    int end = c - 1;
+                    if (end - start + 1 >= RollerMinStretch)
+                    {
+                        for (int k = start + 1; k <= end - 1; k++)
+                        {
+                            float x = StageMap.CenterX(k);
+                            if (Mathf.Abs(x - wickX) < RollerMinWickDistance) continue;
+                            if (SpikeNear(map, k, row)) continue;
+                            spots.Add(new Vector2(x, surface));
+                        }
+                    }
+                    start = -1;
+                }
+            }
+            return spots;
+        }
+
+        static bool Rollable(StageMap map, int c, int row, float surface, float diameter)
+        {
+            bool floor = row < 0 ? !map.IsGap(c) : map.IsSolid(c, row);
+            if (!floor) return false;
+            int rMin = StageMap.Row(surface + 0.0001f), rMax = StageMap.Row(surface + diameter - 0.0001f);
+            for (int r = rMin; r <= rMax; r++)
+                if (map.IsSolid(c, r)) return false;
+            return true;
+        }
+
+        /// <summary>A spike strip on this surface under column c or a neighbour (the ball is a little wider than a tile).</summary>
+        static bool SpikeNear(StageMap map, int c, int row)
+        {
+            foreach (var strip in map.spikes)
+            {
+                if (strip.row != row) continue;
+                if (c + 1 >= strip.col && c - 1 <= strip.col + strip.width - 1) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Budget cost of one bubble (kind and tier), as the generator spends it.</summary>
+        public static float BubbleCost(BubbleKind kind, int tier) => Cost(kind, tier);
 
         static SpawnSpec Spec((BubbleKind kind, int tier) pick, Vector2 position, System.Random rng) =>
             new SpawnSpec
