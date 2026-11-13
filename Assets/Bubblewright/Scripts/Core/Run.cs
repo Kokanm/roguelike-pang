@@ -314,6 +314,8 @@ namespace Bubblewright
         public float wickX;
         /// <summary>The layout's name, for the balance page.</summary>
         public string layoutName;
+        /// <summary>The recipe that shaped this stage. Null on a boss stage and when no recipe was used.</summary>
+        public string recipeName;
         /// <summary>The whole budget of the stage (jump bonus and hard world included), and the part rollers took.</summary>
         public float budget, rollerSpend;
     }
@@ -419,22 +421,65 @@ namespace Bubblewright
             };
         }
 
-        public static StagePlan Generate(Run run) => Generate(run.Stage, run.StageRng(0), run.IsHard, null);
+        public static StagePlan Generate(Run run) => GenerateFor(run, run.Stage);
 
         /// <summary>
         /// The stage with only its layout re-rolled (debug NEXT LAYOUT): the stage's own random numbers still choose
         /// the bubbles, a separate stream chooses the layout. layoutReroll 0 is the stage as normally generated.
         /// </summary>
-        public static StagePlan Generate(Run run, int layoutReroll) =>
-            layoutReroll <= 0 ? Generate(run) : Generate(run.Stage, run.StageRng(0), run.IsHard, null, run.StageRng(100 + layoutReroll));
+        public static StagePlan Generate(Run run, int layoutReroll) => GenerateFor(run, run.Stage, layoutReroll);
 
         public static StagePlan Generate(Run run, LayoutDef layout) =>
-            Generate(run.Stage, run.StageRng(0), run.IsHard, layout);
+            Generate(run.Stage, run.StageRng(0), run.IsHard, layout, null, RecipeFor(run.Seed, run.Stage));
 
         public static StagePlan Generate(int stage, System.Random rng, bool hard = false) =>
             Generate(stage, rng, hard, null);
 
-        static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride, System.Random layoutRng = null)
+        /// <summary>
+        /// The stage a run would build, including the recipe drawn for this seed and stage. layoutReroll above 0
+        /// re-rolls only the layout. forced, when set, is used instead of the drawn recipe. A boss stage has no recipe.
+        /// </summary>
+        public static StagePlan GenerateFor(Run run, int stage, int layoutReroll = 0, RecipeDef forced = null)
+        {
+            RecipeDef recipe = forced ?? RecipeFor(run.Seed, stage);
+            bool hard = run.IsHardWorld(Run.WorldOf(stage));
+            System.Random layoutRng = layoutReroll <= 0 ? null : run.StageRngFor(stage, 100 + layoutReroll);
+            return Generate(stage, run.StageRngFor(stage, 0), hard, null, layoutRng, recipe);
+        }
+
+        /// <summary>
+        /// The recipe drawn for this seed and stage. Boss stages return null. World 1 stages 1 and 2 are Mixed.
+        /// Every other normal stage takes the next row of that world's pool, shuffled from the seed, and a row
+        /// repeats only after the pool is used up.
+        /// </summary>
+        public static RecipeDef RecipeFor(int seed, int stage)
+        {
+            if (Run.IsBossStageNumber(stage)) return null;
+            var tuning = Tuning.I;
+            int world = Run.WorldOf(stage);
+            int stageInWorld = Run.StageInWorldOf(stage);
+            if (world == 1 && stageInWorld <= 2) return tuning.Recipe(RecipeId.Mixed);
+
+            var pool = new List<RecipeDef>();
+            if (tuning.recipes != null)
+                foreach (var row in tuning.recipes)
+                    if (row != null && row.inPool && row.fromWorld <= world)
+                        pool.Add(row);
+            if (pool.Count == 0) return tuning.Recipe(RecipeId.Mixed);
+
+            var draw = new System.Random(unchecked(seed * 7919 + world * 15485863 + 977));
+            for (int i = pool.Count - 1; i > 0; i--)
+            {
+                int j = draw.Next(i + 1);
+                RecipeDef swap = pool[i];
+                pool[i] = pool[j];
+                pool[j] = swap;
+            }
+            int slot = world == 1 ? stageInWorld - 3 : stageInWorld - 1;
+            return pool[slot % pool.Count];
+        }
+
+        static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride, System.Random layoutRng = null, RecipeDef recipe = null)
         {
             var t = Tuning.I;
             LayoutDef layout = layoutOverride ?? PickLayout(stage, rng);
@@ -455,9 +500,12 @@ namespace Bubblewright
             float bubbleMinY = layout.bubbleMinY > 0f ? layout.bubbleMinY : 5f;
             float budget = Budget(stage, hard);
             float fullBudget = budget;
+            // A rolling-floor recipe needs room for several balls. Without it, the stage is Mixed.
+            if (recipe != null && recipe.rollerShare > 0f && RollerSpots(map, 0f).Count < 2)
+                recipe = t.Recipe(RecipeId.Mixed);
             var rollers = new List<RollerSpec>();
-            float rollerSpend = AddRollers(map, stage, rng, ref budget, rollers, 0f);
-            int maxBubbles = MaxStartBubbles(stage);
+            float rollerSpend = AddRollers(map, stage, rng, ref budget, rollers, 0f, recipe);
+            int maxBubbles = StartCap(stage, recipe);
             var picks = new List<(BubbleKind kind, int tier, bool ceramic)>();
             bool ceramicWorld = Run.WorldOf(stage) >= t.ceramicFromWorld;
 
@@ -465,16 +513,26 @@ namespace Bubblewright
             {
                 var kind = PickKind(stage, rng);
                 int tier = BiggestAffordable(kind, budget);
+                // Outside the recipe's tiers counts as unaffordable, so the Gloop fallback still applies.
+                if (recipe != null) tier = TierInRange(recipe, tier);
                 if (tier < 0 && kind != BubbleKind.Gloop)
                 {
                     kind = BubbleKind.Gloop;
                     tier = BiggestAffordable(kind, budget);
+                    if (recipe != null) tier = TierInRange(recipe, tier);
                 }
                 if (tier < 0) break;
                 // After the first bubble, sometimes go one size down so stages are not all XLs.
-                if (picks.Count > 0 && tier < t.tiers.Length - 1 && rng.NextDouble() < 0.35) tier++;
+                // A recipe keeps that step inside its tier range, and does not roll when it cannot.
+                bool canShrink = tier < t.tiers.Length - 1 && (recipe == null || tier < recipe.maxTier);
+                if (picks.Count > 0 && canShrink && rng.NextDouble() < 0.35) tier++;
                 // From ceramicFromWorld on some bubbles are ceramic: they take more hits, so they cost more budget.
-                bool ceramic = ceramicWorld && kind != BubbleKind.Lucky && tier <= t.ceramicMaxTier && rng.NextDouble() < t.ceramicChance;
+                // A recipe with ceramicChance at 0 or above uses that chance in every world.
+                bool ceramic;
+                if (recipe != null && recipe.ceramicChance >= 0f)
+                    ceramic = kind != BubbleKind.Lucky && tier <= t.ceramicMaxTier && rng.NextDouble() < recipe.ceramicChance;
+                else
+                    ceramic = ceramicWorld && kind != BubbleKind.Lucky && tier <= t.ceramicMaxTier && rng.NextDouble() < t.ceramicChance;
                 float cost = Cost(kind, tier) * (ceramic ? t.ceramicCostScale : 1f);
                 if (ceramic && cost > budget + 0.001f)
                 {
@@ -513,8 +571,33 @@ namespace Bubblewright
             return new StagePlan
             {
                 map = map, spawns = specs, rollers = rollers, wickX = 0f,
-                layoutName = layout.name, budget = fullBudget, rollerSpend = rollerSpend,
+                layoutName = layout.name, recipeName = recipe == null ? null : recipe.name,
+                budget = fullBudget, rollerSpend = rollerSpend,
             };
+        }
+
+        /// <summary>Most bubbles placed before the free Lucky one. A null recipe keeps the usual cap.</summary>
+        static int StartCap(int stage, RecipeDef recipe)
+        {
+            if (recipe == null) return MaxStartBubbles(stage);
+            var tuning = Tuning.I;
+            if (recipe.id == RecipeId.Giants && Run.WorldOf(stage) >= tuning.giantsLateFromWorld)
+                return tuning.giantsMaxLate;
+            if (recipe.startCapMax > 0) return recipe.startCapMax;
+            return Mathf.RoundToInt(MaxStartBubbles(stage) * recipe.startCapScale);
+        }
+
+        /// <summary>
+        /// The affordable tier clamped into the recipe's range, or -1 when nothing in that range is affordable.
+        /// A tier below minTier is a bigger bubble than the recipe allows; the biggest allowed tier is cheaper, so it still fits.
+        /// </summary>
+        static int TierInRange(RecipeDef recipe, int tier)
+        {
+            int last = Tuning.I.tiers.Length - 1;
+            int minTier = Mathf.Clamp(recipe.minTier, 0, last);
+            int maxTier = Mathf.Clamp(recipe.maxTier, minTier, last);
+            if (tier < 0 || tier > maxTier) return -1;
+            return tier < minTier ? minTier : tier;
         }
 
         /// <summary>Most rollers a stage of this world starts with: 0 before rollerFromWorld, 2 from rollerTwoFromWorld, capped.</summary>
@@ -529,36 +612,77 @@ namespace Bubblewright
         /// <summary>
         /// From rollerFromWorld on, on normal stages, with rollerChance a stage swaps some budget for big rollers. Each
         /// costs rollerCost from the budget before bubbles are picked, and at least one budget point is left for bubbles.
-        /// Returns the budget spent.
+        /// A recipe with rollerShare above 0 spends up to that share instead, up to rollerMax balls. Giants and Swarm
+        /// skip the budget rollers. Steel balls are still added by today's rule. A null recipe draws the same random
+        /// numbers, in the same order, as before recipes existed. Returns the budget spent.
         /// </summary>
-        static float AddRollers(StageMap map, int stage, System.Random rng, ref float budget, List<RollerSpec> into, float wickX)
+        static float AddRollers(StageMap map, int stage, System.Random rng, ref float budget, List<RollerSpec> into, float wickX, RecipeDef recipe)
         {
             var t = Tuning.I;
             if (Run.IsBossStageNumber(stage)) return 0f;
             int world = Run.WorldOf(stage);
             float spent = 0f;
             List<Vector2> spots = null;
+            bool skipBudget = recipe != null && (recipe.id == RecipeId.Giants || recipe.id == RecipeId.Swarm);
+            bool share = recipe != null && recipe.rollerShare > 0f && !skipBudget;
 
-            int count = RollersFor(stage);
-            if (count > 0 && rng.NextDouble() < t.rollerChance)
+            if (share)
             {
                 spots = RollerSpots(map, wickX);
-                for (int i = 0; i < count && spots.Count > 0; i++)
+                float cap = recipe.rollerShare * budget;
+                for (int i = 0; i < recipe.rollerMax && spots.Count > 0; i++)
                 {
-                    if (budget - t.rollerCost < 1f - 0.001f) break;
-                    Vector2 spot = spots[rng.Next(spots.Count)];
-                    bool ceramic = world >= t.ceramicFromWorld && rng.NextDouble() < t.ceramicRollerChance;
+                    bool forceCeramic = recipe.allRollersCeramic;
+                    bool ceramic = forceCeramic || (world >= t.ceramicFromWorld && rng.NextDouble() < t.ceramicRollerChance);
                     float cost = t.rollerCost * (ceramic ? t.ceramicCostScale : 1f);
-                    if (ceramic && budget - cost < 1f - 0.001f)
+                    if (spent + cost > cap + 0.001f || cost > budget + 0.001f)
                     {
+                        if (!ceramic || forceCeramic) break;
                         ceramic = false;
                         cost = t.rollerCost;
+                        if (spent + cost > cap + 0.001f || cost > budget + 0.001f) break;
                     }
+                    Vector2 spot = spots[rng.Next(spots.Count)];
                     into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1, ceramic = ceramic });
                     budget -= cost;
                     spent += cost;
-                    // Keep the next one away from this one on the same surface, so they do not start touching.
                     spots.RemoveAll(sp => Mathf.Approximately(sp.y, spot.y) && Mathf.Abs(sp.x - spot.x) < 3f);
+                }
+            }
+            else if (!skipBudget)
+            {
+                int count = RollersFor(stage);
+                if (count > 0 && rng.NextDouble() < t.rollerChance)
+                {
+                    spots = RollerSpots(map, wickX);
+                    for (int i = 0; i < count && spots.Count > 0; i++)
+                    {
+                        if (budget - t.rollerCost < 1f - 0.001f) break;
+                        Vector2 spot = spots[rng.Next(spots.Count)];
+                        bool ceramic;
+                        float cost;
+                        if (recipe != null && recipe.allRollersCeramic)
+                        {
+                            ceramic = true;
+                            cost = t.rollerCost * t.ceramicCostScale;
+                            if (budget - cost < 1f - 0.001f) break;
+                        }
+                        else
+                        {
+                            ceramic = world >= t.ceramicFromWorld && rng.NextDouble() < t.ceramicRollerChance;
+                            cost = t.rollerCost * (ceramic ? t.ceramicCostScale : 1f);
+                            if (ceramic && budget - cost < 1f - 0.001f)
+                            {
+                                ceramic = false;
+                                cost = t.rollerCost;
+                            }
+                        }
+                        into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1, ceramic = ceramic });
+                        budget -= cost;
+                        spent += cost;
+                        // Keep the next one away from this one on the same surface, so they do not start touching.
+                        spots.RemoveAll(sp => Mathf.Approximately(sp.y, spot.y) && Mathf.Abs(sp.x - spot.x) < 3f);
+                    }
                 }
             }
 

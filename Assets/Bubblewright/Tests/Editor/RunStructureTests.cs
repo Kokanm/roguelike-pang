@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Bubblewright.Tests
 {
@@ -137,15 +138,16 @@ namespace Bubblewright.Tests
             for (int seed = 1; seed <= 5; seed++)
                 for (int s = 1; s <= Tuning.I.RunLength; s++)
                 {
-                    var specs = StageGenerator.Generate(RunAt(seed, s)).spawns;
+                    var plan = StageGenerator.Generate(RunAt(seed, s));
+                    var specs = plan.spawns;
                     if (Run.IsBossStageNumber(s))
                     {
                         Assert.AreEqual(0, specs.Count, $"seed {seed} boss stage {s} has no generated bubbles");
                         continue;
                     }
                     Assert.GreaterOrEqual(specs.Count, 1, $"seed {seed} stage {s}");
-                    // the free Lucky bubble sits on top of the cap
-                    Assert.LessOrEqual(specs.Count, StageGenerator.MaxStartBubbles(s) + 1, $"seed {seed} stage {s}");
+                    // the free Lucky bubble sits on top of the recipe's cap (Swarm raises it, Giants and Rolling floor lower it)
+                    Assert.LessOrEqual(specs.Count, BubbleCap(plan, s) + 1, $"seed {seed} stage {s}");
                 }
         }
 
@@ -159,6 +161,21 @@ namespace Bubblewright.Tests
                 foreach (var spec in StageGenerator.Generate(RunAt(seed, 2)).spawns) // before trigloops
                     Assert.AreNotEqual(BubbleKind.Trigloop, spec.kind, $"seed {seed}");
             }
+        }
+
+        /// <summary>Bubbles a recipe may place before the free Lucky one.</summary>
+        static int BubbleCap(StagePlan plan, int stage)
+        {
+            int cap = StageGenerator.MaxStartBubbles(stage);
+            if (plan.recipeName == null || Tuning.I.recipes == null) return cap;
+            RecipeDef recipe = null;
+            foreach (var row in Tuning.I.recipes)
+                if (row != null && row.name == plan.recipeName) { recipe = row; break; }
+            if (recipe == null) return cap;
+            if (recipe.id == RecipeId.Giants && Run.WorldOf(stage) >= Tuning.I.giantsLateFromWorld)
+                return Tuning.I.giantsMaxLate;
+            if (recipe.startCapMax > 0) return recipe.startCapMax;
+            return Mathf.RoundToInt(cap * recipe.startCapScale);
         }
     }
 }

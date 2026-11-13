@@ -165,6 +165,7 @@ namespace Bubblewright
             run = new Run(Random.Range(1, 1000000), character);
             newBest = false;
             newUnlocks = null;
+            forcedRecipeIndex = -1;
             StartStage();
         }
 
@@ -173,9 +174,12 @@ namespace Bubblewright
         {
             touchView.gameObject.SetActive(true);
             currentReroll = layoutReroll;
+            RecipeDef forced = null;
+            if (forcedRecipeIndex >= 0 && T.recipes != null && forcedRecipeIndex < T.recipes.Length)
+                forced = T.recipes[forcedRecipeIndex];
             StagePlan plan = testLayout
                 ? StageGenerator.Generate(run, CurrentTestLayout)
-                : StageGenerator.Generate(run, layoutReroll);
+                : StageGenerator.GenerateFor(run, run.Stage, layoutReroll, forced);
             stageReport = StageReport.From(run.Stage, plan, run.IsHard);
             Map = plan.map;
             debugSurface = -1;
@@ -530,6 +534,7 @@ namespace Bubblewright
         void NextStage()
         {
             run.Stage++;
+            forcedRecipeIndex = -1;
             StartStage();
         }
 

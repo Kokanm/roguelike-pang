@@ -11,6 +11,7 @@ namespace Bubblewright
     {
         StageReport stageReport;
         int currentReroll;     // how many times NEXT LAYOUT re-rolled this stage's layout
+        int forcedRecipeIndex = -1; // -1: the stage's own recipe. Otherwise an index into Tuning.recipes.
         bool balancePage;
         string balanceNote;
 
@@ -20,6 +21,7 @@ namespace Bubblewright
             if (DbgButton("BACK", k, 60)) balancePage = false;
             if (DbgButton("WIN STAGE", k, 80)) DebugClearStage();
             if (DbgButton("NEXT LAYOUT", k, 90)) DebugNextLayout();
+            if (DbgButton("NEXT RECIPE", k, 100)) DebugNextRecipe();
             if (DbgButton("LOG RUN", k, 70)) DebugLogRun();
             GUILayout.EndHorizontal();
 
@@ -30,7 +32,8 @@ namespace Bubblewright
                 return;
             }
             string where = r.boss ? $"WORLD {r.World} BOSS" : $"WORLD {r.World}-{r.StageInWorld}";
-            GUILayout.Label($"{where} {Run.WorldNameOf(r.World).ToUpperInvariant()}  ·  {(r.hard ? "HARD" : "CALM")}  ·  LAYOUT {r.layout.ToUpperInvariant()}" +
+            string recipe = string.IsNullOrEmpty(r.recipe) ? "" : $"  ·  RECIPE {r.recipe.ToUpperInvariant()}";
+            GUILayout.Label($"{where} {Run.WorldNameOf(r.World).ToUpperInvariant()}  ·  {(r.hard ? "HARD" : "CALM")}  ·  LAYOUT {r.layout.ToUpperInvariant()}{recipe}" +
                             (currentReroll > 0 ? $" (re-rolled {currentReroll})" : ""), dbgTitle);
             if (r.boss)
             {
@@ -55,6 +58,16 @@ namespace Bubblewright
             run.Hearts = Mathf.Max(1, wick.Hearts);
             Resume();
             StartStage(currentReroll + 1);
+        }
+
+        /// <summary>Same stage, forced to the next row of Tuning.recipes. Does nothing on a boss stage.</summary>
+        void DebugNextRecipe()
+        {
+            if (run == null || run.IsBossStage || T.recipes == null || T.recipes.Length == 0) return;
+            forcedRecipeIndex = (forcedRecipeIndex + 1) % T.recipes.Length;
+            run.Hearts = Mathf.Max(1, wick.Hearts);
+            Resume();
+            StartStage(currentReroll);
         }
 
         void DebugLogRun()

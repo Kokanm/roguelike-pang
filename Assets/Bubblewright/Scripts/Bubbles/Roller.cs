@@ -208,8 +208,14 @@ namespace Bubblewright
             {
                 if (TouchesRollerAhead(p, r, others, out Roller met))
                 {
+                    // Judge the meeting against the way we were rolling. Turning first flips our tangent, and the old
+                    // test then saw a head-on ball as going our way, so each ball undid the other's turn and both froze.
+                    Vector2 incoming = Tangent;
+                    float pen = met == null ? 0f : r + met.Radius - Vector2.Distance(p, met.Position);
                     Direction = -Direction;
-                    if (met != null && !met.OnGround && Vector2.Dot(met.Tangent, Tangent) < 0f) met.Direction = -met.Direction; // head-on: both turn
+                    if (met != null && !met.OnGround && Vector2.Dot(met.Tangent, incoming) < 0f)
+                        met.Direction = -met.Direction; // head-on: both turn
+                    if (pen > 0f) p -= incoming * pen; // slide back along the surface, out of the overlap
                     continue;
                 }
 
