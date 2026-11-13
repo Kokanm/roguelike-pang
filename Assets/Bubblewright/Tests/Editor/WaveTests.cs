@@ -137,9 +137,11 @@ namespace Bubblewright.Tests
         {
             var director = new WaveDirector(TwoWaves());
             Assert.IsFalse(director.Done);
+            int alive = 0;
             for (int i = 0; i < 200 && !director.Done; i++)
             {
-                director.Tick(Tick, 0, 0f, (s, x) => { });
+                director.Tick(Tick, alive, 0f, (s, x) => alive++);
+                if (director.Markers.Count == 0 && i % 2 == 1) alive = 0; // the player pops everything that arrived
                 if (director.WavesLeft == 0 && director.Markers.Count > 0) Assert.IsFalse(director.Done, "markers still pending");
             }
             Assert.IsTrue(director.Done);
