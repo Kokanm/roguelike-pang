@@ -138,3 +138,7 @@ crashlytics-build.properties
 
 # VS Code workspace settings
 .vscode/
+
+# Installed agent skills (generated from skills-lock.json)
+.agents/
+.claude/
