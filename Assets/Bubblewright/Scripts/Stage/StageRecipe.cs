@@ -50,5 +50,7 @@ namespace Bubblewright
         public float timeScale = 1f;
         [Tooltip("Off: the recipe is never drawn. A debug force can still use it.")]
         public bool inPool = true;
+        [Tooltip("The placement patterns this recipe may use. One is drawn per stage. Empty means Scattered.")]
+        public PlacementPattern[] patterns;
     }
 }
