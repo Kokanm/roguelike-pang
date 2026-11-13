@@ -142,3 +142,6 @@ crashlytics-build.properties
 # Installed agent skills (generated from skills-lock.json)
 .agents/
 .claude/
+
+# Local git worktrees for parallel feature work
+.worktrees/
