@@ -29,7 +29,7 @@ namespace Bubblewright
             HideWaveMarkers();
             announcedMarkers.Clear();
             stageTimeScale = run != null && run.IsBossStage ? 1f : Mathf.Max(0.01f, plan.timeScale);
-            waves = plan.waves != null && plan.waves.Count > 0 && !run.IsBossStage ? new WaveDirector(plan.waves) : null;
+            waves = plan.waves != null && plan.waves.Count > 0 && !run.IsBossStage ? new WaveDirector(plan.waves, bubbles.Count + RequiredRollers()) : null;
         }
 
         /// <summary>Plain dt, not the storm-scaled one: waves keep the same rule during the storm.</summary>

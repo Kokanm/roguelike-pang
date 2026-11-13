@@ -23,10 +23,16 @@ namespace Bubblewright
         int nextWave;
         float sinceLastArrival;
         bool callNow;
+        int peak; // most enemies alive since the current group arrived
 
-        public WaveDirector(List<List<SpawnSpec>> waves)
+        /// <summary>
+        /// startEnemies is how many enemies the stage starts with. A wave is only called by the "few left" rule once the
+        /// current group has lost at least one, so a stage that starts with two bubbles does not call it at once.
+        /// </summary>
+        public WaveDirector(List<List<SpawnSpec>> waves, int startEnemies = int.MaxValue)
         {
             this.waves = waves ?? new List<List<SpawnSpec>>();
+            peak = startEnemies;
         }
 
         /// <summary>How many waves the stage has in all.</summary>
@@ -60,12 +66,18 @@ namespace Bubblewright
                 spawn?.Invoke(m.spec, m.x);
                 spawnedAny = true;
             }
-            if (spawnedAny && markers.Count == 0) sinceLastArrival = 0f;
+            if (spawnedAny && markers.Count == 0)
+            {
+                sinceLastArrival = 0f;
+                peak = 0;
+            }
             // The enemy count was taken before these bubbles joined it, so wait one tick before judging it.
             if (spawnedAny) return;
 
             if (markers.Count > 0 || WavesLeft <= 0) return;
-            if (!callNow && enemiesAlive > t.waveEnemiesLeft && sinceLastArrival < t.waveMaxWait) return;
+            peak = Math.Max(peak, enemiesAlive);
+            bool fewLeft = enemiesAlive <= t.waveEnemiesLeft && enemiesAlive < peak;
+            if (!callNow && !fewLeft && sinceLastArrival < t.waveMaxWait) return;
             callNow = false;
             CallWave(waves[nextWave], wickX);
             nextWave++;

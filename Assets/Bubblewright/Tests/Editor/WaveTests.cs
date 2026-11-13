@@ -36,6 +36,16 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void AStageThatStartsWithTwoBubblesDoesNotCallAWaveUntilOneIsPopped()
+        {
+            var director = new WaveDirector(TwoWaves(), 2);
+            for (int i = 0; i < 20; i++) director.Tick(Tick, 2, 0f, (s, x) => { });
+            Assert.AreEqual(0, director.Markers.Count, "nothing popped yet");
+            director.Tick(Tick, 1, 0f, (s, x) => { });
+            Assert.AreEqual(2, director.Markers.Count);
+        }
+
+        [Test]
         public void ABusyStageWaitsTwentySecondsForTheFirstWave()
         {
             var director = new WaveDirector(TwoWaves());
