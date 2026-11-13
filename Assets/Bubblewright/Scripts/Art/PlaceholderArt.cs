@@ -20,6 +20,7 @@ namespace Bubblewright
         public Sprite FireButton, FireButtonPressed, JumpButton, JumpButtonPressed, MoveHint, MoveKnob, MoveDot, ClimbUpHint, ClimbDownHint;
         public Sprite Droplet, Pixel, Dust, MuzzleFlash;
         public Sprite SpikeHidden, SpikeWarn, SpikeRaised;
+        public Sprite ScorchFlameA, ScorchFlameB;
 
         /// <summary>Height of the harpoon tip sprite above its pivot, in pixels.</summary>
         public const int HarpoonTipHeight = 8;
@@ -84,6 +85,8 @@ namespace Bubblewright
             SpikeHidden = BuildSpikeHidden();
             SpikeWarn = BuildSpikeWarn();
             SpikeRaised = BuildSpikeRaised();
+            ScorchFlameA = BuildScorchFlame(false);
+            ScorchFlameB = BuildScorchFlame(true);
 
             var drop = new PixelCanvas(2, 2);
             drop.Rect(0, 0, 2, 2, Palette.Cream);
@@ -345,6 +348,58 @@ namespace Bubblewright
             }
             return s;
         }
+
+        Sprite[,] ghostFaded; // [tier, 0 faint / 1 strong], built on first use
+
+        /// <summary>
+        /// A faded Ghost: no ink outline, a see-through body and a broken rim in the Ghost colour. Strong is the brighter
+        /// frame the Ghost alternates with while it flickers before turning solid again.
+        /// </summary>
+        public Sprite GhostFaded(int tier, bool strong)
+        {
+            var t = Tuning.I;
+            if (ghostFaded == null || ghostFaded.GetLength(0) != t.tiers.Length)
+                ghostFaded = new Sprite[t.tiers.Length, 2];
+            int si = strong ? 1 : 0;
+            var s = ghostFaded[tier, si];
+            if (s == null || s.texture == null)
+            {
+                int d = Mathf.RoundToInt(t.tiers[tier].diameter * ppu);
+                s = ghostFaded[tier, si] = BuildGhostFaded(t.Kind(BubbleKind.Ghost).color, d, strong);
+            }
+            return s;
+        }
+
+        Sprite BuildGhostFaded(Color32 color, int d, bool strong)
+        {
+            var c = new PixelCanvas(d, d);
+            float cx = d * 0.5f, cy = d * 0.5f, r = d * 0.5f - 1f;
+            int segments = d >= 24 ? 16 : 10;
+            var rim = Alpha(color, strong ? 0.95f : 0.8f);
+            var body = Alpha(color, strong ? 0.45f : 0.2f);
+            var ring = Alpha(color, strong ? 0.8f : 0.45f);
+            float ringRadius = Mathf.Max(4, Mathf.RoundToInt(r * 0.8f)) * 0.5f;
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (dist > r) continue;
+                    if (Mathf.Abs(dist - ringRadius) <= 0.5f) { c.Set(x, y, ring); continue; }
+                    if (r - dist <= 1.3f)
+                    {
+                        if (strong) { c.Set(x, y, rim); continue; }
+                        float turn = Mathf.Atan2(dy, dx) / (2f * Mathf.PI);
+                        int seg = Mathf.FloorToInt((turn < 0f ? turn + 1f : turn) * segments);
+                        if (seg % 2 == 0) c.Set(x, y, rim);
+                        continue;
+                    }
+                    c.Set(x, y, body);
+                }
+            return c.ToSprite($"Bubble_Ghost_{d}px_faded{(strong ? "_strong" : "")}", new Vector2(cx, cy), ppu);
+        }
+
+        static Color32 Alpha(Color32 c, float a) => new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
 
         Sprite BuildBubble(BubbleKind kind, Color32 color, int d, bool ceramic = false, bool cracked = false)
         {
@@ -730,6 +785,40 @@ namespace Bubblewright
             return doors[i, h];
         }
 
+        // ---------------------------------------------------------------- Scorch flame (13 x 10 body, two frames)
+
+        /// <summary>Three pointed tongues in the Scorch colour with a paler core and two cream pixels at the base. Pivot: bottom centre.</summary>
+        Sprite BuildScorchFlame(bool second)
+        {
+            const int w = 13, h = 10;
+            // Pad by the 1 px ink outline on every side.
+            var c = new PixelCanvas(w + 2, h + 2);
+            Color32 body = Palette.Scorch;
+            Color32 core = Palette.Mix(body, Palette.Cream, 0.5f);
+            int leftH = second ? 6 : 4, rightH = second ? 4 : 6, midShift = second ? 2 : 0;
+            Tongue(c, 1 + 2, 1, 5, leftH, 0, body);
+            Tongue(c, 1 + 6, 1, 5, h, midShift, body);
+            Tongue(c, 1 + 10, 1, 5, rightH, 0, body);
+            Tongue(c, 1 + 6, 1, 3, 6, midShift, core);
+            c.Set(1 + 5, 1, Palette.Cream);
+            c.Set(1 + 7, 1, Palette.Cream);
+            c.Outline(Palette.Ink);
+            return c.ToSprite(second ? "ScorchFlameB" : "ScorchFlameA", new Vector2((w + 2) * 0.5f, 0f), ppu);
+        }
+
+        /// <summary>A pointed tongue: baseWidth wide at y0, narrowing to one pixel at height tall, its tip moved sideways by shift.</summary>
+        static void Tongue(PixelCanvas c, int centreX, int y0, int baseWidth, int height, int shift, Color32 color)
+        {
+            for (int row = 0; row < height; row++)
+            {
+                float t = height <= 1 ? 1f : row / (float)(height - 1);
+                int width = Mathf.Max(1, Mathf.RoundToInt(Mathf.Lerp(baseWidth, 1, t)));
+                int x0 = centreX - width / 2 + Mathf.RoundToInt(shift * t);
+                for (int i = 0; i < width; i++)
+                    if (c.InBounds(x0 + i, y0 + row)) c.Set(x0 + i, y0 + row, color);
+            }
+        }
+
         // ---------------------------------------------------------------- Lava spikes (one tile wide, tiled along a strip)
 
         /// <summary>Five 1 px holes, one per spike, in the centre of each 3 px slot.</summary>
@@ -1036,6 +1125,43 @@ namespace Bubblewright
             var sprite = c.ToSprite($"Bullet_{theme.name}", new Vector2(3.5f, 3.5f), ppu);
             bulletCache[theme.name] = sprite;
             return sprite;
+        }
+
+        Sprite waveMarker, waveMarkerLine;
+
+        /// <summary>
+        /// The warning at the ceiling before a wave bubble drops in: a 9 x 8 px lemon triangle pointing down, flat side
+        /// up, with an ink exclamation mark and the usual outline. The pivot is the middle of its top edge.
+        /// </summary>
+        public Sprite WaveMarker
+        {
+            get
+            {
+                if (waveMarker != null && waveMarker.texture != null) return waveMarker;
+                var c = new PixelCanvas(11, 10);
+                int[] widths = { 1, 3, 3, 5, 7, 7, 9, 9 }; // from the bottom row (y 0) up to the flat top (y 7)
+                for (int y = 0; y < widths.Length; y++)
+                    c.Rect(1 + (9 - widths[y]) / 2, 1 + y, widths[y], 1, Palette.Lemon);
+                c.Outline(Palette.Ink);
+                c.Rect(5, 5, 1, 3, Palette.Ink); // the bar
+                c.Set(5, 3, Palette.Ink);        // the dot
+                waveMarker = c.ToSprite("WaveMarker", new Vector2(5.5f, 10f), ppu);
+                return waveMarker;
+            }
+        }
+
+        /// <summary>The dotted line under a marker: 1 x 30 px, lemon, 2 px on and 2 px off, no outline. Pivot at the top.</summary>
+        public Sprite WaveMarkerLine
+        {
+            get
+            {
+                if (waveMarkerLine != null && waveMarkerLine.texture != null) return waveMarkerLine;
+                var c = new PixelCanvas(1, 30);
+                for (int y = 0; y < 30; y++)
+                    if (y % 4 >= 2) c.Set(0, y, Palette.Lemon);
+                waveMarkerLine = c.ToSprite("WaveMarkerLine", new Vector2(0.5f, 30f), ppu);
+                return waveMarkerLine;
+            }
         }
     }
 }

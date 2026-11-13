@@ -324,6 +324,32 @@ namespace Bubblewright
         [Tooltip("A ceramic bubble or rolling ball costs this many times the budget of an ordinary one.")]
         public float ceramicCostScale = 1.5f;
 
+        [Header("Sinker")]
+        [Tooltip("On sand, each landing keeps this share of the last bounce's height.")]
+        [Range(0.1f, 1f)] public float sinkerKeepSand = 0.75f;
+        [Tooltip("On any other surface, each landing keeps this share of the last bounce's height.")]
+        [Range(0.1f, 1f)] public float sinkerKeep = 0.9f;
+        [Tooltip("When the next bounce would rise less than this many units, the Sinker stops bouncing and rolls.")]
+        public float sinkerRollBelow = 0.3f;
+
+        [Header("Ghost")]
+        [Tooltip("Seconds a Ghost stays solid before it fades.")]
+        public float ghostSolidTime = 2.5f;
+        [Tooltip("Seconds a Ghost stays faded: the harpoon passes through it and it cannot hurt Wick.")]
+        public float ghostFadedTime = 1.5f;
+        [Tooltip("Seconds at the end of the fade in which the Ghost flickers as a warning that it is about to turn solid.")]
+        public float ghostFlickerTime = 0.3f;
+
+        [Header("Scorch")]
+        [Tooltip("Seconds a flame burns where a Scorch landed.")]
+        public float flameLife = 1.5f;
+        [Tooltip("Most flames burning at once. A new one puts the oldest out.")]
+        public int flameMax = 6;
+        [Tooltip("Height of a flame's hurt box above the surface, in units.")]
+        public float flameHurtHeight = 0.5f;
+        [Tooltip("The hurt box is a tile wide minus this on each side, in units.")]
+        public float flameHurtInset = 0.15f;
+
         [Header("Stage recipes")]
         [Tooltip("How a normal stage spends its budget. World 1 stages 1 and 2 always use Mixed. Every other normal stage draws one row with In Pool on and From World at or below that world, and a row is not drawn again in that world until every such row has been used. Boss stages are not recipes.")]
         public RecipeDef[] recipes =
@@ -333,6 +359,7 @@ namespace Bubblewright
             new RecipeDef { id = RecipeId.Swarm, name = "Swarm", fromWorld = 1, minTier = 2, maxTier = 3, startCapScale = 2f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, patterns = new[] { PlacementPattern.TopRow, PlacementPattern.OnePerFloor, PlacementPattern.Scattered } },
             new RecipeDef { id = RecipeId.RollingFloor, name = "Rolling floor", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 3, rollerShare = 0.6f, rollerMax = 4, ceramicChance = -1f, allRollersCeramic = false, inPool = true, patterns = new[] { PlacementPattern.TopRow, PlacementPattern.Scattered } },
             new RecipeDef { id = RecipeId.HardShell, name = "Hard shell", fromWorld = 3, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = 0.7f, allRollersCeramic = true, inPool = true, patterns = new[] { PlacementPattern.Scattered, PlacementPattern.MirroredPair, PlacementPattern.OnePerFloor } },
+            new RecipeDef { id = RecipeId.Reinforcements, name = "Reinforcements", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, waves = 2, startShare = 0.5f, timeScale = 1.15f, patterns = new[] { PlacementPattern.Scattered } },
         };
         [Tooltip("Bubbles a Giants stage may start with from Giants Late From World on, in place of that row's Start Cap Max.")]
         public int giantsMaxLate = 3;
@@ -347,6 +374,16 @@ namespace Bubblewright
                     if (row != null && row.id == id) return row;
             return recipes != null && recipes.Length > 0 ? recipes[0] : null;
         }
+
+        [Header("Reinforcements")]
+        [Tooltip("A wave is called when this many enemies or fewer are left on screen.")]
+        public int waveEnemiesLeft = 2;
+        [Tooltip("Seconds after the previous group arrived before the next wave is called anyway.")]
+        public float waveMaxWait = 20f;
+        [Tooltip("Seconds a warning marker blinks at the ceiling before its bubble drops in.")]
+        public float waveWarningTime = 1.2f;
+        [Tooltip("A marker never appears closer than this many units, sideways, to Wick.")]
+        public float waveSafeDistance = 4f;
 
         [Header("Balance")]
         [Tooltip("Every bubble budget is multiplied by this, because jumping makes dodging easier.")]

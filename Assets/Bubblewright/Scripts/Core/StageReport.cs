@@ -23,6 +23,8 @@ namespace Bubblewright
         public int[,] bubbles;
         public int rollers, steelRollers, ceramicRollers, ceramicBubbles;
         public float time;
+        /// <summary>Waves that drop in after the start, and the bubbles in them (also counted in bubbles and bubbleSpend).</summary>
+        public int waves, waveBubbles;
         public int spikeStrips, gaps, breakables;
 
         public int World => Run.WorldOf(stage);
@@ -54,7 +56,7 @@ namespace Bubblewright
                     }
                 }
             r.budget = r.boss ? 0f : plan.budget;
-            r.time = r.boss ? StageGenerator.BossTime(hard) : StageGenerator.StageTime(stage, hard);
+            r.time = r.boss ? StageGenerator.BossTime(hard) : StageGenerator.StageTime(stage, hard) * plan.timeScale;
             if (plan.spawns != null)
             {
                 foreach (var s in plan.spawns)
@@ -66,6 +68,20 @@ namespace Bubblewright
                         r.bubbleSpend += StageGenerator.BubbleCost(s.kind, tier) * (s.ceramic ? t.ceramicCostScale : 1f);
                 }
             }
+            if (plan.waves != null)
+                foreach (var wave in plan.waves)
+                {
+                    if (wave.Count == 0) continue;
+                    r.waves++;
+                    foreach (var s in wave)
+                    {
+                        int tier = Mathf.Clamp(s.tier, 0, t.tiers.Length - 1);
+                        r.bubbles[(int)s.kind, tier]++;
+                        r.waveBubbles++;
+                        if (s.ceramic) r.ceramicBubbles++;
+                        r.bubbleSpend += StageGenerator.BubbleCost(s.kind, tier) * (s.ceramic ? t.ceramicCostScale : 1f);
+                    }
+                }
             var map = plan.map;
             if (map != null)
             {
@@ -103,7 +119,7 @@ namespace Bubblewright
             foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
                 for (int tier = 0; tier < t.tiers.Length; tier++)
                     sb.Append('\t').Append(kind).Append(' ').Append(t.tiers[tier].name);
-            sb.Append("\tceramic bubbles\trollers\tceramic rollers\tsteel rollers\ttime\tspike strips\tgaps\tbreakables");
+            sb.Append("\tceramic bubbles\trollers\tceramic rollers\tsteel rollers\ttime\tspike strips\tgaps\tbreakables\twaves\twave bubbles");
             return sb.ToString();
         }
 
@@ -133,6 +149,8 @@ namespace Bubblewright
             sb.Append('\t').Append(spikeStrips);
             sb.Append('\t').Append(gaps);
             sb.Append('\t').Append(breakables);
+            sb.Append('\t').Append(waves);
+            sb.Append('\t').Append(waveBubbles);
             return sb.ToString();
         }
 

@@ -70,9 +70,8 @@ namespace Bubblewright
                 }
                 var a = picks[i];
                 var b = picks[i + 1];
-                float clearanceA = Clearance(a.tier);
-                float clearanceB = Clearance(b.tier);
-                float widest = Mathf.Max(clearanceA, clearanceB);
+                // Either bubble may land on either side, so both spots are tested with the larger one.
+                float widest = Mathf.Max(Clearance(a.tier), Clearance(b.tier));
                 bool done = false;
                 for (int draw = 0; draw < Draws && !done; draw++)
                 {
@@ -83,11 +82,15 @@ namespace Bubblewright
                     var left = new Vector2(-x, y);
                     var right = new Vector2(x, y);
                     if (yHigh < yLow || t.HalfWidth - widest < WickGap) continue;
-                    if (!IsClear(map, left, clearanceA) || !IsClear(map, right, clearanceB)) continue;
+                    if (!IsClear(map, left, widest) || !IsClear(map, right, widest)) continue;
                     // The bigger bubble goes to a random side so a pair is not always big-left.
                     bool bigLeft = rng.NextDouble() < 0.5;
-                    placed.Add(Make(a, bigLeft ? left : right, bigLeft ? -1 : 1));
-                    placed.Add(Make(b, bigLeft ? right : left, bigLeft ? 1 : -1));
+                    Vector2 posA = bigLeft ? left : right;
+                    Vector2 posB = bigLeft ? right : left;
+                    // A later pair can land on an earlier one. Skip the spot and draw again.
+                    if (Overlaps(placed, posA, a.tier) || Overlaps(placed, posB, b.tier)) continue;
+                    placed.Add(Make(a, posA, bigLeft ? -1 : 1));
+                    placed.Add(Make(b, posB, bigLeft ? 1 : -1));
                     done = true;
                 }
                 if (!done)

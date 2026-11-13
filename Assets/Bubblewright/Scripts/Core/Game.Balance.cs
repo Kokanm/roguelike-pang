@@ -22,6 +22,7 @@ namespace Bubblewright
             if (DbgButton("WIN STAGE", k, 80)) DebugClearStage();
             if (DbgButton("NEXT LAYOUT", k, 90)) DebugNextLayout();
             if (DbgButton("NEXT RECIPE", k, 100)) DebugNextRecipe();
+            if (DbgButton("NEXT WAVE", k, 90)) DebugNextWave();
             if (DbgButton("LOG RUN", k, 70)) DebugLogRun();
             GUILayout.EndHorizontal();
 
@@ -47,6 +48,7 @@ namespace Bubblewright
                 GUILayout.Label($"BUBBLES  {r.BubbleSummary()}", dbgLabel);
                 GUILayout.Label($"BUBBLES CERAMIC {r.ceramicBubbles}  ·  ROLLERS {r.rollers} big ({r.ceramicRollers} ceramic)  ·  STEEL {r.steelRollers}", dbgLabel);
             }
+            if (r.waves > 0) GUILayout.Label($"WAVES {r.waves} ({r.waveBubbles} bubbles)", dbgLabel);
             GUILayout.Label($"TIME LIMIT {r.time:0} s  ·  SPIKE STRIPS {r.spikeStrips}  ·  GAPS {r.gaps}  ·  BREAKABLE TILES {r.breakables}", dbgLabel);
             GUILayout.Label($"Jump budget bonus x{T.jumpBudgetBonus:0.##}  ·  hard budget x{T.hardBudgetScale:0.##}  ·  seed {run.Seed}", dbgLabel);
             GUILayout.Label(balanceNote ?? $"LOG RUN prints all {T.RunLength} stages of this seed to the Console, tab-separated.", dbgLabel);
@@ -69,6 +71,14 @@ namespace Bubblewright
             run.Hearts = Mathf.Max(1, wick.Hearts);
             Resume();
             StartStage(currentReroll);
+        }
+
+        /// <summary>Calls the next wave at once and resumes the game. Does nothing on a stage without waves.</summary>
+        void DebugNextWave()
+        {
+            if (waves == null) return;
+            waves.CallNow();
+            Resume();
         }
 
         void DebugLogRun()
