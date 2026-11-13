@@ -70,32 +70,87 @@ namespace Bubblewright.Tests
             Assert.GreaterOrEqual(turns, 4);
         }
 
+        /// <summary>Distance from p to the nearest solid tile of the map.</summary>
+        static float DistanceToTiles(StageMap map, Vector2 p)
+        {
+            float best = float.MaxValue;
+            for (int c = 0; c < StageMap.Cols; c++)
+                for (int row = 0; row < StageMap.Rows; row++)
+                {
+                    if (!map.IsSolid(c, row)) continue;
+                    Rect rect = StageMap.CellRect(c, row);
+                    var near = new Vector2(Mathf.Clamp(p.x, rect.xMin, rect.xMax), Mathf.Clamp(p.y, rect.yMin, rect.yMax));
+                    best = Mathf.Min(best, (p - near).magnitude);
+                }
+            return best;
+        }
+
         [Test]
-        public void PlatformRollerTurnsAtBothEndsAndNeverFallsOff()
+        public void PlatformRollerRollsAroundTheWholePlatformTouchingItAllTheWay()
+        {
+            var map = StageMap.Flat();
+            for (int c = 8; c <= 23; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid }); // row 4: y 4 to 5
+            SetMap(map);
+            float left = StageMap.CellRect(8, 4).xMin, right = StageMap.CellRect(23, 4).xMax;
+
+            foreach (int startDir in new[] { 1, -1 })
+            {
+                var r = Make(0, 0f, 5f, startDir);
+                var all = new List<Roller> { r };
+                float rad = r.Radius;
+                bool top = false, underside = false, leftEnd = false, rightEnd = false;
+                for (int i = 0; i < 60 * 60; i++)
+                {
+                    r.Tick(Dt, all);
+                    Assert.IsFalse(r.Falling, $"never falls ({i * Dt:0.00} s)");
+                    Assert.IsFalse(r.OnGround, "stays on the platform");
+                    Vector2 p = r.Position;
+                    Assert.GreaterOrEqual(p.x - rad, -Half - 1e-3f);
+                    Assert.LessOrEqual(p.x + rad, Half + 1e-3f);
+                    float gap = DistanceToTiles(map, p);
+                    Assert.AreEqual(rad, gap, 0.03f, $"touches the platform at {i * Dt:0.00} s, position {p}");
+                    if (p.y > 5f + rad - 0.05f) top = true;
+                    if (p.y < 4f - rad + 0.05f) underside = true;
+                    if (p.x < left - rad + 0.1f && p.y > 4.2f && p.y < 4.8f) leftEnd = true;
+                    if (p.x > right + rad - 0.1f && p.y > 4.2f && p.y < 4.8f) rightEnd = true;
+                }
+                Assert.IsTrue(top, "rolls along the top");
+                Assert.IsTrue(underside, "rolls along the underside");
+                Assert.IsTrue(leftEnd, "rolls around the left end");
+                Assert.IsTrue(rightEnd, "rolls around the right end");
+                Object.DestroyImmediate(r.gameObject);
+            }
+        }
+
+        [Test]
+        public void PlatformRollerGoesClockwiseOverTheTopWhenRollingRight()
         {
             var map = StageMap.Flat();
             for (int c = 8; c <= 23; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid });
             SetMap(map);
-            float left = StageMap.CellRect(8, 4).xMin, right = StageMap.CellRect(23, 4).xMax;
-
-            var r = Make(0, 0f, 5f, -1);
+            var r = Make(0, 0f, 5f, 1);
             var all = new List<Roller> { r };
-            float rad = r.Radius, minX = float.MaxValue, maxX = float.MinValue;
-            int turns = 0, dir = r.Direction;
-            for (int i = 0; i < 60 * 60; i++)
+            float x = r.Position.x;
+            for (int i = 0; i < 30; i++) r.Tick(Dt, all);
+            Assert.Greater(r.Position.x, x, "right along the top");
+            Assert.AreEqual(Vector2.up.y, r.Normal.y, 1e-3f);
+        }
+
+        [Test]
+        public void PlatformRollerTurnsAtAnArenaWall()
+        {
+            var map = StageMap.Flat();
+            for (int c = 0; c <= 12; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid }); // touches the left wall
+            SetMap(map);
+            var r = Make(0, -12f, 5f, -1);
+            var all = new List<Roller> { r };
+            float rad = r.Radius;
+            for (int i = 0; i < 60 * 30; i++)
             {
                 r.Tick(Dt, all);
-                Assert.IsFalse(r.Falling, $"never falls ({i * Dt:0.00} s)");
-                Assert.AreEqual(5f + rad, r.Position.y, 1e-4f, "stays on the platform");
-                Assert.GreaterOrEqual(r.Position.x - rad, left - 1e-4f);
-                Assert.LessOrEqual(r.Position.x + rad, right + 1e-4f);
-                minX = Mathf.Min(minX, r.Position.x);
-                maxX = Mathf.Max(maxX, r.Position.x);
-                if (r.Direction != dir) { turns++; dir = r.Direction; }
+                Assert.GreaterOrEqual(r.Position.x - rad, -Half - 1e-3f, "never leaves the arena");
+                Assert.IsFalse(r.Falling);
             }
-            Assert.Less(minX - rad, left + 0.2f, "reaches the left end");
-            Assert.Greater(maxX + rad, right - 0.2f, "reaches the right end");
-            Assert.GreaterOrEqual(turns, 4);
         }
 
         [Test]
@@ -124,18 +179,22 @@ namespace Bubblewright.Tests
         }
 
         [Test]
-        public void RollerFallsWhenItsTileIsDestroyedAndCarriesOn()
+        public void RollerFallsWhenItsTilesAreDestroyedAndCarriesOn()
         {
             var map = StageMap.Flat();
             for (int c = 10; c <= 20; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid });
             SetMap(map);
             var r = Make(0, StageMap.CenterX(15), 5f, 1);
             var all = new List<Roller> { r };
+            // Two tiles are wider than the ball, so it has nothing to rest on and drops through.
+            map.Set(14, 4, new Cell { kind = TileKind.Empty });
             map.Set(15, 4, new Cell { kind = TileKind.Empty });
+            map.Set(16, 4, new Cell { kind = TileKind.Empty });
             r.Tick(Dt, all);
             Assert.IsTrue(r.Falling);
             for (int i = 0; i < 120 && r.Falling; i++) r.Tick(Dt, all);
             Assert.IsFalse(r.Falling);
+            Assert.IsTrue(r.OnGround);
             Assert.AreEqual(r.Radius, r.Position.y, 1e-4f, "lands on the ground");
             float x = r.Position.x;
             r.Tick(Dt, all);
