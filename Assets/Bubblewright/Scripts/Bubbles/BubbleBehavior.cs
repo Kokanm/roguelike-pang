@@ -21,6 +21,7 @@ namespace Bubblewright
         {
             switch (kind)
             {
+                case BubbleKind.Frost: return new FrostBehavior();
                 default: return null;
             }
         }
