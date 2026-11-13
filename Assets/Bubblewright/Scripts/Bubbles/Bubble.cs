@@ -30,6 +30,8 @@ namespace Bubblewright
         float growTimer = -1f;
         float squashTimer = -1f;
 
+        /// <summary>The kind's behaviour, or null for a plain bouncing bubble. Tests read its state.</summary>
+        public BubbleBehavior Behavior => behavior;
         public bool CanBeHit => !Popped && (behavior?.CanBeHit(this) ?? true);
         public bool CanHurt => !Popped && (behavior?.CanHurt(this) ?? true);
 

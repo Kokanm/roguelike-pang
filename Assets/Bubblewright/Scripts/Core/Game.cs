@@ -66,6 +66,7 @@ namespace Bubblewright
 
         void Awake()
         {
+            active = this;
             Application.targetFrameRate = 60; // mobile defaults to 30
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             Screen.autorotateToPortrait = false;

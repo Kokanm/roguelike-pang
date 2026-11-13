@@ -346,6 +346,25 @@ namespace Bubblewright
             return s;
         }
 
+        readonly System.Collections.Generic.Dictionary<int, Sprite> clingerPads = new System.Collections.Generic.Dictionary<int, Sprite>();
+
+        /// <summary>The small pad that holds a hanging Clinger to its ceiling. Pivot at the centre.</summary>
+        public Sprite ClingerPad(int tier)
+        {
+            if (clingerPads.TryGetValue(tier, out var cached) && cached != null && cached.texture != null) return cached;
+            int diameter = Mathf.RoundToInt(Tuning.I.tiers[tier].diameter * ppu);
+            int w = Mathf.Max(4, Mathf.RoundToInt(diameter * 0.34f));
+            var body = Palette.Shade(Palette.Clinger, 0.68f);
+            var top = Palette.Mix(body, Palette.Cream, 0.3f);
+            var c = new PixelCanvas(w + 2, 3 + 2);
+            c.Rect(1, 1, w, 3, body);
+            c.Rect(1, 3, w, 1, top); // y grows upward: the top row is the one against the ceiling
+            c.Outline(Palette.Ink);
+            var s = c.ToSprite($"ClingerPad_{tier}", new Vector2((w + 2) * 0.5f, (3 + 2) * 0.5f), ppu);
+            clingerPads[tier] = s;
+            return s;
+        }
+
         Sprite BuildBubble(BubbleKind kind, Color32 color, int d, bool ceramic = false, bool cracked = false)
         {
             var c = new PixelCanvas(d, d);

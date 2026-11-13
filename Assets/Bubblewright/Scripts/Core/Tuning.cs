@@ -324,6 +324,12 @@ namespace Bubblewright
         [Tooltip("A ceramic bubble or rolling ball costs this many times the budget of an ordinary one.")]
         public float ceramicCostScale = 1.5f;
 
+        [Header("Clinger")]
+        [Tooltip("A hanging Clinger starts to wobble when Wick is below it and no further away sideways than this (units).")]
+        public float clingerTriggerX = 1.5f;
+        [Tooltip("How long a Clinger wobbles before it drops (seconds).")]
+        public float clingerWobbleTime = 0.4f;
+
         [Header("Stage recipes")]
         [Tooltip("How a normal stage spends its budget. World 1 stages 1 and 2 always use Mixed. Every other normal stage draws one row with In Pool on and From World at or below that world, and a row is not drawn again in that world until every such row has been used. Boss stages are not recipes.")]
         public RecipeDef[] recipes =

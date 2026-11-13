@@ -21,6 +21,7 @@ namespace Bubblewright
         {
             switch (kind)
             {
+                case BubbleKind.Clinger: return new ClingerBehavior();
                 default: return null;
             }
         }
