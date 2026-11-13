@@ -76,6 +76,49 @@ MonoBehaviour:
     peakScale: 1
     speedScale: 1
     bounceTimeScale: 1
+    largestTier: 0
+  - kind: 4
+    color: {r: 0.94117647, g: 0.28235294, b: 0.61960784, a: 1}
+    children: 2
+    peakScale: 1
+    speedScale: 1
+    bounceTimeScale: 1
+    largestTier: 0
+  - kind: 5
+    color: {r: 0.094117647, g: 0.72156863, b: 0.69019608, a: 1}
+    children: 2
+    peakScale: 1
+    speedScale: 1
+    bounceTimeScale: 1
+    largestTier: 1
+  - kind: 6
+    color: {r: 0.56078431, g: 0.90980392, b: 0.96078431, a: 1}
+    children: 2
+    peakScale: 1
+    speedScale: 1
+    bounceTimeScale: 1
+    largestTier: 0
+  - kind: 7
+    color: {r: 0.65098039, g: 0.94901961, b: 0.56078431, a: 1}
+    children: 2
+    peakScale: 1
+    speedScale: 1
+    bounceTimeScale: 1
+    largestTier: 0
+  - kind: 8
+    color: {r: 0.84705882, g: 0.20784314, b: 0.16470588, a: 1}
+    children: 2
+    peakScale: 1
+    speedScale: 1
+    bounceTimeScale: 1
+    largestTier: 0
+  - kind: 9
+    color: {r: 0.48627451, g: 0.45490196, b: 1, a: 1}
+    children: 2
+    peakScale: 1
+    speedScale: 1
+    bounceTimeScale: 1
+    largestTier: 1
   childKickHeight: 2
   trigloopMiddleKick: 1.6
   childStartScale: 0.7

@@ -392,6 +392,81 @@ namespace Bubblewright
                         c.Rect(mx, my - len, 1, len * 2 + 1, Palette.Cream);
                         break;
                     }
+                case BubbleKind.Clinger:
+                    {
+                        int a = Mathf.Max(2, Mathf.RoundToInt(r * 0.36f));
+                        int thick = d >= 24 ? 2 : 1;
+                        int lift = Mathf.RoundToInt(a / 2f);
+                        for (int i = -a; i <= a; i++)
+                        {
+                            int x = Mathf.RoundToInt(cx + i);
+                            int y = Mathf.RoundToInt(cy - (a - Mathf.Abs(i)) + lift);
+                            for (int t = 0; t < thick; t++)
+                                if (c.Filled(x, y + t)) c.Set(x, y + t, mark);
+                        }
+                        break;
+                    }
+                case BubbleKind.Sinker:
+                    {
+                        float line = cy - r * 0.36f;
+                        var foam = Palette.Mix(color, Palette.Cream, 0.35f);
+                        for (int y = 0; y < d; y++)
+                            for (int x = 0; x < d; x++)
+                            {
+                                if (!c.Filled(x, y)) continue;
+                                float py = y + 0.5f;
+                                if (py < line) c.Set(x, y, mark);
+                                else if (py < line + 1f) c.Set(x, y, foam);
+                            }
+                        break;
+                    }
+                case BubbleKind.Frost:
+                    {
+                        int a = Mathf.Max(1, Mathf.RoundToInt(r * 0.3f));
+                        int mx = Mathf.RoundToInt(cx);
+                        for (int i = -a; i <= a; i++)
+                        {
+                            int w = 2 * (a - Mathf.Abs(i)) + 1;
+                            int y = Mathf.RoundToInt(cy + i);
+                            int x0 = mx - w / 2;
+                            for (int x = 0; x < w; x++)
+                                if (c.Filled(x0 + x, y)) c.Set(x0 + x, y, Palette.IceGlint);
+                        }
+                        break;
+                    }
+                case BubbleKind.Ghost:
+                    {
+                        int diam = Mathf.Max(4, Mathf.RoundToInt(r * 0.84f));
+                        float outer = diam * 0.5f;
+                        c.EllipseOnFilled(cx, cy, outer, outer, mark);
+                        int inset = d >= 24 ? 2 : 1;
+                        float inner = Mathf.Max(0.5f, outer - inset);
+                        c.EllipseOnFilled(cx, cy, inner, inner, Palette.Mix(color, Palette.Cream, 0.6f));
+                        break;
+                    }
+                case BubbleKind.Scorch:
+                    {
+                        int diam = Mathf.Max(5, Mathf.RoundToInt(r * 0.92f));
+                        float outer = diam * 0.5f;
+                        c.EllipseOnFilled(cx, cy, outer, outer, Palette.Mix(color, Palette.Cream, 0.5f));
+                        int inset = d >= 24 ? 2 : 1;
+                        float inner = Mathf.Max(0.5f, outer - inset);
+                        c.EllipseOnFilled(cx, cy, inner, inner, Palette.Cream);
+                        break;
+                    }
+                case BubbleKind.Drifter:
+                    {
+                        int a = Mathf.Max(2, Mathf.RoundToInt(r * 0.4f));
+                        for (int v = -a; v <= a; v++)
+                            for (int u = -a; u <= a; u++)
+                            {
+                                if (u + v < 0) continue;
+                                int x = Mathf.RoundToInt(cx + u);
+                                int y = Mathf.RoundToInt(cy + v);
+                                if (c.Filled(x, y)) c.Set(x, y, mark);
+                            }
+                        break;
+                    }
             }
 
             // Shine stays high on the body

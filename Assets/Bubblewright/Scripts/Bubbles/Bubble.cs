@@ -18,12 +18,20 @@ namespace Bubblewright
         public bool Ceramic { get; private set; }
         /// <summary>Hits left before it breaks (1 for an ordinary bubble).</summary>
         public int Armor { get; private set; } = 1;
+        /// <summary>Multiplied into the drawn scale. Behaviours use it for a wobble or a squash of their own.</summary>
+        public Vector2 VisualScale = Vector2.one;
+        /// <summary>When true, the bounce only resolves the arena walls, ceiling and floor.</summary>
+        public bool IgnoresTiles;
 
         Tuning T => Tuning.I;
         SpriteRenderer sr;
+        BubbleBehavior behavior;
         float grow = 1f;      // 0.7 -> 1 for freshly split children
         float growTimer = -1f;
         float squashTimer = -1f;
+
+        public bool CanBeHit => !Popped && (behavior?.CanBeHit(this) ?? true);
+        public bool CanHurt => !Popped && (behavior?.CanHurt(this) ?? true);
 
         public float FullRadius => T.tiers[Tier].diameter * 0.5f;
         public float Radius => FullRadius * grow;
@@ -49,6 +57,8 @@ namespace Bubblewright
                 b.grow = Tuning.I.childStartScale;
                 b.growTimer = 0f;
             }
+            b.behavior = BubbleBehavior.For(kind);
+            b.behavior?.OnSpawn(b, child);
             b.ApplyVisual();
             return b;
         }
@@ -56,6 +66,22 @@ namespace Bubblewright
         public float SpeedX => T.bubbleSpeedX * T.Kind(Kind).speedScale;
 
         public void Tick(float dt)
+        {
+            if (behavior == null || !behavior.Tick(this, dt)) TickBounce(dt);
+            TickGrowAndSquash(dt);
+            ApplyVisual();
+        }
+
+        public void OnStorm() => behavior?.OnStorm(this);
+
+        public void SetSprite(Sprite s)
+        {
+            if (sr != null) sr.sprite = s;
+        }
+
+        public void StartSquash() => squashTimer = 0f;
+
+        void TickBounce(float dt)
         {
             float g = T.Gravity(Kind, Tier);
             var p = (Vector2)transform.position;
@@ -71,18 +97,24 @@ namespace Bubblewright
                 p.y += Velocity.y * stepDt - 0.5f * g * stepDt * stepDt;
                 Velocity.y -= g * stepDt;
 
-                Contact contact = Game.Map.ResolveCircle(ref p, Radius);
+                Contact contact = IgnoresTiles
+                    ? Game.Map.ResolveBounds(ref p, Radius)
+                    : Game.Map.ResolveCircle(ref p, Radius);
                 if (contact.landed)
                 {
                     Velocity.y = T.BounceSpeed(Kind, Tier);
                     squashTimer = 0f;
+                    behavior?.OnLanded(this);
                     Sfx.Play(Sound.Bounce, 1f + Tier * 0.25f, 0.5f - Tier * 0.1f); // big bubbles thud, small ones tap
                 }
                 if (contact.bumped) Velocity.y = -Mathf.Abs(Velocity.y);
                 if (contact.side != 0) Velocity.x = contact.side * Mathf.Abs(Velocity.x);
             }
             transform.position = p;
+        }
 
+        void TickGrowAndSquash(float dt)
+        {
             if (growTimer >= 0f)
             {
                 growTimer += dt;
@@ -95,7 +127,6 @@ namespace Bubblewright
                 squashTimer += dt;
                 if (squashTimer > 0.1f) squashTimer = -1f;
             }
-            ApplyVisual();
         }
 
         void ApplyVisual()
@@ -106,6 +137,8 @@ namespace Bubblewright
                 s = squashTimer < 0.05f
                     ? new Vector3(1.2f * grow, 0.8f * grow, 1f)
                     : new Vector3(0.9f * grow, 1.12f * grow, 1f);
+            s.x *= VisualScale.x;
+            s.y *= VisualScale.y;
             s.z = 1f;
             transform.localScale = s;
         }

@@ -31,6 +31,13 @@ namespace Bubblewright
         public static readonly Color32 Azure = Hex(0x3FA9FF);
         public static readonly Color32 Plum = Hex(0xC062E8);
         public static readonly Color32 Lemon = Hex(0xF4E85A);
+        // Enemy kinds (approved sheet). Saffron, mint and pearl stay reserved.
+        public static readonly Color32 Clinger = Hex(0xF0489E);
+        public static readonly Color32 Sinker = Hex(0x18B8B0);
+        public static readonly Color32 Frost = Hex(0x8FE8F5);
+        public static readonly Color32 Ghost = Hex(0xA6F28F);
+        public static readonly Color32 Scorch = Hex(0xD8352A);
+        public static readonly Color32 Drifter = Hex(0x7C74FF);
         // Rolling balloon (only for rollers)
         public static readonly Color32 Pearl = Hex(0xEDE6F7);
         public static readonly Color32 PearlShade = Hex(0xB7A9D6);

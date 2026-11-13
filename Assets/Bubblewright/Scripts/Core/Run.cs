@@ -741,9 +741,12 @@ namespace Bubblewright
             return t.tierCost[Mathf.Min(tier, t.tierCost.Length - 1)] * scale;
         }
 
-        static int BiggestAffordable(BubbleKind kind, float budget)
+        /// <summary>Biggest tier this kind is allowed to be: 0 XL, 1 L.</summary>
+        public static int LargestTier(BubbleKind kind) => Tuning.I.Kind(kind).largestTier;
+
+        public static int BiggestAffordable(BubbleKind kind, float budget)
         {
-            for (int tier = 0; tier < Tuning.I.tiers.Length; tier++)
+            for (int tier = LargestTier(kind); tier < Tuning.I.tiers.Length; tier++)
                 if (Cost(kind, tier) <= budget + 0.001f) return tier;
             return -1;
         }
