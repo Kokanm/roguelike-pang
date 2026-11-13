@@ -617,6 +617,22 @@ namespace Bubblewright
                 else later.Add(p);
             }
 
+            // Skipping big bubbles can leave the start too thin: bring the biggest waiting one that still fits back.
+            while (startCost < total * 0.35f && later.Count > 0)
+            {
+                int best = -1;
+                for (int i = 0; i < later.Count; i++)
+                {
+                    float cost = PickCost(later[i]);
+                    if (startCost + cost > total * 0.65f + 0.001f) continue;
+                    if (best < 0 || cost > PickCost(later[best])) best = i;
+                }
+                if (best < 0) break;
+                startCost += PickCost(later[best]);
+                start.Add(later[best]);
+                later.RemoveAt(best);
+            }
+
             int count = Mathf.Max(1, recipe.waves);
             var lists = new List<SpawnSpec>[count];
             for (int i = 0; i < count; i++) lists[i] = new List<SpawnSpec>();

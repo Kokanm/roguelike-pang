@@ -203,7 +203,12 @@ namespace Bubblewright.Tests
                     Assert.LessOrEqual(all + plan.rollerSpend, plan.budget + 0.01f, $"seed {seed} stage {stage} overspent");
                     if (picks >= 4 && plan.waves.Count > 0)
                     {
-                        Assert.GreaterOrEqual(start, all * 0.35f - 0.01f, $"seed {seed} stage {stage} start too small");
+                        // Too small only when no waiting bubble could have joined without pushing the start past 65%.
+                        bool couldJoin = false;
+                        foreach (var list in plan.waves)
+                            foreach (var s in list)
+                                if (start + Cost(s) <= all * 0.65f + 0.01f) couldJoin = true;
+                        if (couldJoin) Assert.GreaterOrEqual(start, all * 0.35f - 0.01f, $"seed {seed} stage {stage} start too small");
                         if (plan.spawns.FindAll(s => s.kind != BubbleKind.Lucky).Count > 1)
                             Assert.LessOrEqual(start, all * 0.65f + 0.01f, $"seed {seed} stage {stage} start too big");
                     }
