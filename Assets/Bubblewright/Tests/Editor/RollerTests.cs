@@ -215,6 +215,78 @@ namespace Bubblewright.Tests
             }
             Assert.AreEqual(-1, a.Direction);
             Assert.AreEqual(1, b.Direction);
+            float gap = b.Position.x - a.Position.x;
+            for (int i = 0; i < 30; i++)
+            {
+                a.Tick(Dt, all);
+                b.Tick(Dt, all);
+            }
+            Assert.Greater(b.Position.x - a.Position.x, gap + 1f, "they bounce apart instead of staying together");
+        }
+
+        [Test]
+        public void PlatformRollersBounceApartWhenTheyMeet()
+        {
+            var map = StageMap.Flat();
+            for (int c = 4; c <= 27; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid });
+            SetMap(map);
+            var a = Make(0, -2f, 5f, 1);
+            var b = Make(0, 2f, 5f, -1);
+            var all = new List<Roller> { a, b };
+            bool turned = false;
+            Vector2 aAtTurn = default, bAtTurn = default;
+            for (int i = 0; i < 60 * 4 && !turned; i++)
+            {
+                a.Tick(Dt, all);
+                b.Tick(Dt, all);
+                Assert.GreaterOrEqual(Vector2.Distance(a.Position, b.Position), a.Radius + b.Radius - 0.2f, "they do not pass through each other");
+                if (a.Direction < 0 && b.Direction > 0)
+                {
+                    turned = true;
+                    aAtTurn = a.Position;
+                    bAtTurn = b.Position;
+                }
+            }
+            Assert.IsTrue(turned, "a head-on meeting turns both around");
+            for (int i = 0; i < 30; i++)
+            {
+                a.Tick(Dt, all);
+                b.Tick(Dt, all);
+            }
+            Assert.Greater(Vector2.Distance(a.Position, aAtTurn), 0.5f, "the left ball keeps rolling after the bounce");
+            Assert.Greater(Vector2.Distance(b.Position, bAtTurn), 0.5f, "the right ball keeps rolling after the bounce");
+            Assert.Greater(Vector2.Distance(a.Position, b.Position), Vector2.Distance(aAtTurn, bAtTurn) + 0.5f, "they bounce apart");
+        }
+
+        [Test]
+        public void AFasterPlatformRollerBouncesOffTheSlowerOneAhead()
+        {
+            var map = StageMap.Flat();
+            for (int c = 2; c <= 29; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid });
+            SetMap(map);
+            var big = Make(0, 0f, 5f, 1);
+            var small = Make(1, -2f, 5f, 1);
+            var all = new List<Roller> { big, small };
+            bool bounced = false;
+            for (int i = 0; i < 60 * 3 && !bounced; i++)
+            {
+                big.Tick(Dt, all);
+                small.Tick(Dt, all);
+                if (small.Direction < 0)
+                {
+                    bounced = true;
+                    Assert.Greater(big.Direction, 0, "the one ahead keeps its direction");
+                }
+            }
+            Assert.IsTrue(bounced, "the faster ball bounces back");
+            float smallX = small.Position.x, bigX = big.Position.x;
+            for (int i = 0; i < 30; i++)
+            {
+                big.Tick(Dt, all);
+                small.Tick(Dt, all);
+            }
+            Assert.Less(small.Position.x, smallX - 0.4f, "the bounced ball rolls back");
+            Assert.Greater(big.Position.x, bigX + 0.4f, "the ball ahead keeps rolling");
         }
 
         [Test]
