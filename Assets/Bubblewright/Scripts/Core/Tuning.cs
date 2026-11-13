@@ -207,11 +207,11 @@ namespace Bubblewright
 
         [Header("Spikes")]
         [Tooltip("Seconds a strip stays down, showing only the holes in the floor.")]
-        public float spikeDownTime = 3f;
+        public float spikeDownTime = 2.6f;
         [Tooltip("Seconds the tips poke up and wobble before the spikes rise.")]
         public float spikeWarnTime = 0.5f;
         [Tooltip("Seconds the spikes stay raised. They hurt Wick only while raised, and always for one heart.")]
-        public float spikeUpTime = 1.5f;
+        public float spikeUpTime = 1.8f;
         [Tooltip("Each later strip starts this many seconds further into the cycle than the one before it, so they do not all rise together.")]
         public float spikePhaseStep = 0.8f;
         [Tooltip("How tall a raised spike's hurt box is, in pixels, measured up from the surface it sits on.")]
@@ -241,8 +241,8 @@ namespace Bubblewright
         public float bossDeathShake = 0.6f;
         [Tooltip("Gravity on bouncy bullets, in units per second squared.")]
         public float bouncyGravity = 22f;
-        [Tooltip("Height above the floor that the top of a bouncy bullet reaches on each hop. Wick is 2 units tall, so he can walk under the top of a hop.")]
-        public float bouncyPeak = 3.5f;
+        [Tooltip("Height above the floor that the top of a bouncy bullet reaches on each hop. Low enough that Wick must jump it or outrun it rather than walk under it.")]
+        public float bouncyPeak = 2.6f;
         [Tooltip("Constant sideways speed of a bouncy bullet, in units per second. It heads toward the side Wick was on when it was fired.")]
         public float bouncySpeedX = 3.5f;
         [Tooltip("Radius of a bouncy bullet's hit circle, in pixels (the sprite is a 9 px disc).")]
@@ -277,6 +277,30 @@ namespace Bubblewright
         public float gapSafeStandTime = 0.2f;
         [Tooltip("After a gap he reappears this many units further from the gap edge than his last safe spot.")]
         public float gapRespawnInset = 0.5f;
+
+        [Header("Rolling balloons")]
+        [Tooltip("Diameter in units of a big and a small rolling balloon (18 px and 12 px). A jump (Jump Height) must clear the big one.")]
+        public float[] rollerDiameters = { 1.2f, 0.8f };
+        [Tooltip("Rolling speed in units per second: big, small.")]
+        public float[] rollerSpeeds = { 3.5f, 4.5f };
+        [Tooltip("Score for popping a rolling balloon: big, small.")]
+        public int[] rollerScores = { 150, 200 };
+        [Tooltip("Bubble budget a big rolling balloon costs. It is taken from the stage budget before bubbles are picked.")]
+        public float rollerCost = 3f;
+        [Tooltip("Rolling balloons can appear on normal stages from this world on (never on boss stages).")]
+        public int rollerFromWorld = 2;
+        [Tooltip("Most big rolling balloons a stage starts with.")]
+        public int rollerMaxPerStage = 2;
+        [Tooltip("Chance per stage, from Roller From World on, that the stage gets rolling balloons.")]
+        [Range(0f, 1f)] public float rollerChance = 0.5f;
+        [Tooltip("From this world on a stage with rolling balloons gets two instead of one (still capped by Roller Max Per Stage).")]
+        public int rollerTwoFromWorld = 4;
+        [Tooltip("Colour of rolling balloons, used for their pop effect.")]
+        public Color rollerColor = Palette.Pearl;
+
+        [Header("Balance")]
+        [Tooltip("Every bubble budget is multiplied by this, because jumping makes dodging easier.")]
+        public float jumpBudgetBonus = 1.1f;
 
         /// <summary>Gravity during a jump, from jumpHeight and jumpTimeToApex.</summary>
         public float JumpGravity => 2f * jumpHeight / Mathf.Max(0.001f, jumpTimeToApex * jumpTimeToApex);

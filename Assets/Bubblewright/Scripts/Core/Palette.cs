@@ -31,6 +31,9 @@ namespace Bubblewright
         public static readonly Color32 Azure = Hex(0x3FA9FF);
         public static readonly Color32 Plum = Hex(0xC062E8);
         public static readonly Color32 Lemon = Hex(0xF4E85A);
+        // Rolling balloon (only for rollers)
+        public static readonly Color32 Pearl = Hex(0xEDE6F7);
+        public static readonly Color32 PearlShade = Hex(0xB7A9D6);
 
         // Floor surfaces (ice only in Winter, sand only in Desert)
         public static readonly Color32 Ice = Hex(0xBFE6FF);

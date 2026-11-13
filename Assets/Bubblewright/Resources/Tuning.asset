@@ -95,8 +95,8 @@ MonoBehaviour:
     tier: 1
     position: {x: 8, y: 7}
     direction: -1
-  spikeDownTime: 3
+  spikeDownTime: 2.6
   spikeWarnTime: 0.5
-  spikeUpTime: 1.5
+  spikeUpTime: 1.8
   spikePhaseStep: 0.8
   spikeHeightPixels: 7
