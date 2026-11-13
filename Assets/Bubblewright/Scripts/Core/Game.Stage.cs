@@ -5,6 +5,10 @@ namespace Bubblewright
     public partial class Game
     {
         public static StageMap Map { get; private set; }
+        /// <summary>Wick's feet at the start of the latest play tick. Behaviours and tests read this; the game writes it.</summary>
+        public static Vector2 WickFeet { get; set; }
+        /// <summary>Wick's hitbox at the start of the latest play tick.</summary>
+        public static Rect WickBox { get; set; }
 
         static Theme currentTheme;
         /// <summary>The look of the current world: sky, tiles and ground strip colours. Rooftops until a stage starts.</summary>

@@ -193,10 +193,17 @@ namespace Bubblewright
             return Get(c, Row(y - 0.01f)).surface;
         }
 
-        public Contact ResolveCircle(ref Vector2 position, float radius)
+        /// <summary>Walls, ceiling and the floor at y = 0. Tiles are left alone.</summary>
+        public Contact ResolveBounds(ref Vector2 position, float radius)
         {
             var contact = default(Contact);
             ClampToArena(ref position, radius, ref contact);
+            return contact;
+        }
+
+        public Contact ResolveCircle(ref Vector2 position, float radius)
+        {
+            var contact = ResolveBounds(ref position, radius);
 
             float rSq = radius * radius;
             for (int pass = 0; pass < 3; pass++)

@@ -193,6 +193,8 @@ namespace Bubblewright
             ApplyRunUpgrades();
             HideHarpoons();
             wick.ResetForStage(plan.wickX, 0f, run.Hearts);
+            WickFeet = wick.transform.position;
+            WickBox = wick.Hitbox;
             wick.Waving = true;
             freeze = slowMo = shake = 0f;
             tileShakeFrames = 0;
@@ -328,6 +330,8 @@ namespace Bubblewright
         {
             wick.GapDamageEnabled = !debug.god;
             wick.Tick(input.Move, input.Climb, input.JumpPressed, dt, true);
+            WickFeet = wick.transform.position;
+            WickBox = wick.Hitbox;
             if (wick.ConsumeGapFall()) AfterWickHurt(); // a gap took a heart: same freeze, sound and game over as any hit
             if (state != State.Play) return;
 
@@ -366,7 +370,7 @@ namespace Bubblewright
                 if (!h.Active) continue;
                 for (int i = 0; i < bubbles.Count; i++)
                 {
-                    if (bubbles[i].Popped || !h.Hits(bubbles[i])) continue;
+                    if (!bubbles[i].CanBeHit || !h.Hits(bubbles[i])) continue;
                     h.Hide();
                     Hit(bubbles[i]);
                     break;
@@ -382,7 +386,7 @@ namespace Bubblewright
                 var box = wick.Hitbox;
                 foreach (var b in bubbles)
                 {
-                    if (b.Popped || !b.Overlaps(box)) continue;
+                    if (!b.CanHurt || !b.Overlaps(box)) continue;
                     HurtWick(b.Position.x, storm ? T.stormDamage : 1);
                     break;
                 }
@@ -426,6 +430,7 @@ namespace Bubblewright
             stormBanner = 1.8f;
             shake = T.shakeTime * 2f;
             Sfx.Play(Sound.Hurt, 0.6f, 0.9f);
+            for (int i = 0; i < bubbles.Count; i++) bubbles[i].OnStorm();
         }
 
         void TickClear(float dt)
@@ -625,7 +630,7 @@ namespace Bubblewright
         void DebugSpawn(BubbleKind kind, bool ceramic = false)
         {
             float x = Random.Range(-T.HalfWidth + 3f, T.HalfWidth - 3f);
-            SpawnBubble(kind, 0, new Vector2(x, 9f), Random.value < 0.5f ? -1 : 1, 0f, false, ceramic);
+            SpawnBubble(kind, StageGenerator.LargestTier(kind), new Vector2(x, 9f), Random.value < 0.5f ? -1 : 1, 0f, false, ceramic);
         }
 
         // ------------------------------------------------------------------ HUD (placeholder, OnGUI)

@@ -284,8 +284,14 @@ namespace Bubblewright
             GUILayout.BeginHorizontal();
             GUILayout.Label("SPAWN XL", dbgLabel, GUILayout.Width(52 * k));
             foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
-                if (DbgButton(kind.ToString().ToUpperInvariant(), k, 62)) DebugSpawn(kind);
+                if (kind <= BubbleKind.Lucky && DbgButton(kind.ToString().ToUpperInvariant(), k, 62)) DebugSpawn(kind);
             if (DbgButton(DebugHardLabel(), k, 110)) DebugCycleHardWorld();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("SPAWN NEW", dbgLabel, GUILayout.Width(52 * k));
+            foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
+                if (kind > BubbleKind.Lucky && DbgButton(kind.ToString().ToUpperInvariant(), k, 62)) DebugSpawn(kind);
             GUILayout.EndHorizontal();
 
             GUILayout.Label("ADD UPGRADE (no limits)", dbgLabel);
