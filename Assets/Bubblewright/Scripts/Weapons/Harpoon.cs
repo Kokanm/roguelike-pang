@@ -210,6 +210,13 @@ namespace Bubblewright
         /// <summary>True if the rectangle touches the cable or the tip.</summary>
         public bool Hits(Rect rect) => Active && (rect.Overlaps(CableRect) || rect.Overlaps(TipRect));
 
+        /// <summary>True if the rolling balloon touches the cable or the tip.</summary>
+        public bool Hits(Roller r)
+        {
+            if (!Active) return false;
+            return r.Overlaps(CableRect) || r.Overlaps(TipRect);
+        }
+
         /// <summary>True if the bubble touches the cable or the tip.</summary>
         public bool Hits(Bubble b)
         {

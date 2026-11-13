@@ -378,6 +378,69 @@ namespace Bubblewright
             return c.ToSprite($"Bubble_{kind}_{d}px", new Vector2(cx, cy), ppu);
         }
 
+        // ---------------------------------------------------------------- Rolling balloons (no face: pearl + crossing bands)
+
+        Sprite[,] rollerFrames;
+
+        /// <summary>A rolling balloon's sprite: tier 0 big (18 px), 1 small (12 px); frame 0 to 3 turns the bands 22.5 degrees clockwise each.</summary>
+        public Sprite RollerFrame(int tier, int frame)
+        {
+            var t = Tuning.I;
+            int tiers = Mathf.Max(1, t.rollerDiameters.Length);
+            if (rollerFrames == null || rollerFrames.GetLength(0) != tiers)
+                rollerFrames = new Sprite[tiers, Roller.Frames];
+            tier = Mathf.Clamp(tier, 0, tiers - 1);
+            frame = ((frame % Roller.Frames) + Roller.Frames) % Roller.Frames;
+            var s = rollerFrames[tier, frame];
+            if (s == null || s.texture == null)
+            {
+                int d = Mathf.Max(4, Mathf.RoundToInt(t.rollerDiameters[tier] * ppu));
+                s = rollerFrames[tier, frame] = BuildRoller(d, frame);
+            }
+            return s;
+        }
+
+        /// <summary>
+        /// Pearl disc with a PearlShade crescent low on the right like a bubble's, two thin crossing bands in a darker
+        /// PearlShade turned by 22.5 degrees per frame, a 1 px cream highlight near the top left and a 1 px ink outline.
+        /// </summary>
+        Sprite BuildRoller(int d, int frame)
+        {
+            var c = new PixelCanvas(d, d);
+            float cx = d * 0.5f, cy = d * 0.5f, r = d * 0.5f - 1f;
+            c.Circle(cx, cy, r, Palette.Pearl);
+
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    if (!c.Filled(x, y)) continue;
+                    float dx = x + 0.5f - (cx - r * 0.18f), dy = y + 0.5f - (cy + r * 0.18f);
+                    if (dx * dx + dy * dy > r * r * 0.97f) c.Set(x, y, Palette.PearlShade);
+                }
+
+            // Rolling right turns the ball clockwise, so each later frame turns the bands clockwise.
+            var band = Palette.Shade(Palette.PearlShade, 0.8f);
+            float a = -frame * 22.5f * Mathf.Deg2Rad;
+            float inner = (r - 0.5f) * (r - 0.5f);
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    if (!c.Filled(x, y)) continue;
+                    float px = x + 0.5f - cx, py = y + 0.5f - cy;
+                    if (px * px + py * py > inner) continue;
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float th = a + i * Mathf.PI * 0.5f;
+                        float dist = Mathf.Abs(px * Mathf.Sin(th) - py * Mathf.Cos(th));
+                        if (dist < 0.5f) { c.Set(x, y, band); break; }
+                    }
+                }
+
+            c.Set(Mathf.FloorToInt(cx - r * 0.5f), Mathf.FloorToInt(cy + r * 0.5f), Palette.Cream);
+            c.Outline(Palette.Ink);
+            return c.ToSprite($"Roller_{d}px_{frame}", new Vector2(cx, cy), ppu);
+        }
+
         Sprite BuildRing(int d)
         {
             var c = new PixelCanvas(d, d);
