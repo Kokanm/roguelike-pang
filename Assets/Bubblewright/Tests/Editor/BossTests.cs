@@ -520,10 +520,28 @@ namespace Bubblewright.Tests
 
         // ------------------------------------------------------------------ walkability
 
+        /// <summary>The dodger's jump: feet height and upward speed, with the same numbers as Wick's jump.</summary>
+        struct Hop
+        {
+            public float y, vy;
+            public bool InAir => y > 0f || vy > 0f;
+
+            public void Start() => vy = Tuning.I.JumpSpeed;
+
+            public void Step(float dt)
+            {
+                if (!InAir) return;
+                vy -= Tuning.I.JumpGravity * dt;
+                y += vy * dt;
+                if (y <= 0f) { y = 0f; vy = 0f; }
+            }
+        }
+
         /// <summary>
         /// Hits Wick takes in 30 s against one boss. Each bullet that touches him counts once and is removed; there is
         /// no invulnerability, so standing still is punished for every bullet. Balloons are left out: they are ordinary
-        /// bubbles, shot and dodged as in any stage.
+        /// bubbles, shot and dodged as in any stage. Bouncy bullets hop too low to walk under, so the dodger also jumps
+        /// when one is within 1.5 units of him horizontally and below 1 unit high.
         /// </summary>
         int HitsIn30Seconds(int world, bool dodge)
         {
@@ -534,16 +552,30 @@ namespace Bubblewright.Tests
             boss.OnShoot = (from, dir) => flights.Add(Bullet.Flight.Aimed(from, dir * t.bulletSpeed));
             boss.OnBouncy = (from, dir, n) => flights.Add(Bullet.Flight.BouncyFrom(from, dir, n));
             float x = 0f;
+            var hop = new Hop();
             SlideIn(boss, WickCentreAt(x));
             int hits = 0;
             for (int i = 0; i < 60 * 30; i++)
             {
-                if (dodge) x = Clamp(x + Dodge(x, flights, boss.Centre.x) * t.runSpeed * Dt);
+                if (dodge)
+                {
+                    if (!hop.InAir && ShouldJump(x, flights)) hop.Start();
+                    x = Clamp(x + Dodge(x, hop, flights, boss.Centre.x) * t.runSpeed * Dt);
+                    hop.Step(Dt);
+                }
                 boss.Tick(Dt, WickCentreAt(x), true);
-                hits += StepFlights(flights, x, Dt);
+                hits += StepFlights(flights, x, hop.y, Dt);
             }
             Object.DestroyImmediate(boss.gameObject);
             return hits;
+        }
+
+        static bool ShouldJump(float x, List<Bullet.Flight> flights)
+        {
+            foreach (var f in flights)
+                if (f.bouncy && f.CanHurt && Mathf.Abs(f.position.x - x) < 1.5f && f.position.y < 1f)
+                    return true;
+            return false;
         }
 
         static float Clamp(float x)
@@ -553,17 +585,17 @@ namespace Bubblewright.Tests
             return Mathf.Clamp(x, -limit, limit);
         }
 
-        static Rect WickBoxAt(float x)
+        static Rect WickBoxAt(float x, float feetY = 0f)
         {
             var t = Tuning.I;
-            return new Rect(x - t.hitbox.x * 0.5f, 0f, t.hitbox.x, t.hitbox.y);
+            return new Rect(x - t.hitbox.x * 0.5f, feetY, t.hitbox.x, t.hitbox.y);
         }
 
-        /// <summary>Moves every bullet one step; the ones that hit Wick at x or leave are removed. Returns the hits.</summary>
-        static int StepFlights(List<Bullet.Flight> flights, float x, float dt)
+        /// <summary>Moves every bullet one step; the ones that hit Wick at x (feet at feetY) or leave are removed. Returns the hits.</summary>
+        static int StepFlights(List<Bullet.Flight> flights, float x, float feetY, float dt)
         {
             int hits = 0;
-            var box = WickBoxAt(x);
+            var box = WickBoxAt(x, feetY);
             for (int i = flights.Count - 1; i >= 0; i--)
             {
                 var f = flights[i];
@@ -585,9 +617,10 @@ namespace Bubblewright.Tests
 
         /// <summary>
         /// A simple dodger: it wants to walk away from the nearest threat (or back to the middle when there is none). It
-        /// looks 0.75 s ahead and takes that way if it is safe, otherwise standing or the other way, whichever is hit least.
+        /// looks 0.75 s ahead (finishing any jump it is in) and takes that way if it is safe, otherwise standing or the
+        /// other way, whichever is hit least.
         /// </summary>
-        static int Dodge(float x, List<Bullet.Flight> flights, float bossX)
+        static int Dodge(float x, Hop hop, List<Bullet.Flight> flights, float bossX)
         {
             float y = Tuning.I.hitbox.y * 0.5f, best = float.MaxValue, threat = 0f;
             bool any = false;
@@ -602,20 +635,21 @@ namespace Bubblewright.Tests
             int choice = want, fewest = int.MaxValue;
             foreach (int dir in new[] { want, 0, -want, -1, 1 })
             {
-                int h = LookAhead(x, dir, flights, 0.75f);
+                int h = LookAhead(x, hop, dir, flights, 0.75f);
                 if (h < fewest) { fewest = h; choice = dir; }
             }
             return choice;
         }
 
-        static int LookAhead(float x, int dir, List<Bullet.Flight> flights, float seconds)
+        static int LookAhead(float x, Hop hop, int dir, List<Bullet.Flight> flights, float seconds)
         {
             var copy = new List<Bullet.Flight>(flights);
             int hits = 0;
             for (int i = 0; i < Mathf.RoundToInt(seconds * 60f); i++)
             {
                 x = Clamp(x + dir * Tuning.I.runSpeed * Dt);
-                hits += StepFlights(copy, x, Dt);
+                hop.Step(Dt);
+                hits += StepFlights(copy, x, hop.y, Dt);
             }
             return hits;
         }

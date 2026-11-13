@@ -66,7 +66,15 @@ The mouse acts as one finger, so you can try the touch controls on desktop: clic
 
 **Characters.** NEW RUN opens a select screen with four heroes: Wick (3 hearts, the all-rounder), Ember (2 hearts, fast), Moss (4 hearts, slow) and Flint (two cables, slow shots). Wick and Ember are open from the start; finishing the whole run with Wick unlocks Moss, and with Ember unlocks Flint. All stats live in one table in `Scripts/Player/Character.cs`; Wick's row follows `Tuning`. The debug panel has UNLOCK ALL (this session only) and RESET UNLOCKS.
 
-Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces). **SPIKES** adds Lava's retracting strips to the current stage in any world. The **THEME** button cycles the look of the current stage (sky, hills, tiles, ground strip) through the six world themes without changing the world.
+Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **5** spawns a big rolling balloon on the ground; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces). **SPIKES** adds Lava's retracting strips to the current stage in any world. The **THEME** button cycles the look of the current stage (sky, hills, tiles, ground strip) through the six world themes without changing the world.
+
+### Rolling balloons
+
+From world 2 on, about half of the normal stages also start with a pearl **rolling balloon** (one, or two from world 4). It rolls along the ground or a platform and turns around at walls, solid tiles, platform ends, gaps and other rolling balloons; it never falls off by itself, but drops to the next surface if the tile under it is broken. It ignores ice, sand and spikes. Touching it costs a heart (two in the storm, which also speeds it up). Jump over it, or shoot it: a big one (18 px) splits into two small ones (12 px) rolling apart, a small one is gone. A stage is cleared only when the bubbles and the rolling balloons are all gone. Boss stages never have them. Each big one costs 3 points of the stage's bubble budget. Numbers are in Tuning > Rolling balloons.
+
+### Balancing
+
+The debug panel (F2) has a **BALANCE** page: world and stage, layout, calm or hard, the bubble budget and how it was spent (bubbles per kind and size, rolling balloons), the time limit, spike strips, gaps and breakable tiles. **LOG RUN** prints the same numbers for all 36 stages of the current seed to the Console as tab-separated text, ready to paste into a spreadsheet. **WIN STAGE** clears the stage at once and **NEXT LAYOUT** re-rolls only the layout. Since jumping arrived, every bubble budget is multiplied by Tuning > Balance > Jump Budget Bonus (1.1), spikes stay down 2.6 s and up 1.8 s, and boss bouncy bullets hop 2.6 units high.
 
 ### Boss stages
 
@@ -75,7 +83,7 @@ The last stage of each world is a boss stage: one flat floor, no generated bubbl
 A boss mixes three attacks, each on its own timer (the first aimed shot comes 1.0 s after it slides in, the first bouncy bullet at 1.8 s, the first balloon at 3.0 s):
 
 - **Aimed bullets** fly straight at where Wick was: one, a fan of three across 30 degrees, or a burst of three 0.25 s apart. The boss's lower band blinks cream half a second before each aimed attack.
-- **Bouncy bullets** drop from the boss, hop along the floor toward Wick's side a set number of times (the top of each hop is 3.5 units up, so Wick can walk under it), bounce off the walls, then fall through the floor.
+- **Bouncy bullets** drop from the boss, hop along the floor toward Wick's side a set number of times (the top of each hop is only 2.6 units up, so Wick has to jump it or outrun it), bounce off the walls, then fall through the floor.
 - **Balloons**: the visor opens and an ordinary Gloop (L or M) drops out. It behaves, splits and scores like any bubble. No balloon comes while six bubbles are alive.
 
 | World | Boss | Size | Speed | Aimed | Bouncy | Balloons |
