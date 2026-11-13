@@ -151,7 +151,10 @@ namespace Bubblewright
 
                 float clearance = Clearance(pick.tier);
                 float minAbs = low ? 7f : WickGap;
-                float yLow = Mathf.Max(bands[band].x, clearance + 0.02f);
+                // The ground band sits below the usual start line on purpose. A layout that raises the floor
+                // further, such as the Sealed Vault's breakable box, is a hard limit: a band under it is not used.
+                float raisedFloor = bubbleMinY > 5f ? bubbleMinY : 0f;
+                float yLow = Mathf.Max(bands[band].x, clearance + 0.02f, raisedFloor);
                 float yHigh = Mathf.Min(bands[band].y, t.arenaHeight - clearance);
                 bool done = false;
                 if (yLow <= yHigh && t.HalfWidth - clearance > minAbs)

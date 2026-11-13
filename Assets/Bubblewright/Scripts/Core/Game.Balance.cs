@@ -15,43 +15,41 @@ namespace Bubblewright
         bool balancePage;
         string balanceNote;
 
-        void DrawBalancePage(int k)
+        void AddBalancePage(int k)
         {
-            GUILayout.BeginHorizontal();
-            if (DbgButton("BACK", k, 60)) balancePage = false;
-            if (DbgButton("WIN STAGE", k, 80)) DebugClearStage();
-            if (DbgButton("NEXT LAYOUT", k, 90)) DebugNextLayout();
-            if (DbgButton("NEXT RECIPE", k, 100)) DebugNextRecipe();
-            if (DbgButton("NEXT WAVE", k, 90)) DebugNextWave();
-            if (DbgButton("LOG RUN", k, 70)) DebugLogRun();
-            GUILayout.EndHorizontal();
+            AddDebugButton("BACK", k, true, () => { balancePage = false; debugScroll = Vector2.zero; }, minUnits: 60);
+            AddDebugButton("WIN STAGE", k, false, DebugClearStage, minUnits: 80);
+            AddDebugButton("NEXT LAYOUT", k, false, DebugNextLayout, minUnits: 90);
+            AddDebugButton("NEXT RECIPE", k, false, DebugNextRecipe, minUnits: 100);
+            AddDebugButton("NEXT WAVE", k, false, DebugNextWave, minUnits: 90);
+            AddDebugButton("LOG RUN", k, false, DebugLogRun, minUnits: 70);
 
             var r = stageReport;
             if (r == null)
             {
-                GUILayout.Label("No stage yet.", dbgLabel);
+                AddDebugLine("No stage yet.");
                 return;
             }
             string where = r.boss ? $"WORLD {r.World} BOSS" : $"WORLD {r.World}-{r.StageInWorld}";
             string recipe = string.IsNullOrEmpty(r.recipe) ? "" : $"  ·  RECIPE {r.recipe.ToUpperInvariant()}";
             if (!string.IsNullOrEmpty(r.pattern)) recipe += $"  ·  PATTERN {r.pattern.ToUpperInvariant()}";
-            GUILayout.Label($"{where} {Run.WorldNameOf(r.World).ToUpperInvariant()}  ·  {(r.hard ? "HARD" : "CALM")}  ·  LAYOUT {r.layout.ToUpperInvariant()}{recipe}" +
-                            (currentReroll > 0 ? $" (re-rolled {currentReroll})" : ""), dbgTitle);
+            AddDebugLine($"{where} {Run.WorldNameOf(r.World).ToUpperInvariant()}  ·  {(r.hard ? "HARD" : "CALM")}  ·  LAYOUT {r.layout.ToUpperInvariant()}{recipe}" +
+                         (currentReroll > 0 ? $" (re-rolled {currentReroll})" : ""), true);
             if (r.boss)
             {
-                GUILayout.Label("Boss stage: no generated bubbles and no rollers.", dbgLabel);
+                AddDebugLine("Boss stage: no generated bubbles and no rollers.");
             }
             else
             {
                 float left = Mathf.Max(0f, r.budget - r.bubbleSpend - r.rollerSpend);
-                GUILayout.Label($"BUDGET {r.budget:0.#}  =  bubbles {r.bubbleSpend:0.#}  +  rollers {r.rollerSpend:0.#}  +  unspent {left:0.#}", dbgLabel);
-                GUILayout.Label($"BUBBLES  {r.BubbleSummary()}", dbgLabel);
-                GUILayout.Label($"BUBBLES CERAMIC {r.ceramicBubbles}  ·  ROLLERS {r.rollers} big ({r.ceramicRollers} ceramic)  ·  STEEL {r.steelRollers}", dbgLabel);
+                AddDebugLine($"BUDGET {r.budget:0.#}  =  bubbles {r.bubbleSpend:0.#}  +  rollers {r.rollerSpend:0.#}  +  unspent {left:0.#}");
+                AddDebugLine($"BUBBLES  {r.BubbleSummary()}");
+                AddDebugLine($"BUBBLES CERAMIC {r.ceramicBubbles}  ·  ROLLERS {r.rollers} big ({r.ceramicRollers} ceramic)  ·  STEEL {r.steelRollers}");
             }
-            if (r.waves > 0) GUILayout.Label($"WAVES {r.waves} ({r.waveBubbles} bubbles)", dbgLabel);
-            GUILayout.Label($"TIME LIMIT {r.time:0} s  ·  SPIKE STRIPS {r.spikeStrips}  ·  GAPS {r.gaps}  ·  BREAKABLE TILES {r.breakables}", dbgLabel);
-            GUILayout.Label($"Jump budget bonus x{T.jumpBudgetBonus:0.##}  ·  hard budget x{T.hardBudgetScale:0.##}  ·  seed {run.Seed}", dbgLabel);
-            GUILayout.Label(balanceNote ?? $"LOG RUN prints all {T.RunLength} stages of this seed to the Console, tab-separated.", dbgLabel);
+            if (r.waves > 0) AddDebugLine($"WAVES {r.waves} ({r.waveBubbles} bubbles)");
+            AddDebugLine($"TIME LIMIT {r.time:0} s  ·  SPIKE STRIPS {r.spikeStrips}  ·  GAPS {r.gaps}  ·  BREAKABLE TILES {r.breakables}");
+            AddDebugLine($"Jump budget bonus x{T.jumpBudgetBonus:0.##}  ·  hard budget x{T.hardBudgetScale:0.##}  ·  seed {run.Seed}");
+            AddDebugLine(balanceNote ?? $"LOG RUN prints all {T.RunLength} stages of this seed to the Console, tab-separated.");
         }
 
         /// <summary>Same stage, same bubbles drawn from the stage's random numbers, a different layout.</summary>

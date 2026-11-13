@@ -656,7 +656,7 @@ namespace Bubblewright
 
         void OnGUI()
         {
-            int k = Mathf.Max(1, Mathf.FloorToInt(Mathf.Min(Screen.width / (float)T.referenceResolution.x, Screen.height / (float)T.referenceResolution.y)));
+            int k = DebugPanelLayout.Scale(Screen.width, Screen.height);
             if (textStyle == null)
             {
                 textStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperLeft, wordWrap = false };
