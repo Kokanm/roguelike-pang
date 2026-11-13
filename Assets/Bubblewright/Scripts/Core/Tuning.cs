@@ -77,10 +77,16 @@ namespace Bubblewright
         };
         public KindSpec[] kinds =
         {
-            new KindSpec { kind = BubbleKind.Gloop,    color = Palette.Coral, children = 2, peakScale = 1f,   speedScale = 1f,   bounceTimeScale = 1f },
-            new KindSpec { kind = BubbleKind.Trigloop, color = Palette.Azure, children = 3, peakScale = 1f,   speedScale = 1f,   bounceTimeScale = 1f },
-            new KindSpec { kind = BubbleKind.Lead,     color = Palette.Plum,  children = 2, peakScale = 0.7f, speedScale = 1.4f, bounceTimeScale = 0.6f },
-            new KindSpec { kind = BubbleKind.Lucky,    color = Palette.Lemon, children = 2, peakScale = 1f,   speedScale = 1f,   bounceTimeScale = 1f },
+            new KindSpec { kind = BubbleKind.Gloop,    color = Palette.Coral, children = 2, peakScale = 1f,   speedScale = 1f,   bounceTimeScale = 1f, largestTier = 0 },
+            new KindSpec { kind = BubbleKind.Trigloop, color = Palette.Azure, children = 3, peakScale = 1f,   speedScale = 1f,   bounceTimeScale = 1f, largestTier = 0 },
+            new KindSpec { kind = BubbleKind.Lead,     color = Palette.Plum,  children = 2, peakScale = 0.7f, speedScale = 1.4f, bounceTimeScale = 0.6f, largestTier = 0 },
+            new KindSpec { kind = BubbleKind.Lucky,    color = Palette.Lemon,   children = 2, peakScale = 1f, speedScale = 1f, bounceTimeScale = 1f, largestTier = 0 },
+            new KindSpec { kind = BubbleKind.Clinger,  color = Palette.Clinger, children = 2, peakScale = 1f, speedScale = 1f, bounceTimeScale = 1f, largestTier = 0 },
+            new KindSpec { kind = BubbleKind.Sinker,   color = Palette.Sinker,  children = 2, peakScale = 1f, speedScale = 1f, bounceTimeScale = 1f, largestTier = 1 },
+            new KindSpec { kind = BubbleKind.Frost,    color = Palette.Frost,   children = 2, peakScale = 1f, speedScale = 1f, bounceTimeScale = 1f, largestTier = 0 },
+            new KindSpec { kind = BubbleKind.Ghost,    color = Palette.Ghost,   children = 2, peakScale = 1f, speedScale = 1f, bounceTimeScale = 1f, largestTier = 0 },
+            new KindSpec { kind = BubbleKind.Scorch,   color = Palette.Scorch,  children = 2, peakScale = 1f, speedScale = 1f, bounceTimeScale = 1f, largestTier = 0 },
+            new KindSpec { kind = BubbleKind.Drifter,  color = Palette.Drifter, children = 2, peakScale = 1f, speedScale = 1f, bounceTimeScale = 1f, largestTier = 1 },
         };
         [Tooltip("How high (units) children are kicked up and out when their parent pops.")]
         public float childKickHeight = 2f;
@@ -145,8 +151,8 @@ namespace Bubblewright
         public float budgetPerStage = 2f;
         [Tooltip("Budget cost per tier: XL, L, M, S.")]
         public float[] tierCost = { 8f, 4f, 2f, 1f };
-        [Tooltip("Cost multiplier per kind: Gloop, Trigloop, Lead, Lucky. A Trigloop XL takes 40 pops instead of 15.")]
-        public float[] kindCostScale = { 1f, 2f, 1.25f, 1f };
+        [Tooltip("Cost multiplier per kind, in BubbleKind order: Gloop 1, Trigloop 2, Lead 1.25, Lucky 1, Clinger 1, Sinker 1.25, Frost 1.25, Ghost 1.5, Scorch 1.5, Drifter 1.25.")]
+        public float[] kindCostScale = { 1f, 2f, 1.25f, 1f, 1f, 1.25f, 1.25f, 1.5f, 1.5f, 1.25f };
         [Tooltip("Most bubbles at the start of a stage = startBubblesBase + (world + 1) / 2 (whole-number division); leftover budget is dropped.")]
         public int startBubblesBase = 3;
         [Tooltip("Trigloops can appear from this stage of the run on.")]
@@ -375,7 +381,7 @@ namespace Bubblewright
         }
     }
 
-    public enum BubbleKind { Gloop, Trigloop, Lead, Lucky }
+    public enum BubbleKind { Gloop, Trigloop, Lead, Lucky, Clinger, Sinker, Frost, Ghost, Scorch, Drifter }
 
     [Serializable]
     public struct TierSpec
@@ -397,6 +403,8 @@ namespace Bubblewright
         public float peakScale;
         public float speedScale;
         public float bounceTimeScale;
+        [Tooltip("Largest tier this kind comes in: 0 XL, 1 L.")]
+        public int largestTier;
     }
 
     [Serializable]
