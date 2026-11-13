@@ -13,13 +13,17 @@ namespace Bubblewright.Tests
             Assert.AreEqual(3, tuning.giantsMaxLate);
             Assert.AreEqual(4, tuning.giantsLateFromWorld);
             Assert.NotNull(tuning.recipes);
-            Assert.AreEqual(5, tuning.recipes.Length);
+            Assert.AreEqual(6, tuning.recipes.Length);
 
             Expect(tuning.recipes[0], RecipeId.Mixed, "Mixed", 1, 0, 3, 1f, 0, 0f, 0, -1f, false);
             Expect(tuning.recipes[1], RecipeId.Giants, "Giants", 1, 0, 0, 1f, 2, 0f, 0, -1f, false);
             Expect(tuning.recipes[2], RecipeId.Swarm, "Swarm", 1, 2, 3, 2f, 0, 0f, 0, -1f, false);
             Expect(tuning.recipes[3], RecipeId.RollingFloor, "Rolling floor", 2, 0, 3, 1f, 3, 0.6f, 4, -1f, false);
             Expect(tuning.recipes[4], RecipeId.HardShell, "Hard shell", 3, 0, 3, 1f, 0, 0f, 0, 0.7f, true);
+            Expect(tuning.recipes[5], RecipeId.Reinforcements, "Reinforcements", 2, 0, 3, 1f, 0, 0f, 0, -1f, false);
+            Assert.AreEqual(2, tuning.recipes[5].waves);
+            Assert.AreEqual(0.5f, tuning.recipes[5].startShare);
+            Assert.AreEqual(1.15f, tuning.recipes[5].timeScale);
             foreach (var row in tuning.recipes) Assert.IsTrue(row.inPool, row.name);
             Assert.AreSame(tuning.recipes[0], tuning.Recipe(RecipeId.Mixed));
             Assert.AreSame(tuning.recipes[0], tuning.Recipe((RecipeId)99), "an unknown id falls back to the first row");

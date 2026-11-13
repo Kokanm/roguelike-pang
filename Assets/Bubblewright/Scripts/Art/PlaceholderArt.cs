@@ -349,6 +349,58 @@ namespace Bubblewright
             return s;
         }
 
+        Sprite[,] ghostFaded; // [tier, 0 faint / 1 strong], built on first use
+
+        /// <summary>
+        /// A faded Ghost: no ink outline, a see-through body and a broken rim in the Ghost colour. Strong is the brighter
+        /// frame the Ghost alternates with while it flickers before turning solid again.
+        /// </summary>
+        public Sprite GhostFaded(int tier, bool strong)
+        {
+            var t = Tuning.I;
+            if (ghostFaded == null || ghostFaded.GetLength(0) != t.tiers.Length)
+                ghostFaded = new Sprite[t.tiers.Length, 2];
+            int si = strong ? 1 : 0;
+            var s = ghostFaded[tier, si];
+            if (s == null || s.texture == null)
+            {
+                int d = Mathf.RoundToInt(t.tiers[tier].diameter * ppu);
+                s = ghostFaded[tier, si] = BuildGhostFaded(t.Kind(BubbleKind.Ghost).color, d, strong);
+            }
+            return s;
+        }
+
+        Sprite BuildGhostFaded(Color32 color, int d, bool strong)
+        {
+            var c = new PixelCanvas(d, d);
+            float cx = d * 0.5f, cy = d * 0.5f, r = d * 0.5f - 1f;
+            int segments = d >= 24 ? 16 : 10;
+            var rim = Alpha(color, strong ? 0.95f : 0.8f);
+            var body = Alpha(color, strong ? 0.45f : 0.2f);
+            var ring = Alpha(color, strong ? 0.8f : 0.45f);
+            float ringRadius = Mathf.Max(4, Mathf.RoundToInt(r * 0.8f)) * 0.5f;
+            for (int y = 0; y < d; y++)
+                for (int x = 0; x < d; x++)
+                {
+                    float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (dist > r) continue;
+                    if (Mathf.Abs(dist - ringRadius) <= 0.5f) { c.Set(x, y, ring); continue; }
+                    if (r - dist <= 1.3f)
+                    {
+                        if (strong) { c.Set(x, y, rim); continue; }
+                        float turn = Mathf.Atan2(dy, dx) / (2f * Mathf.PI);
+                        int seg = Mathf.FloorToInt((turn < 0f ? turn + 1f : turn) * segments);
+                        if (seg % 2 == 0) c.Set(x, y, rim);
+                        continue;
+                    }
+                    c.Set(x, y, body);
+                }
+            return c.ToSprite($"Bubble_Ghost_{d}px_faded{(strong ? "_strong" : "")}", new Vector2(cx, cy), ppu);
+        }
+
+        static Color32 Alpha(Color32 c, float a) => new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
+
         Sprite BuildBubble(BubbleKind kind, Color32 color, int d, bool ceramic = false, bool cracked = false)
         {
             var c = new PixelCanvas(d, d);
@@ -1073,6 +1125,43 @@ namespace Bubblewright
             var sprite = c.ToSprite($"Bullet_{theme.name}", new Vector2(3.5f, 3.5f), ppu);
             bulletCache[theme.name] = sprite;
             return sprite;
+        }
+
+        Sprite waveMarker, waveMarkerLine;
+
+        /// <summary>
+        /// The warning at the ceiling before a wave bubble drops in: a 9 x 8 px lemon triangle pointing down, flat side
+        /// up, with an ink exclamation mark and the usual outline. The pivot is the middle of its top edge.
+        /// </summary>
+        public Sprite WaveMarker
+        {
+            get
+            {
+                if (waveMarker != null && waveMarker.texture != null) return waveMarker;
+                var c = new PixelCanvas(11, 10);
+                int[] widths = { 1, 3, 3, 5, 7, 7, 9, 9 }; // from the bottom row (y 0) up to the flat top (y 7)
+                for (int y = 0; y < widths.Length; y++)
+                    c.Rect(1 + (9 - widths[y]) / 2, 1 + y, widths[y], 1, Palette.Lemon);
+                c.Outline(Palette.Ink);
+                c.Rect(5, 5, 1, 3, Palette.Ink); // the bar
+                c.Set(5, 3, Palette.Ink);        // the dot
+                waveMarker = c.ToSprite("WaveMarker", new Vector2(5.5f, 10f), ppu);
+                return waveMarker;
+            }
+        }
+
+        /// <summary>The dotted line under a marker: 1 x 30 px, lemon, 2 px on and 2 px off, no outline. Pivot at the top.</summary>
+        public Sprite WaveMarkerLine
+        {
+            get
+            {
+                if (waveMarkerLine != null && waveMarkerLine.texture != null) return waveMarkerLine;
+                var c = new PixelCanvas(1, 30);
+                for (int y = 0; y < 30; y++)
+                    if (y % 4 >= 2) c.Set(0, y, Palette.Lemon);
+                waveMarkerLine = c.ToSprite("WaveMarkerLine", new Vector2(0.5f, 30f), ppu);
+                return waveMarkerLine;
+            }
         }
     }
 }

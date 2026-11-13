@@ -215,6 +215,7 @@ namespace Bubblewright
                 SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false, s.ceramic);
             }
             SpawnRollers(plan);
+            SetupWaves(plan);
             SetupBoss();
             SetState(State.Intro);
             SaveGame.Save(run);
@@ -253,6 +254,7 @@ namespace Bubblewright
         {
             state = s;
             stateTime = 0f;
+            if (s != State.Play) HideWaveMarkers();
         }
 
         Bubble SpawnBubble(BubbleKind kind, int tier, Vector2 pos, int dir, float vy, bool child, bool ceramic = false)
@@ -370,6 +372,7 @@ namespace Bubblewright
 
             for (int i = 0; i < bubbles.Count; i++) bubbles[i].Tick(BubbleDt(dt));
             TickRollers(dt);
+            TickWaves(dt);
 
             foreach (var h in harpoons)
             {
@@ -412,7 +415,7 @@ namespace Bubblewright
 
             // A boss stage is cleared by the boss falling (after its defeat sequence), not by an empty bubble list.
             // A normal stage needs every bubble and every rolling balloon gone (hit ones stay in their lists until they pop).
-            bool cleared = boss != null ? TickBossPlay(dt) : StageCleared(bubbles.Count + hitBubbles.Count, RequiredRollers());
+            bool cleared = boss != null ? TickBossPlay(dt) : StageClearedWithWaves(bubbles.Count + hitBubbles.Count, RequiredRollers(), WavesDone);
             if (state == State.Play && cleared)
             {
                 slowMo = T.lastPopSlowMo;
@@ -429,7 +432,7 @@ namespace Bubblewright
 
         // ------------------------------------------------------------------ storm timer
 
-        float StageTimeLimit => run.IsBossStage ? StageGenerator.BossTime(run.IsHard) : StageGenerator.StageTime(run.Stage, run.IsHard);
+        float StageTimeLimit => run.IsBossStage ? StageGenerator.BossTime(run.IsHard) : StageGenerator.StageTime(run.Stage, run.IsHard) * stageTimeScale;
 
         /// <summary>The storm speeds every bubble up by playing their motion faster; their arcs stay the same shape.</summary>
         float BubbleDt(float dt) => storm ? dt * T.stormSpeed : dt;
@@ -824,6 +827,7 @@ namespace Bubblewright
             string text = storm ? "STORM" : $"{Mathf.FloorToInt(Mathf.Ceil(left) / 60f)}:{Mathf.CeilToInt(left) % 60:00}";
             // On a boss stage the text moves down to the row under the health bar.
             Centered(text, topLeft.y + pad + 2 * k + (boss != null ? 4 * k : 0), 8 * k, storm || warn ? UiText.Warning : UiText.Primary);
+            DrawWavePips(topLeft, topRight, pad, k);
         }
 
         GUIStyle cardStyle;
