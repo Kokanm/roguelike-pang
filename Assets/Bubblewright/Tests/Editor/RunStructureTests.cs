@@ -47,20 +47,22 @@ namespace Bubblewright.Tests
         [Test]
         public void BudgetAndTimeFollowTheFormulas()
         {
-            // budget = 8 + 6 * (world - 1) + 2 * (stage in world - 1); time = 60 + 8 * (world - 1) + 4 * (stage in world - 1)
-            Assert.AreEqual(8f, StageGenerator.Budget(1), 0.001f);
+            // budget = (8 + 6 * (world - 1) + 2 * (stage in world - 1)) * jump bonus; time = 60 + 8 * (world - 1) + 4 * (stage in world - 1)
+            float j = Tuning.I.jumpBudgetBonus;
+            Assert.AreEqual(1.1f, j, 0.0001f);
+            Assert.AreEqual(8f * j, StageGenerator.Budget(1), 0.001f);
             Assert.AreEqual(60f, StageGenerator.StageTime(1), 0.001f);
 
             // stage 9 = world 2, stage 3 in the world
-            Assert.AreEqual(8f + 6f + 4f, StageGenerator.Budget(9), 0.001f);
+            Assert.AreEqual((8f + 6f + 4f) * j, StageGenerator.Budget(9), 0.001f);
             Assert.AreEqual(60f + 8f + 8f, StageGenerator.StageTime(9), 0.001f);
 
             // stage 31 = world 6, stage 1 in the world
-            Assert.AreEqual(8f + 30f, StageGenerator.Budget(31), 0.001f);
+            Assert.AreEqual((8f + 30f) * j, StageGenerator.Budget(31), 0.001f);
             Assert.AreEqual(60f + 40f, StageGenerator.StageTime(31), 0.001f);
 
             // the boss stage follows the same budget and time rules (the boss stage itself spawns no bubbles)
-            Assert.AreEqual(8f + 10f, StageGenerator.Budget(6), 0.001f);
+            Assert.AreEqual((8f + 10f) * j, StageGenerator.Budget(6), 0.001f);
             Assert.AreEqual(60f + 20f, StageGenerator.StageTime(6), 0.001f);
         }
 

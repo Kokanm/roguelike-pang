@@ -127,6 +127,7 @@ namespace Bubblewright
                 if (kb.digit2Key.wasPressedThisFrame) DebugSpawn = 2;
                 if (kb.digit3Key.wasPressedThisFrame) DebugSpawn = 3;
                 if (kb.digit4Key.wasPressedThisFrame) DebugSpawn = 4;
+                if (kb.digit5Key.wasPressedThisFrame) DebugSpawn = 5; // a rolling balloon
                 DebugToggleHitboxes = kb.f1Key.wasPressedThisFrame;
                 DebugTestLayoutPressed = kb.f3Key.wasPressedThisFrame;
                 PausePressed |= kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame;
@@ -188,7 +189,7 @@ namespace Bubblewright
             confirm |= Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space)
                        || Input.GetKeyDown(KeyCode.JoystickButton7) || Input.GetKeyDown(KeyCode.JoystickButton0);
             any |= Input.anyKeyDown;
-            for (int d = 1; d <= 4; d++) if (Input.GetKeyDown(KeyCode.Alpha0 + d)) DebugSpawn = d;
+            for (int d = 1; d <= 5; d++) if (Input.GetKeyDown(KeyCode.Alpha0 + d)) DebugSpawn = d; // 5: a rolling balloon
             DebugToggleHitboxes = Input.GetKeyDown(KeyCode.F1);
             DebugTestLayoutPressed = Input.GetKeyDown(KeyCode.F3);
             PausePressed = Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P) || Input.GetKeyDown(KeyCode.JoystickButton7);

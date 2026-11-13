@@ -168,12 +168,15 @@ namespace Bubblewright
             StartStage();
         }
 
-        void StartStage()
+        /// <summary>layoutReroll above 0 re-rolls only the layout (debug NEXT LAYOUT).</summary>
+        void StartStage(int layoutReroll = 0)
         {
             touchView.gameObject.SetActive(true);
+            currentReroll = layoutReroll;
             StagePlan plan = testLayout
                 ? StageGenerator.Generate(run, CurrentTestLayout)
-                : StageGenerator.Generate(run);
+                : StageGenerator.Generate(run, layoutReroll);
+            stageReport = StageReport.From(run.Stage, plan, run.IsHard);
             Map = plan.map;
             debugSurface = -1;
             debugTheme = -1;
@@ -183,6 +186,7 @@ namespace Bubblewright
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
+            ClearRollers();
             ClearPickups();
             ClearBoss();
             fx.Clear();
@@ -202,6 +206,7 @@ namespace Bubblewright
                 int tier = Mathf.Clamp(s.tier, 0, T.tiers.Length - 1);
                 SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false);
             }
+            SpawnRollers(plan);
             SetupBoss();
             SetState(State.Intro);
             SaveGame.Save(run);
@@ -281,6 +286,7 @@ namespace Bubblewright
                 return;
             }
             PopHitBubbles();
+            PopHitRollers();
             if (slowMo > 0f)
             {
                 slowMo -= dt;
@@ -353,6 +359,7 @@ namespace Bubblewright
             if (stormBanner > 0f) stormBanner -= dt;
 
             for (int i = 0; i < bubbles.Count; i++) bubbles[i].Tick(BubbleDt(dt));
+            TickRollers(dt);
 
             foreach (var h in harpoons)
             {
@@ -366,6 +373,8 @@ namespace Bubblewright
                 }
             }
 
+            HarpoonHitsRollers();
+
             spikes?.Tick(dt);
 
             if (!debug.god && !wick.Invulnerable && !wick.Dead)
@@ -378,6 +387,7 @@ namespace Bubblewright
                     break;
                 }
             }
+            RollersHurtWick(); // does nothing if a bubble already made him safe this frame
 
             // Spikes always take one heart, including during the storm. A bubble hit this frame already made him safe.
             if (spikes != null && !debug.god && !wick.Invulnerable && !wick.Dead &&
@@ -385,7 +395,8 @@ namespace Bubblewright
                 HurtWick(spikeX, 1);
 
             // A boss stage is cleared by the boss falling (after its defeat sequence), not by an empty bubble list.
-            bool cleared = boss != null ? TickBossPlay(dt) : bubbles.Count == 0 && hitBubbles.Count == 0;
+            // A normal stage needs every bubble and every rolling balloon gone (hit ones stay in their lists until they pop).
+            bool cleared = boss != null ? TickBossPlay(dt) : StageCleared(bubbles.Count + hitBubbles.Count, rollers.Count + hitRollers.Count);
             if (state == State.Play && cleared)
             {
                 slowMo = T.lastPopSlowMo;
@@ -444,6 +455,7 @@ namespace Bubblewright
         {
             wick.Tick(0f, 0f, dt, false);
             for (int i = 0; i < bubbles.Count; i++) bubbles[i].Tick(BubbleDt(dt));
+            TickRollers(dt);
             if (stateTime > 0.8f && input.ConfirmPressed) OpenTitle();
         }
 
@@ -594,7 +606,10 @@ namespace Bubblewright
             if (input.DebugTestLayoutPressed && (state == State.Play || state == State.Intro))
                 ToggleTestLayout();
             if (input.DebugSpawn > 0 && !paused && (state == State.Play || state == State.Intro))
-                DebugSpawn((BubbleKind)(input.DebugSpawn - 1));
+            {
+                if (input.DebugSpawn == 5) DebugSpawnRoller();
+                else DebugSpawn((BubbleKind)(input.DebugSpawn - 1));
+            }
         }
 
         void DebugSpawn(BubbleKind kind)
@@ -675,7 +690,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
-                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   Pad: stick/d-pad + A, B/Y jump   1-4: spawn   F1: hitboxes   F3: next layout",
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   Pad: stick/d-pad + A, B/Y jump   1-4: spawn   5: roller   F1: hitboxes   F3: next layout",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }
@@ -934,6 +949,7 @@ namespace Bubblewright
                 float r = b.Radius;
                 DrawWorldRect(new Rect(b.Position.x - r, b.Position.y - r, r * 2f, r * 2f), Palette.Cream);
             }
+            DrawRollerHitboxes();
         }
 
         void DrawWorldRect(Rect r, Color c)

@@ -22,9 +22,10 @@ namespace Bubblewright.Tests
         [Test]
         public void CycleHidesWarnsRisesThenHides()
         {
-            Assert.AreEqual(3f, Tuning.I.spikeDownTime, 0.0001f);
+            // Shorter down time and longer up time since step 20: spikes can be jumped now.
+            Assert.AreEqual(2.6f, Tuning.I.spikeDownTime, 0.0001f);
             Assert.AreEqual(0.5f, Tuning.I.spikeWarnTime, 0.0001f);
-            Assert.AreEqual(1.5f, Tuning.I.spikeUpTime, 0.0001f);
+            Assert.AreEqual(1.8f, Tuning.I.spikeUpTime, 0.0001f);
             Assert.AreEqual(0.8f, Tuning.I.spikePhaseStep, 0.0001f);
             Assert.AreEqual(7, Tuning.I.spikeHeightPixels);
 
@@ -34,15 +35,15 @@ namespace Bubblewright.Tests
             spikes.Tick(1f);
             Assert.IsFalse(spikes.Hurts(standing, out _), "hidden at 1 s");
 
-            spikes.Tick(2.2f);
-            Assert.IsFalse(spikes.Hurts(standing, out _), "warning at 3.2 s");
+            spikes.Tick(1.8f);
+            Assert.IsFalse(spikes.Hurts(standing, out _), "warning at 2.8 s");
 
             spikes.Tick(0.6f);
-            Assert.IsTrue(spikes.Hurts(standing, out float centre), "raised at 3.8 s");
+            Assert.IsTrue(spikes.Hurts(standing, out float centre), "raised at 3.4 s");
             Assert.AreEqual(StripCentre(), centre, 0.02f);
 
-            spikes.Tick(1.4f);
-            Assert.IsFalse(spikes.Hurts(standing, out _), "hidden again at 5.2 s");
+            spikes.Tick(1.6f);
+            Assert.IsFalse(spikes.Hurts(standing, out _), "hidden again at 5.0 s (the cycle is 4.9 s)");
         }
 
         [Test]
