@@ -60,7 +60,10 @@ namespace Bubblewright
             float g = t.Gravity(b.Kind, b.Tier);
             float fullRise = v * v / (2f * g);
 
+            // b.Position is still where the bubble was before this landing step, a little above the surface,
+            // so look the surface up instead of trusting the bubble's own height.
             float bottom = b.Position.y - b.Radius;
+            if (map != null) bottom = Mathf.Max(0f, map.FloorBelow(b.Position.x, bottom + 0.01f));
             bool sand = map != null && map.SurfaceUnder(b.Position.x, bottom) == Surface.Sand;
             keep *= sand ? t.sinkerKeepSand : t.sinkerKeep;
 
