@@ -333,6 +333,7 @@ namespace Bubblewright
             new RecipeDef { id = RecipeId.Swarm, name = "Swarm", fromWorld = 1, minTier = 2, maxTier = 3, startCapScale = 2f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true },
             new RecipeDef { id = RecipeId.RollingFloor, name = "Rolling floor", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 3, rollerShare = 0.6f, rollerMax = 4, ceramicChance = -1f, allRollersCeramic = false, inPool = true },
             new RecipeDef { id = RecipeId.HardShell, name = "Hard shell", fromWorld = 3, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = 0.7f, allRollersCeramic = true, inPool = true },
+            new RecipeDef { id = RecipeId.Reinforcements, name = "Reinforcements", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, waves = 2, startShare = 0.5f, timeScale = 1.15f },
         };
         [Tooltip("Bubbles a Giants stage may start with from Giants Late From World on, in place of that row's Start Cap Max.")]
         public int giantsMaxLate = 3;
@@ -347,6 +348,16 @@ namespace Bubblewright
                     if (row != null && row.id == id) return row;
             return recipes != null && recipes.Length > 0 ? recipes[0] : null;
         }
+
+        [Header("Reinforcements")]
+        [Tooltip("A wave is called when this many enemies or fewer are left on screen.")]
+        public int waveEnemiesLeft = 2;
+        [Tooltip("Seconds after the previous group arrived before the next wave is called anyway.")]
+        public float waveMaxWait = 20f;
+        [Tooltip("Seconds a warning marker blinks at the ceiling before its bubble drops in.")]
+        public float waveWarningTime = 1.2f;
+        [Tooltip("A marker never appears closer than this many units, sideways, to Wick.")]
+        public float waveSafeDistance = 4f;
 
         [Header("Balance")]
         [Tooltip("Every bubble budget is multiplied by this, because jumping makes dodging easier.")]

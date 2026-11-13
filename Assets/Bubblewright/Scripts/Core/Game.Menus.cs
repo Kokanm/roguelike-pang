@@ -316,6 +316,8 @@ namespace Bubblewright
             bubbles.Clear();
             hitBubbles.Clear();
             ClearRollers();
+            waves = null;
+            HideWaveMarkers();
             if (boss != null && boss.Hp > 0) boss.Damage(boss.Hp);
             if (state == State.Intro)
             {

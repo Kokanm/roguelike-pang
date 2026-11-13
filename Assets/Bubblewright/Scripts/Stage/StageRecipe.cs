@@ -13,6 +13,7 @@ namespace Bubblewright
         Swarm,
         RollingFloor,
         HardShell,
+        Reinforcements,
     }
 
     /// <summary>
@@ -41,6 +42,12 @@ namespace Bubblewright
         public float ceramicChance = -1f;
         [Tooltip("Every non-steel rolling ball on the stage is ceramic.")]
         public bool allRollersCeramic;
+        [Tooltip("Waves of bubbles that drop in from the ceiling after the start. 0 means none.")]
+        public int waves;
+        [Tooltip("Share of the stage's bubble cost that is on screen at the start. The rest arrives in the waves. Only used when Waves is above 0.")]
+        public float startShare = 1f;
+        [Tooltip("Multiplies the stage's storm clock.")]
+        public float timeScale = 1f;
         [Tooltip("Off: the recipe is never drawn. A debug force can still use it.")]
         public bool inPool = true;
     }
