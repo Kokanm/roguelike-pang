@@ -45,6 +45,7 @@ namespace Bubblewright
             debugSurface = -1;
             debugTheme = -1;
             ClearSpikes();
+            ClearFlames();
             ClearPickups();
             HideHarpoons();
             fx.Clear();

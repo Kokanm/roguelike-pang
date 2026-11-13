@@ -187,6 +187,8 @@ namespace Bubblewright
             ApplyTheme(Themes.ForWorld(run.World));
             HidePathScene();
             SetupSpikes();
+            EnsureFlames();
+            ClearFlames();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
@@ -387,6 +389,7 @@ namespace Bubblewright
             HarpoonHitsRollers();
 
             spikes?.Tick(dt);
+            Flames?.Tick(Map, dt);
 
             if (!debug.god && !wick.Invulnerable && !wick.Dead)
             {
@@ -404,6 +407,11 @@ namespace Bubblewright
             if (spikes != null && !debug.god && !wick.Invulnerable && !wick.Dead &&
                 spikes.Hurts(wick.Hitbox, out float spikeX))
                 HurtWick(spikeX, 1);
+
+            // Flames hurt like spikes: one heart, also during the storm.
+            if (Flames != null && !debug.god && !wick.Invulnerable && !wick.Dead &&
+                Flames.Hurts(wick.Hitbox, out float flameX))
+                HurtWick(flameX, 1);
 
             // A boss stage is cleared by the boss falling (after its defeat sequence), not by an empty bubble list.
             // A normal stage needs every bubble and every rolling balloon gone (hit ones stay in their lists until they pop).
@@ -967,6 +975,7 @@ namespace Bubblewright
             DrawStageHitboxes();
             DrawBossHitboxes();
             spikes?.ForEachRaisedHurtBox(DrawSpikeHurtBox);
+            Flames?.ForEachHurtBox(DrawFlameHurtBox);
             DrawWorldRect(wick.Hitbox, Palette.Mint);
             foreach (var b in bubbles)
             {
