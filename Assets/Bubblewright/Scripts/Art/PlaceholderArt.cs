@@ -1089,5 +1089,42 @@ namespace Bubblewright
             bulletCache[theme.name] = sprite;
             return sprite;
         }
+
+        Sprite waveMarker, waveMarkerLine;
+
+        /// <summary>
+        /// The warning at the ceiling before a wave bubble drops in: a 9 x 8 px lemon triangle pointing down, flat side
+        /// up, with an ink exclamation mark and the usual outline. The pivot is the middle of its top edge.
+        /// </summary>
+        public Sprite WaveMarker
+        {
+            get
+            {
+                if (waveMarker != null && waveMarker.texture != null) return waveMarker;
+                var c = new PixelCanvas(11, 10);
+                int[] widths = { 1, 3, 3, 5, 7, 7, 9, 9 }; // from the bottom row (y 0) up to the flat top (y 7)
+                for (int y = 0; y < widths.Length; y++)
+                    c.Rect(1 + (9 - widths[y]) / 2, 1 + y, widths[y], 1, Palette.Lemon);
+                c.Outline(Palette.Ink);
+                c.Rect(5, 5, 1, 3, Palette.Ink); // the bar
+                c.Set(5, 3, Palette.Ink);        // the dot
+                waveMarker = c.ToSprite("WaveMarker", new Vector2(5.5f, 10f), ppu);
+                return waveMarker;
+            }
+        }
+
+        /// <summary>The dotted line under a marker: 1 x 30 px, lemon, 2 px on and 2 px off, no outline. Pivot at the top.</summary>
+        public Sprite WaveMarkerLine
+        {
+            get
+            {
+                if (waveMarkerLine != null && waveMarkerLine.texture != null) return waveMarkerLine;
+                var c = new PixelCanvas(1, 30);
+                for (int y = 0; y < 30; y++)
+                    if (y % 4 >= 2) c.Set(0, y, Palette.Lemon);
+                waveMarkerLine = c.ToSprite("WaveMarkerLine", new Vector2(0.5f, 30f), ppu);
+                return waveMarkerLine;
+            }
+        }
     }
 }

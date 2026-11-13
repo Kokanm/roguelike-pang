@@ -316,6 +316,10 @@ namespace Bubblewright
         public string layoutName;
         /// <summary>The recipe that shaped this stage. Null on a boss stage and when no recipe was used.</summary>
         public string recipeName;
+        /// <summary>Bubbles that arrive after the start, one list per wave. Positions: only x is used (the wished entry point).</summary>
+        public List<List<SpawnSpec>> waves = new List<List<SpawnSpec>>();
+        /// <summary>Multiplies the stage's storm clock (1 unless the recipe says otherwise).</summary>
+        public float timeScale = 1f;
         /// <summary>The whole budget of the stage (jump bonus and hard world included), and the part rollers took.</summary>
         public float budget, rollerSpend;
     }
@@ -506,6 +510,9 @@ namespace Bubblewright
             var rollers = new List<RollerSpec>();
             float rollerSpend = AddRollers(map, stage, rng, ref budget, rollers, 0f, recipe);
             int maxBubbles = StartCap(stage, recipe);
+            bool hasWaves = recipe != null && recipe.waves > 0;
+            // With waves, pick for the whole budget: the start cap is raised so there is something left to send later.
+            if (hasWaves) maxBubbles = Mathf.RoundToInt(maxBubbles / Mathf.Max(0.05f, recipe.startShare));
             var picks = new List<(BubbleKind kind, int tier, bool ceramic)>();
             bool ceramicWorld = Run.WorldOf(stage) >= t.ceramicFromWorld;
 
@@ -542,6 +549,8 @@ namespace Bubblewright
                 budget -= cost;
                 picks.Add((kind, tier, ceramic));
             }
+            var waveLists = new List<List<SpawnSpec>>();
+            if (hasWaves) picks = SplitWaves(picks, recipe, rng, waveLists);
             if (stage > 1 && rng.NextDouble() < t.luckyChance) picks.Add((BubbleKind.Lucky, 2, false));
 
             // Biggest first. Flat stages assign the furthest random positions to the biggest bubbles.
@@ -573,8 +582,79 @@ namespace Bubblewright
                 map = map, spawns = specs, rollers = rollers, wickX = 0f,
                 layoutName = layout.name, recipeName = recipe == null ? null : recipe.name,
                 budget = fullBudget, rollerSpend = rollerSpend,
+                waves = waveLists, timeScale = recipe == null ? 1f : recipe.timeScale,
             };
         }
+
+        /// <summary>
+        /// Splits the picks of a Reinforcements stage. The biggest bubbles stay at the start until they cost half of
+        /// everything, but never more than 65% (a bubble that would push the start past that waits for a wave, unless it
+        /// is the only way to have a start group at all). The rest is dealt to the waves in turn, wave 1 first. An empty
+        /// wave is dropped, so a stage with few bubbles has fewer waves. Returns the start picks; fills waves.
+        /// </summary>
+        static List<(BubbleKind kind, int tier, bool ceramic)> SplitWaves(
+            List<(BubbleKind kind, int tier, bool ceramic)> picks, RecipeDef recipe, System.Random rng, List<List<SpawnSpec>> waves)
+        {
+            var t = Tuning.I;
+            var sorted = new List<(BubbleKind kind, int tier, bool ceramic)>(picks);
+            sorted.Sort((a, b) => a.tier.CompareTo(b.tier)); // biggest first
+            float total = 0f;
+            foreach (var p in sorted) total += PickCost(p);
+
+            var start = new List<(BubbleKind kind, int tier, bool ceramic)>();
+            var later = new List<(BubbleKind kind, int tier, bool ceramic)>();
+            float startCost = 0f;
+            foreach (var p in sorted)
+            {
+                float cost = PickCost(p);
+                bool enough = startCost >= recipe.startShare * total - 0.001f;
+                bool fits = start.Count == 0 || startCost + cost <= total * 0.65f + 0.001f;
+                if (!enough && fits)
+                {
+                    start.Add(p);
+                    startCost += cost;
+                }
+                else later.Add(p);
+            }
+
+            // Skipping big bubbles can leave the start too thin: bring the biggest waiting one that still fits back.
+            while (startCost < total * 0.35f && later.Count > 0)
+            {
+                int best = -1;
+                for (int i = 0; i < later.Count; i++)
+                {
+                    float cost = PickCost(later[i]);
+                    if (startCost + cost > total * 0.65f + 0.001f) continue;
+                    if (best < 0 || cost > PickCost(later[best])) best = i;
+                }
+                if (best < 0) break;
+                startCost += PickCost(later[best]);
+                start.Add(later[best]);
+                later.RemoveAt(best);
+            }
+
+            int count = Mathf.Max(1, recipe.waves);
+            var lists = new List<SpawnSpec>[count];
+            for (int i = 0; i < count; i++) lists[i] = new List<SpawnSpec>();
+            for (int i = 0; i < later.Count; i++)
+            {
+                var p = later[i];
+                float radius = t.tiers[p.tier].diameter * 0.5f;
+                float x = -t.HalfWidth + radius + (float)rng.NextDouble() * (2f * t.HalfWidth - 2f * radius);
+                lists[i % count].Add(new SpawnSpec
+                {
+                    kind = p.kind, tier = p.tier, ceramic = p.ceramic,
+                    position = new Vector2(x, 0f),
+                    direction = rng.NextDouble() < 0.5 ? -1 : 1,
+                });
+            }
+            foreach (var list in lists)
+                if (list.Count > 0) waves.Add(list);
+            return start;
+        }
+
+        static float PickCost((BubbleKind kind, int tier, bool ceramic) p) =>
+            Cost(p.kind, p.tier) * (p.ceramic ? Tuning.I.ceramicCostScale : 1f);
 
         /// <summary>Most bubbles placed before the free Lucky one. A null recipe keeps the usual cap.</summary>
         static int StartCap(int stage, RecipeDef recipe)
