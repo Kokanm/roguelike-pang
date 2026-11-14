@@ -29,14 +29,14 @@ namespace Bubblewright
             HideWaveMarkers();
             announcedMarkers.Clear();
             stageTimeScale = run != null && run.IsBossStage ? 1f : Mathf.Max(0.01f, plan.timeScale);
-            waves = plan.waves != null && plan.waves.Count > 0 && !run.IsBossStage ? new WaveDirector(plan.waves, bubbles.Count + RequiredRollers()) : null;
+            waves = plan.waves != null && plan.waves.Count > 0 && !run.IsBossStage ? new WaveDirector(plan.waves, RequiredBubbles() + RequiredRollers()) : null;
         }
 
         /// <summary>Plain dt, not the storm-scaled one: waves keep the same rule during the storm.</summary>
         void TickWaves(float dt)
         {
             if (waves == null) return;
-            int enemies = bubbles.Count + hitBubbles.Count + RequiredRollers();
+            int enemies = RequiredBubbles() + hitBubbles.Count + RequiredRollers();
             waves.Tick(dt, enemies, wick.transform.position.x, SpawnWaveBubble);
 
             announcedMarkers.RemoveWhere(m => !Contains(waves.Markers, m));
@@ -55,7 +55,7 @@ namespace Bubblewright
         {
             int tier = Mathf.Clamp(spec.tier, 0, T.tiers.Length - 1);
             float radius = T.tiers[tier].diameter * 0.5f;
-            var b = SpawnBubble(spec.kind, tier, new Vector2(x, T.arenaHeight - radius - 0.05f), spec.direction >= 0 ? 1 : -1, 0f, false, spec.ceramic);
+            var b = SpawnBubble(spec.kind, tier, new Vector2(x, T.arenaHeight - radius - 0.05f), spec.direction >= 0 ? 1 : -1, 0f, false, spec.ceramic, spec.pogo, spec.steel);
             if (storm) b.OnStorm();
         }
 

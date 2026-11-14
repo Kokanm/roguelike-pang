@@ -40,7 +40,7 @@ namespace Bubblewright
                     faded = true;
                     clock = 0f;
                     shownFrame = -1;
-                    b.SetSprite(PlaceholderArt.I.GhostFaded(b.Tier, false));
+                    ShowFaded(b, false);
                 }
             }
             else if (clock >= t.ghostFadedTime && !b.Overlaps(Game.WickBox))
@@ -56,10 +56,17 @@ namespace Bubblewright
                 if (frame != shownFrame)
                 {
                     shownFrame = frame;
-                    b.SetSprite(PlaceholderArt.I.GhostFaded(b.Tier, frame == 1));
+                    ShowFaded(b, frame == 1);
                 }
             }
             return false;
+        }
+
+        /// <summary>A round Ghost swaps to its faded sprite; a Ghost Pogo keeps its shape and is drawn faded.</summary>
+        static void ShowFaded(Bubble b, bool strong)
+        {
+            if (b.Pogo) b.GhostLook = strong ? PogoLook.GhostFlicker : PogoLook.GhostFaded;
+            else b.SetSprite(PlaceholderArt.I.GhostFaded(b.Tier, strong));
         }
 
         public override bool CanBeHit(Bubble b) => !faded;

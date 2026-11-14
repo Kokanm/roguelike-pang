@@ -234,8 +234,10 @@ namespace Bubblewright
             foreach (var s in plan.spawns)
             {
                 int tier = Mathf.Clamp(s.tier, 0, T.tiers.Length - 1);
-                SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false, s.ceramic);
+                SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false, s.ceramic, s.pogo, s.steel);
             }
+            foreach (var s in plan.steelPogos)
+                SpawnBubble(s.kind, Mathf.Clamp(s.tier, 0, T.tiers.Length - 1), s.position, 1, 0f, false, false, true, true);
             SpawnRollers(plan);
             SetupWaves(plan);
             SetupBoss();
@@ -279,13 +281,22 @@ namespace Bubblewright
             if (s != State.Play) HideWaveMarkers();
         }
 
-        Bubble SpawnBubble(BubbleKind kind, int tier, Vector2 pos, int dir, float vy, bool child, bool ceramic = false)
+        Bubble SpawnBubble(BubbleKind kind, int tier, Vector2 pos, int dir, float vy, bool child, bool ceramic = false,
+            bool pogo = false, bool steel = false)
         {
             // The velocity is given at creation so a kind's OnSpawn can read the direction.
             var v = new Vector2(dir * T.bubbleSpeedX * T.Kind(kind).speedScale, vy);
-            var b = Bubble.Create(bubbleRoot, kind, tier, pos, v, child, ceramic);
+            var b = Bubble.Create(bubbleRoot, kind, tier, pos, v, child, ceramic, pogo, steel);
             bubbles.Add(b);
             return b;
+        }
+
+        /// <summary>Bubbles that must be popped to clear the stage: all but steel Pogos.</summary>
+        int RequiredBubbles()
+        {
+            int n = 0;
+            for (int i = 0; i < bubbles.Count; i++) if (!bubbles[i].Steel) n++;
+            return n;
         }
 
         // ------------------------------------------------------------------ loop
@@ -404,6 +415,14 @@ namespace Bubblewright
                 if (!h.Active) continue;
                 for (int i = 0; i < bubbles.Count; i++)
                 {
+                    if (bubbles[i].Steel && h.Hits(bubbles[i]))
+                    {
+                        // A steel Pogo: the harpoon glances off.
+                        h.Hide();
+                        fx.Sparkle(bubbles[i].Position, Palette.SteelLight);
+                        Sfx.Play(Sound.Bounce, 1.8f, 0.5f);
+                        break;
+                    }
                     if (!bubbles[i].CanBeHit || !h.Hits(bubbles[i])) continue;
                     h.Hide();
                     Hit(bubbles[i]);
@@ -441,7 +460,7 @@ namespace Bubblewright
 
             // A boss stage is cleared by the boss falling (after its defeat sequence), not by an empty bubble list.
             // A normal stage needs every bubble and every rolling balloon gone (hit ones stay in their lists until they pop).
-            bool cleared = boss != null ? TickBossPlay(dt) : StageClearedWithWaves(bubbles.Count + hitBubbles.Count, RequiredRollers(), WavesDone);
+            bool cleared = boss != null ? TickBossPlay(dt) : StageClearedWithWaves(RequiredBubbles() + hitBubbles.Count, RequiredRollers(), WavesDone);
             if (state == State.Play && cleared)
             {
                 slowMo = T.lastPopSlowMo;
@@ -620,15 +639,33 @@ namespace Bubblewright
                 for (int i = 0; i < count; i++)
                 {
                     // Up and out: first child left, second right; a Trigloop's third follows the parent, kicked higher.
+                    // A Pogo's third child stays on the parent's spot.
                     int dir = i == 0 ? -1 : i == 1 ? 1 : parentDir;
                     float vy = i >= 2 ? kick * T.trigloopMiddleKick : kick;
-                    var pos = b.Position + new Vector2(dir * childR * 0.5f, 0f);
+                    var pos = b.Position + new Vector2(b.Pogo && i >= 2 ? 0f : dir * childR * 0.5f, 0f);
                     pos.y = Mathf.Max(pos.y, childR);
                     Map.ResolveCircle(ref pos, childR);
-                    SpawnBubble(b.Kind, next, pos, dir, vy, true);
+                    var child = SpawnBubble(b.Kind, next, pos, dir, vy, true, false, b.Pogo);
+                    if (b.Pogo && i < 2) child.StartHop(dir * PogoHopSpeed(b.Kind, next, pos, vy), PogoHopDistance(next));
                 }
             }
             Destroy(b.gameObject);
+        }
+
+        /// <summary>How far a Pogo child hops sideways after a pop.</summary>
+        float PogoHopDistance(int tier) => T.pogoHopWidths * T.tiers[tier].diameter;
+
+        /// <summary>The sideways speed that carries a Pogo child about its hop distance before it first lands.</summary>
+        float PogoHopSpeed(BubbleKind kind, int tier, Vector2 pos, float vy)
+        {
+            float g = T.Gravity(kind, tier);
+            float r = T.tiers[tier].diameter * 0.5f;
+            float floor = Map != null ? Mathf.Max(0f, Map.FloorBelow(pos.x, pos.y - r + 0.01f)) : 0f;
+            float drop = Mathf.Max(0f, pos.y - r - floor);
+            // Time to rise with vy and fall back down to the floor: vy / g up, then sqrt(2 * height / g) down.
+            float flight = vy / g + Mathf.Sqrt(2f * (drop + vy * vy / (2f * g)) / g);
+            if (kind == BubbleKind.Drifter) flight = 0.4f; // no gravity: the hop is a short sideways push
+            return PogoHopDistance(tier) / Mathf.Max(0.2f, flight);
         }
 
         void UpdateCamera(float dt)
@@ -673,6 +710,13 @@ namespace Bubblewright
         {
             float x = Random.Range(-T.HalfWidth + 3f, T.HalfWidth - 3f);
             SpawnBubble(kind, StageGenerator.LargestTier(kind), new Vector2(x, 9f), Random.value < 0.5f ? -1 : 1, 0f, false, ceramic);
+        }
+
+        void DebugSpawnPogo(BubbleKind kind, bool steel = false)
+        {
+            float x = Random.Range(-T.HalfWidth + 3f, T.HalfWidth - 3f);
+            int tier = steel ? Mathf.Clamp(T.pogoSteelTier, 0, T.tiers.Length - 1) : StageGenerator.LargestTier(kind);
+            SpawnBubble(kind, tier, new Vector2(x, 9f), 1, 0f, false, false, true, steel);
         }
 
         // ------------------------------------------------------------------ HUD (placeholder, OnGUI)

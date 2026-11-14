@@ -5,6 +5,8 @@ namespace Bubblewright
     /// <summary>
     /// The Drifter: no gravity. It flies a constant diagonal at Tuning.drifterSpeed and reflects off the walls, floor,
     /// ceiling and every side of a platform. Its centre arrow always points along the flight.
+    /// A Drifter Pogo flies straight up and down at the same speed, between the surface below and the one above, and
+    /// only moves sideways during the hop after a pop.
     /// </summary>
     public class DrifterBehavior : BubbleBehavior
     {
@@ -17,7 +19,7 @@ namespace Bubblewright
             float v = t.drifterSpeed / Mathf.Sqrt(2f);
             signX = b.Velocity.x < 0f ? -1 : 1;
             signY = child ? 1 : (b.Position.y >= 7f ? -1 : 1);
-            b.Velocity = new Vector2(signX * v, signY * v);
+            b.Velocity = b.Pogo ? new Vector2(0f, signY * t.drifterSpeed) : new Vector2(signX * v, signY * v);
             UpdateSprite(b);
         }
 
@@ -27,7 +29,19 @@ namespace Bubblewright
             // Keep the speed constant even if something nudged the velocity.
             var vel = b.Velocity;
             float v = Tuning.I.drifterSpeed / Mathf.Sqrt(2f);
-            vel = new Vector2(Mathf.Sign(vel.x == 0f ? signX : vel.x) * v, Mathf.Sign(vel.y == 0f ? signY : vel.y) * v);
+            if (b.Pogo)
+            {
+                // Straight up and down at full speed; a hop after a pop adds a short sideways part.
+                float hop = b.Hopping ? vel.x : 0f;
+                if (b.Hopping)
+                {
+                    b.HopLeft -= Mathf.Abs(hop) * dt;
+                    if (b.HopLeft <= 0f) { b.EndHop(); hop = 0f; }
+                }
+                vel = new Vector2(hop, Mathf.Sign(vel.y == 0f ? signY : vel.y) * Tuning.I.drifterSpeed);
+            }
+            else
+                vel = new Vector2(Mathf.Sign(vel.x == 0f ? signX : vel.x) * v, Mathf.Sign(vel.y == 0f ? signY : vel.y) * v);
 
             var p = (Vector2)b.transform.position;
             int steps = Mathf.Max(1, Mathf.CeilToInt(vel.magnitude * dt / 0.4f));
@@ -39,7 +53,12 @@ namespace Bubblewright
                 Contact c = Game.Map.ResolveCircle(ref p, b.Radius);
                 if (c.landed) { vel.y = Mathf.Abs(vel.y); reflected = true; }
                 if (c.bumped) { vel.y = -Mathf.Abs(vel.y); reflected = true; }
-                if (c.side != 0) { vel.x = c.side * Mathf.Abs(vel.x); reflected = true; }
+                if (c.side != 0)
+                {
+                    if (b.Pogo) vel.x = 0f;
+                    else { vel.x = c.side * Mathf.Abs(vel.x); reflected = true; }
+                }
+                if (b.Pogo && b.Hopping && (c.landed || c.bumped)) { b.EndHop(); vel.x = 0f; }
             }
             b.transform.position = p;
             b.Velocity = vel;
@@ -48,14 +67,18 @@ namespace Bubblewright
                 b.StartSquash();
                 Sfx.Play(Sound.Bounce, 1f + b.Tier * 0.25f, 0.5f - b.Tier * 0.1f);
             }
-            signX = vel.x < 0f ? -1 : 1;
+            if (vel.x != 0f || !b.Pogo) signX = vel.x < 0f ? -1 : 1;
             signY = vel.y < 0f ? -1 : 1;
             UpdateSprite(b);
             return true;
         }
 
+        /// <summary>A Drifter Pogo points up on the surface below and down at the surface above.</summary>
+        public override float PogoMorph(Bubble b) => PogoShape.BetweenSurfaces(b);
+
         void UpdateSprite(Bubble b)
         {
+            if (b.Pogo) return; // a Pogo draws its own frames, arrow included
             if (b.Ceramic) return; // a ceramic Drifter keeps its ceramic sprite and does not turn
             if (shownX == signX && shownY == signY) return;
             shownX = signX;

@@ -321,6 +321,15 @@ namespace Bubblewright
                 AddDebugButton(spawn.ToString().ToUpperInvariant(), k, false, () => DebugSpawn(spawn), minUnits: 62);
             }
 
+            AddDebugInline("SPAWN POGO", k, true, 60);
+            foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
+            {
+                if (kind == BubbleKind.Lucky) continue;
+                var spawn = kind;
+                AddDebugButton(spawn.ToString().ToUpperInvariant(), k, false, () => DebugSpawnPogo(spawn), minUnits: 62);
+            }
+            AddDebugButton("STEEL", k, false, () => DebugSpawnPogo(BubbleKind.Gloop, true), minUnits: 62);
+
             AddDebugLine("ADD UPGRADE (no limits)");
             for (int i = 0; i < Upgrade.All.Length; i++)
             {

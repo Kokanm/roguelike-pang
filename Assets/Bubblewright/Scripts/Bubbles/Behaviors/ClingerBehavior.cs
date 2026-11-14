@@ -8,6 +8,9 @@ namespace Bubblewright
     /// Tuning.clingerMaxStickTime. Then it wobbles, lets go away from the
     /// surface, and sticks again to the next surface it touches. Under a ceiling Wick crosses by passing below it, on a
     /// floor by being above it (a jump or a platform), on a right wall by being to its left, and so on.
+    /// A Clinger Pogo never moves sideways, so it only holds floors, ceilings and platform faces above and below: it
+    /// hangs point-down, drops when Wick walks under it, stands point-up on what it lands on, and when Wick comes within
+    /// reach sideways it leaps straight up to whatever is above and hangs there again.
     /// </summary>
     public class ClingerBehavior : BubbleBehavior
     {
@@ -24,6 +27,7 @@ namespace Bubblewright
         Vector2 normal;   // points out of the surface it holds, into the arena
         Vector2 anchor;   // the point of the surface it holds
         bool onTile;
+        bool climbing;    // a Pogo leaping up from a floor to the surface above
         int tileCol, tileRow;
         GameObject pad;
 
@@ -31,6 +35,7 @@ namespace Bubblewright
         /// <summary>Points out of the surface it holds: (0,-1) ceiling, (0,1) floor, (-1,0) right wall, (1,0) left wall.</summary>
         public Vector2 Normal => normal;
         public bool OnTile => onTile;
+        public bool Climbing => climbing;
 
         Tuning T => Tuning.I;
 
@@ -118,6 +123,7 @@ namespace Bubblewright
             float r = b.Radius;
             float reach = T.clingerTriggerX;
             if (normal.y < 0f) return box.yMax < p.y - r && Mathf.Abs(box.center.x - p.x) <= reach; // ceiling: Wick below
+            if (normal.y > 0f && b.Pogo) return Mathf.Abs(box.center.x - p.x) <= reach + r;        // floor, Pogo: Wick close by
             if (normal.y > 0f) return box.yMin > p.y + r && Mathf.Abs(box.center.x - p.x) <= reach; // floor: Wick above
             float off = Mathf.Max(0f, Mathf.Max(box.yMin - p.y, p.y - box.yMax));
             if (off > reach) return false;
@@ -132,6 +138,31 @@ namespace Bubblewright
             if (dir == 0) dir = 1;
             b.VisualScale = Vector2.one;
             float fast = b.SpeedX * T.clingerLetGoSpeedScale; // it springs off faster than a Gloop moves
+            if (b.Pogo)
+            {
+                ReleasePad();
+                if (normal.y < 0f)
+                {
+                    b.Velocity = new Vector2(0f, -T.clingerDropSpeed); // drop straight down
+                    b.ResetMorph();
+                }
+                else
+                {
+                    // Leap straight up to the surface above: just fast enough to reach it (a bounce once the storm is on).
+                    float g = T.Gravity(b.Kind, b.Tier);
+                    float vy = T.BounceSpeed(b.Kind, b.Tier);
+                    if (!stormFree && Game.Map != null)
+                    {
+                        float top = b.Position.y + b.Radius;
+                        float gapAbove = Game.Map.CeilingAbove(b.Position.x, top - 0.01f, out _) - top;
+                        vy = Mathf.Sqrt(2f * g * (Mathf.Max(0f, gapAbove) + 0.3f));
+                        climbing = true;
+                    }
+                    b.Velocity = new Vector2(0f, vy);
+                    b.BeginBounce(b.Position.y - b.Radius);
+                }
+                return;
+            }
             if (normal.y < 0f) b.Velocity = new Vector2(dir * fast, -T.clingerDropSpeed);              // drop
             else if (normal.y > 0f) b.Velocity = new Vector2(dir * fast, T.BounceSpeed(b.Kind, b.Tier)); // a Gloop's bounce height
             else b.Velocity = new Vector2(normal.x * fast, 0f);                                        // push off the wall
@@ -151,6 +182,7 @@ namespace Bubblewright
             float stepDt = dt / steps;
             for (int i = 0; i < steps; i++)
             {
+                if (b.Pogo && !b.Hopping) v.x = 0f;
                 p.x += v.x * stepDt;
                 p.y += v.y * stepDt - 0.5f * g * stepDt * stepDt;
                 v.y -= g * stepDt;
@@ -158,6 +190,12 @@ namespace Bubblewright
 
                 Contact contact = Game.Map != null ? Game.Map.ResolveCircle(ref p, b.Radius) : default;
                 if (!contact.landed && !contact.bumped && contact.side == 0) continue;
+                if (b.Pogo)
+                {
+                    if (contact.side != 0) v.x = 0f;               // a hop stops at a wall
+                    if (contact.landed || contact.bumped) { b.EndHop(); v.x = 0f; }
+                    if (!contact.landed && !contact.bumped) continue; // walls are never held
+                }
 
                 if (!stormFree && restick <= 0f)
                 {
@@ -174,6 +212,13 @@ namespace Bubblewright
                     v.y = T.BounceSpeed(b.Kind, b.Tier);
                     b.StartSquash();
                     Sfx.Play(Sound.Bounce, 1f + b.Tier * 0.25f, 0.5f - b.Tier * 0.1f);
+                    if (b.Pogo)
+                    {
+                        climbing = false;
+                        b.Velocity = v;
+                        b.transform.position = p;
+                        b.BeginBounce(p.y - b.Radius);
+                    }
                 }
                 if (contact.bumped) v.y = -Mathf.Abs(v.y);
                 if (contact.side != 0) v.x = contact.side * Mathf.Abs(v.x);
@@ -232,6 +277,7 @@ namespace Bubblewright
         {
             state = State.Stuck;
             stuckTime = 0f;
+            climbing = false;
             normal = n;
             anchor = b.Position - n * b.Radius;
             onTile = tile;
@@ -244,8 +290,26 @@ namespace Bubblewright
         /// <summary>Keeps it resting on the surface while a freshly split child grows to full size.</summary>
         void Seat(Bubble b)
         {
-            var at = anchor + normal * b.Radius;
+            var at = anchor + normal * SeatDistance(b);
             b.transform.position = new Vector3(at.x, at.y, b.transform.position.z);
+        }
+
+        /// <summary>
+        /// How far its centre sits from the surface it holds. A Pogo hanging from a ceiling points down, and its flat
+        /// top is lower than the top of its circle, so it is lifted until that top touches the surface.
+        /// </summary>
+        float SeatDistance(Bubble b)
+        {
+            if (!b.Pogo || normal.y >= 0f) return b.Radius;
+            float px = T.Pixel;
+            float shape = 2f * Mathf.Max(px, b.Radius - px) * PogoShape.HeightShare;
+            return Mathf.Max(0.05f, shape + px - b.Radius);
+        }
+
+        public override float PogoMorph(Bubble b)
+        {
+            if (state != State.Free) return normal.y < 0f ? 1f : 0f;
+            return climbing ? PogoShape.BetweenSurfaces(b) : -1f;
         }
 
         /// <summary>
@@ -268,7 +332,7 @@ namespace Bubblewright
             // The pad's top faces the surface it holds and overlaps the edge of the bubble there.
             float angle = Mathf.Atan2(-normal.y, -normal.x) * Mathf.Rad2Deg - 90f;
             pad.transform.rotation = Quaternion.Euler(0f, 0f, angle);
-            var at = b.Position - normal * (b.Radius - sprite.bounds.extents.y);
+            var at = anchor + normal * sprite.bounds.extents.y;
             pad.transform.position = new Vector3(at.x, at.y, b.transform.position.z);
             var sr = pad.AddComponent<SpriteRenderer>();
             sr.sprite = sprite;
