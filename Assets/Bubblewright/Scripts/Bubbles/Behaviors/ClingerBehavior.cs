@@ -61,6 +61,8 @@ namespace Bubblewright
 
         public override bool Tick(Bubble b, float dt)
         {
+            // A Clinger born during the storm (a pop's children, a debug spawn) never sticks either.
+            if (!stormFree && Game.StormOn) OnStorm(b);
             switch (state)
             {
                 case State.Free:
