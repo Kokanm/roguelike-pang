@@ -15,12 +15,16 @@ namespace Bubblewright
         public string layout;
         /// <summary>The recipe that shaped the stage, or null when it had none.</summary>
         public string recipe;
+        /// <summary>The placement pattern, or null when the stage had no recipe.</summary>
+        public string pattern;
         public bool hard, boss;
         public float budget, bubbleSpend, rollerSpend;
         /// <summary>Bubbles at the start, [kind, tier]. The free Lucky bubble is counted but costs nothing.</summary>
         public int[,] bubbles;
         public int rollers, steelRollers, ceramicRollers, ceramicBubbles;
         public float time;
+        /// <summary>Waves that drop in after the start, and the bubbles in them (also counted in bubbles and bubbleSpend).</summary>
+        public int waves, waveBubbles;
         public int spikeStrips, gaps, breakables;
 
         public int World => Run.WorldOf(stage);
@@ -35,6 +39,7 @@ namespace Bubblewright
                 stage = stage,
                 layout = plan.layoutName ?? "?",
                 recipe = plan.recipeName,
+                pattern = plan.patternName,
                 hard = hard,
                 boss = Run.IsBossStageNumber(stage),
                 bubbles = new int[kinds, t.tiers.Length],
@@ -51,7 +56,7 @@ namespace Bubblewright
                     }
                 }
             r.budget = r.boss ? 0f : plan.budget;
-            r.time = r.boss ? StageGenerator.BossTime(hard) : StageGenerator.StageTime(stage, hard);
+            r.time = r.boss ? StageGenerator.BossTime(hard) : StageGenerator.StageTime(stage, hard) * plan.timeScale;
             if (plan.spawns != null)
             {
                 foreach (var s in plan.spawns)
@@ -63,6 +68,20 @@ namespace Bubblewright
                         r.bubbleSpend += StageGenerator.BubbleCost(s.kind, tier) * (s.ceramic ? t.ceramicCostScale : 1f);
                 }
             }
+            if (plan.waves != null)
+                foreach (var wave in plan.waves)
+                {
+                    if (wave.Count == 0) continue;
+                    r.waves++;
+                    foreach (var s in wave)
+                    {
+                        int tier = Mathf.Clamp(s.tier, 0, t.tiers.Length - 1);
+                        r.bubbles[(int)s.kind, tier]++;
+                        r.waveBubbles++;
+                        if (s.ceramic) r.ceramicBubbles++;
+                        r.bubbleSpend += StageGenerator.BubbleCost(s.kind, tier) * (s.ceramic ? t.ceramicCostScale : 1f);
+                    }
+                }
             var map = plan.map;
             if (map != null)
             {
@@ -96,11 +115,11 @@ namespace Bubblewright
         public static string Header()
         {
             var t = Tuning.I;
-            var sb = new StringBuilder("stage\tworld\tlayout\trecipe\troad\tbudget\tbubble spend\troller spend\tleft");
+            var sb = new StringBuilder("stage\tworld\tlayout\trecipe\tpattern\troad\tbudget\tbubble spend\troller spend\tleft");
             foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
                 for (int tier = 0; tier < t.tiers.Length; tier++)
                     sb.Append('\t').Append(kind).Append(' ').Append(t.tiers[tier].name);
-            sb.Append("\tceramic bubbles\trollers\tceramic rollers\tsteel rollers\ttime\tspike strips\tgaps\tbreakables");
+            sb.Append("\tceramic bubbles\trollers\tceramic rollers\tsteel rollers\ttime\tspike strips\tgaps\tbreakables\twaves\twave bubbles");
             return sb.ToString();
         }
 
@@ -113,6 +132,7 @@ namespace Bubblewright
             sb.Append(Run.WorldNameOf(World)).Append('\t');
             sb.Append(layout).Append('\t');
             sb.Append(recipe ?? "").Append('\t');
+            sb.Append(pattern ?? "").Append('\t');
             sb.Append(hard ? "hard" : "calm").Append('\t');
             sb.Append(budget.ToString("0.#", inv)).Append('\t');
             sb.Append(bubbleSpend.ToString("0.#", inv)).Append('\t');
@@ -129,6 +149,8 @@ namespace Bubblewright
             sb.Append('\t').Append(spikeStrips);
             sb.Append('\t').Append(gaps);
             sb.Append('\t').Append(breakables);
+            sb.Append('\t').Append(waves);
+            sb.Append('\t').Append(waveBubbles);
             return sb.ToString();
         }
 

@@ -5,7 +5,7 @@ namespace Bubblewright
 {
     public partial class Game
     {
-        readonly List<StageMap.SpikeStrip> generatedSpikes = new List<StageMap.SpikeStrip>();
+        List<StageMap.SpikeStrip> generatedSpikes = new List<StageMap.SpikeStrip>();
         Spikes spikes;
 
         /// <summary>Remember the stage's own strips, then add Lava placement when the debug toggle is on and the stage has none.</summary>

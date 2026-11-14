@@ -31,6 +31,7 @@ namespace Bubblewright
             Map = StageMap.Flat();
             ApplyTheme(Themes.ForWorld(1));
             ClearSpikes();
+            ClearFlames();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();
