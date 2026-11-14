@@ -83,6 +83,14 @@ namespace Bubblewright
 
         public void StartSquash() => squashTimer = 0f;
 
+        /// <summary>Puts back the sprite this bubble normally shows: ordinary, ceramic, or cracked ceramic.</summary>
+        public void RestoreSprite()
+        {
+            if (sr == null) return;
+            if (!Ceramic) sr.sprite = PlaceholderArt.I.Bubbles[(int)Kind, Tier];
+            else sr.sprite = PlaceholderArt.I.CeramicBubble(Kind, Tier, Armor < Mathf.Max(2, T.ceramicHits));
+        }
+
         void TickBounce(float dt)
         {
             float g = T.Gravity(Kind, Tier);

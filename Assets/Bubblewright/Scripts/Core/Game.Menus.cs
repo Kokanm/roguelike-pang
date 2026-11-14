@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Bubblewright
@@ -18,6 +19,15 @@ namespace Bubblewright
         DebugOptions debug;
         bool paused, debugPanel;
         int pauseSelected, debugStage = 1;
+        Vector2 debugScroll;
+        readonly List<DebugEntry> debugEntries = new List<DebugEntry>();
+
+        struct DebugEntry
+        {
+            public DebugControl control;
+            public bool on;
+            public System.Action click;
+        }
         Rect pauseButtonRect;
         readonly Rect[] pauseRects = new Rect[4];
         static readonly string[] PauseItems = { "RESUME", "RESTART RUN", "QUIT TO TITLE", "DEBUG" };
@@ -40,7 +50,11 @@ namespace Bubblewright
                 Resume();
                 return true; // skip this frame too, so the tap that resumed does not also fire
             }
-            if (input.DebugPanelPressed) debugPanel = !debugPanel;
+            if (input.DebugPanelPressed)
+            {
+                debugPanel = !debugPanel;
+                debugScroll = Vector2.zero;
+            }
 
             int dir = input.Move > 0f ? 1 : input.Move < 0f ? -1 : 0;
             if (dir != 0 && dir != lastMoveDir) pauseSelected = (pauseSelected + dir + PauseItems.Length) % PauseItems.Length;
@@ -62,6 +76,7 @@ namespace Bubblewright
             debugPanel = openDebug;
             pauseSelected = openDebug ? 3 : 0;
             debugStage = run.Stage;
+            debugScroll = Vector2.zero;
             lastMoveDir = input.Move > 0f ? 1 : input.Move < 0f ? -1 : 0;
             for (int i = 0; i < pauseRects.Length; i++) pauseRects[i] = Rect.zero;
             Sfx.Play(Sound.Turn);
@@ -80,7 +95,7 @@ namespace Bubblewright
                 case 0: Resume(); break;
                 case 1: Resume(); SaveGame.Delete(); StartRun(run.Character); break;
                 case 2: Resume(); SaveGame.UpdateHearts(wick.Hearts); OpenTitle(); break;
-                case 3: debugPanel = !debugPanel; break;
+                case 3: debugPanel = !debugPanel; debugScroll = Vector2.zero; break;
             }
         }
 
@@ -115,12 +130,24 @@ namespace Bubblewright
         {
             FillRect(new Rect(0, 0, Screen.width, Screen.height), WithAlpha(Palette.Ink, UiText.DimAlpha));
             DrawRoadStrip(k, run.World);
-            float top = debugPanel ? 12 * k : Screen.height * 0.5f - 40 * k;
+            float w = 96 * k, h = 22 * k, gap = 8 * k;
+            float top, y;
+            Rect debugPanelRect = default;
+            if (debugPanel)
+            {
+                // Buttons sit in the gap Panel() leaves above itself. 18k is the title plus a gap.
+                debugPanelRect = DebugPanelLayout.Panel(Screen.width, Screen.height, k);
+                y = debugPanelRect.y - 4f * k - h;
+                top = y - 18f * k;
+            }
+            else
+            {
+                top = Screen.height * 0.5f - 40 * k;
+                y = top + 20 * k;
+            }
             Centered("PAUSED", top, 14 * k, UiText.Primary);
 
-            float w = 96 * k, h = 22 * k, gap = 8 * k;
             float x0 = (Screen.width - (PauseItems.Length * w + (PauseItems.Length - 1) * gap)) * 0.5f;
-            float y = top + 20 * k;
             bool canHover = !Application.isMobilePlatform;
             Vector2 mouse = Event.current.mousePosition;
             bool mouseMoved = (mouse - lastMouse).sqrMagnitude > 0.5f;
@@ -136,7 +163,7 @@ namespace Bubblewright
                 DrawMenuButton(pauseRects[i], label, canHover && i == pauseSelected, k);
             }
 
-            if (debugPanel) DrawDebugPanel(new Rect(Screen.width * 0.5f - 220 * k, y + h + 10 * k, 440 * k, Screen.height - (y + h + 18 * k)), k);
+            if (debugPanel) DrawDebugPanel(debugPanelRect, k);
             else Centered(touchUi ? "Tap the pause button to resume" : "Esc, P or Start to resume    F2: debug", y + h + 12 * k, 8 * k, UiText.Secondary);
         }
 
@@ -186,7 +213,7 @@ namespace Bubblewright
                 var dbgFillHover = Framed(UiText.DebugButtonHover, k);
                 var dbgFillOn = Framed(UiText.DebugButtonOn, k);
                 var dbgFillPressed = Framed(Palette.Mint, k);
-                dbgButton = new GUIStyle(GUI.skin.button) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = false };
+                dbgButton = new GUIStyle(GUI.skin.button) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
                 dbgButton.normal.background = dbgFill;
                 dbgButton.hover.background = dbgFillHover;
                 dbgButton.active.background = dbgFillPressed;
@@ -197,25 +224,35 @@ namespace Bubblewright
                 dbgOn.normal.background = dbgOn.focused.background = dbgFillOn;
                 dbgOn.hover.background = dbgFillOn;
                 SetTextColor(dbgOn, Palette.Ink);
-                dbgLabel = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
+                dbgLabel = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft };
                 SetTextColor(dbgLabel, UiText.Secondary);
-                dbgTitle = new GUIStyle(dbgLabel) { fontStyle = FontStyle.Bold };
+                dbgTitle = new GUIStyle(dbgLabel) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
                 SetTextColor(dbgTitle, UiText.Warning);
             }
             foreach (var st in new[] { dbgButton, dbgOn, dbgLabel, dbgTitle })
-            {
-                st.fontSize = 8 * k;
-                st.fixedHeight = 15 * k;
-                st.margin = new RectOffset(k, k, k, k);
-                st.padding = new RectOffset(3 * k, 3 * k, 0, 0);
-                st.border = new RectOffset(k, k, k, k);
-            }
+                DebugPanelLayout.ApplyMetrics(st, k);
         }
 
-        bool DbgButton(string text, int k, float width) => GUILayout.Button(text, dbgButton, GUILayout.Width(width * k));
+        void AddDebugButton(string text, int k, bool rowBreak, System.Action click, bool on = false, float minUnits = 0f)
+        {
+            debugEntries.Add(new DebugEntry
+            {
+                control = DebugControl.Button(text, minUnits * k, rowBreak),
+                on = on,
+                click = click,
+            });
+        }
 
-        bool DbgToggle(string text, bool on, int k, float width) =>
-            GUILayout.Button(text + (on ? ": ON" : ": OFF"), on ? dbgOn : dbgButton, GUILayout.Width(width * k)) ? !on : on;
+        void AddDebugToggle(string text, int k, bool rowBreak, bool on, System.Action<bool> set, float minUnits)
+        {
+            AddDebugButton(text + (on ? ": ON" : ": OFF"), k, rowBreak, () => set(!on), on, minUnits);
+        }
+
+        void AddDebugInline(string text, int k, bool rowBreak, float minUnits) =>
+            debugEntries.Add(new DebugEntry { control = DebugControl.Inline(text, minUnits * k, rowBreak) });
+
+        void AddDebugLine(string text, bool title = false) =>
+            debugEntries.Add(new DebugEntry { control = DebugControl.Line(text, title) });
 
         void DrawDebugPanel(Rect panel, int k)
         {
@@ -223,91 +260,106 @@ namespace Bubblewright
             FillRect(panel, Palette.Lilac);
             FillRect(Grow(panel, -k), WithAlpha(Palette.Ink, 0.95f));
 
-            GUILayout.BeginArea(Grow(panel, -6 * k));
-            GUILayout.Label("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, F1 hitboxes, F3 test layout", dbgTitle);
-            if (balancePage)
-            {
-                DrawBalancePage(k);
-                GUILayout.EndArea();
-                return;
-            }
+            debugEntries.Clear();
+            AddDebugLine("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, F1 hitboxes, F3 test layout", true);
+            if (balancePage) AddBalancePage(k);
+            else AddDebugPage(k);
+            DrawDebugEntries(DebugPanelLayout.Content(panel, k), k);
+        }
 
-            GUILayout.BeginHorizontal();
-            debug.god = DbgToggle("GOD MODE", debug.god, k, 100);
-            debug.freezeTimer = DbgToggle("FREEZE TIMER", debug.freezeTimer, k, 100);
-            showHitboxes = DbgToggle("HITBOXES", showHitboxes, k, 100);
-            if (DbgButton(testLayout ? $"LAYOUT: {CurrentTestLayout.name.ToUpperInvariant()}" : "TEST LAYOUT", k, 100))
-                ToggleTestLayout();
-            GUILayout.EndHorizontal();
+        void AddDebugPage(int k)
+        {
+            AddDebugToggle("GOD MODE", k, true, debug.god, v => debug.god = v, 100);
+            AddDebugToggle("FREEZE TIMER", k, false, debug.freezeTimer, v => debug.freezeTimer = v, 100);
+            AddDebugToggle("HITBOXES", k, false, showHitboxes, v => showHitboxes = v, 100);
+            AddDebugButton(testLayout ? $"LAYOUT: {CurrentTestLayout.name.ToUpperInvariant()}" : "TEST LAYOUT", k, false, ToggleTestLayout, minUnits: 100);
 
-            GUILayout.BeginHorizontal();
-            if (DbgButton("STORM NOW", k, 80) && !storm && (state == State.Play || state == State.Intro)) StartStorm();
-            if (DbgButton("CLEAR STAGE", k, 80)) DebugClearStage();
-            if (DbgButton("FULL HEARTS", k, 80)) DebugSetHearts(run.MaxHearts, run.MaxHearts);
-            if (DbgButton("+1 HEART SLOT", k, 90)) DebugSetHearts(run.MaxHearts + 1, wick.Hearts + 1);
-            GUILayout.EndHorizontal();
+            AddDebugButton("STORM NOW", k, true, () => { if (!storm && (state == State.Play || state == State.Intro)) StartStorm(); }, minUnits: 80);
+            AddDebugButton("CLEAR STAGE", k, false, DebugClearStage, minUnits: 80);
+            AddDebugButton("FULL HEARTS", k, false, () => DebugSetHearts(run.MaxHearts, run.MaxHearts), minUnits: 80);
+            AddDebugButton("+1 HEART SLOT", k, false, () => DebugSetHearts(run.MaxHearts + 1, wick.Hearts + 1), minUnits: 90);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("STAGE", dbgLabel, GUILayout.Width(40 * k));
-            if (DbgButton("-W", k, 22)) debugStage = Mathf.Max(1, debugStage - T.stagesPerWorld);
-            if (DbgButton("-", k, 18)) debugStage = Mathf.Max(1, debugStage - 1);
-            GUILayout.Label($"{Run.WorldOf(debugStage)}-{Run.StageInWorldOf(debugStage)}", dbgLabel, GUILayout.Width(28 * k));
-            if (DbgButton("+", k, 18)) debugStage = Mathf.Min(T.RunLength, debugStage + 1);
-            if (DbgButton("+W", k, 22)) debugStage = Mathf.Min(T.RunLength, debugStage + T.stagesPerWorld);
-            if (DbgButton("GO TO STAGE", k, 80)) DebugGoToStage(debugStage);
-            GUILayout.EndHorizontal();
+            AddDebugInline("STAGE", k, true, 40);
+            AddDebugButton("-W", k, false, () => debugStage = Mathf.Max(1, debugStage - T.stagesPerWorld), minUnits: 22);
+            AddDebugButton("-", k, false, () => debugStage = Mathf.Max(1, debugStage - 1), minUnits: 18);
+            AddDebugInline($"{Run.WorldOf(debugStage)}-{Run.StageInWorldOf(debugStage)}", k, false, 28);
+            AddDebugButton("+", k, false, () => debugStage = Mathf.Min(T.RunLength, debugStage + 1), minUnits: 18);
+            AddDebugButton("+W", k, false, () => debugStage = Mathf.Min(T.RunLength, debugStage + T.stagesPerWorld), minUnits: 22);
+            AddDebugButton("GO TO STAGE", k, false, () => DebugGoToStage(debugStage), minUnits: 80);
 
-            GUILayout.BeginHorizontal();
-            if (DbgButton(DebugSurfaceLabel(), k, 100)) DebugCycleSurface();
-            if (DbgButton(DebugThemeLabel(), k, 120)) DebugCycleTheme();
-            if (DbgButton("BOSS -5 HP", k, 90)) DebugBossDamage(5);
-            if (DbgButton("BALANCE", k, 80)) { balancePage = true; balanceNote = null; }
-            GUILayout.EndHorizontal();
+            AddDebugButton(DebugSurfaceLabel(), k, true, DebugCycleSurface, minUnits: 100);
+            AddDebugButton(DebugThemeLabel(), k, false, DebugCycleTheme, minUnits: 120);
+            AddDebugButton("BOSS -5 HP", k, false, () => DebugBossDamage(5), minUnits: 90);
+            AddDebugButton("BALANCE", k, false, () => { balancePage = true; balanceNote = null; debugScroll = Vector2.zero; }, minUnits: 80);
 
             if (boss != null)
             {
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("BOSS", dbgLabel, GUILayout.Width(40 * k));
-                if (DbgButton("AIMED", k, 60)) DebugBossAimed();
-                if (DbgButton("BOUNCY", k, 60)) DebugBossBouncy();
-                if (DbgButton("BALLOON", k, 70)) DebugBossBalloon();
-                GUILayout.EndHorizontal();
+                AddDebugInline("BOSS", k, true, 40);
+                AddDebugButton("AIMED", k, false, DebugBossAimed, minUnits: 60);
+                AddDebugButton("BOUNCY", k, false, DebugBossBouncy, minUnits: 60);
+                AddDebugButton("BALLOON", k, false, DebugBossBalloon, minUnits: 70);
             }
 
-            GUILayout.BeginHorizontal();
-            bool spikesOn = DbgToggle("SPIKES", debug.spikes, k, 90);
-            if (spikesOn != debug.spikes) SetDebugSpikes(spikesOn);
-            Unlocks.DebugAll = DbgToggle("UNLOCK ALL", Unlocks.DebugAll, k, 100);
-            if (DbgButton("RESET UNLOCKS", k, 100)) Unlocks.Reset();
-            GUILayout.EndHorizontal();
+            AddDebugToggle("SPIKES", k, true, debug.spikes, SetDebugSpikes, 90);
+            AddDebugToggle("UNLOCK ALL", k, false, Unlocks.DebugAll, v => Unlocks.DebugAll = v, 100);
+            AddDebugButton("RESET UNLOCKS", k, false, Unlocks.Reset, minUnits: 100);
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("SPAWN XL", dbgLabel, GUILayout.Width(52 * k));
+            AddDebugInline("SPAWN XL", k, true, 52);
             foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
-                if (kind <= BubbleKind.Lucky && DbgButton(kind.ToString().ToUpperInvariant(), k, 62)) DebugSpawn(kind);
-            if (DbgButton(DebugHardLabel(), k, 110)) DebugCycleHardWorld();
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("SPAWN NEW", dbgLabel, GUILayout.Width(52 * k));
-            foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
-                if (kind > BubbleKind.Lucky && DbgButton(kind.ToString().ToUpperInvariant(), k, 62)) DebugSpawn(kind);
-            GUILayout.EndHorizontal();
-
-            GUILayout.Label("ADD UPGRADE (no limits)", dbgLabel);
-            for (int row = 0; row < Upgrade.All.Length; row += 4)
             {
-                GUILayout.BeginHorizontal();
-                for (int i = row; i < Mathf.Min(row + 4, Upgrade.All.Length); i++)
-                {
-                    var u = Upgrade.All[i];
-                    int n = run.TimesTaken(u);
-                    if (DbgButton(n > 0 ? $"{u.Name} ({n})" : u.Name, k, 104)) DebugTake(u);
-                }
-                GUILayout.EndHorizontal();
+                if (kind > BubbleKind.Lucky) continue;
+                var spawn = kind;
+                AddDebugButton(spawn.ToString().ToUpperInvariant(), k, false, () => DebugSpawn(spawn), minUnits: 62);
             }
-            GUILayout.Label($"BUILD: {run.BuildSummary()}", dbgLabel);
-            GUILayout.EndArea();
+            AddDebugButton(DebugHardLabel(), k, false, DebugCycleHardWorld, minUnits: 110);
+
+            AddDebugInline("SPAWN NEW", k, true, 52);
+            foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
+            {
+                if (kind <= BubbleKind.Lucky) continue;
+                var spawn = kind;
+                AddDebugButton(spawn.ToString().ToUpperInvariant(), k, false, () => DebugSpawn(spawn), minUnits: 62);
+            }
+
+            AddDebugLine("ADD UPGRADE (no limits)");
+            for (int i = 0; i < Upgrade.All.Length; i++)
+            {
+                var upgrade = Upgrade.All[i];
+                int n = run.TimesTaken(upgrade);
+                AddDebugButton(n > 0 ? $"{upgrade.Name} ({n})" : upgrade.Name, k, i % 4 == 0, () => DebugTake(upgrade), minUnits: 104);
+            }
+            AddDebugLine($"BUILD: {run.BuildSummary()}");
+        }
+
+        void DrawDebugEntries(Rect view, int k)
+        {
+            var controls = new DebugControl[debugEntries.Count];
+            for (int i = 0; i < debugEntries.Count; i++) controls[i] = debugEntries[i].control;
+
+            var rects = DebugPanelLayout.PlaceInView(controls, view.width, view.height, k, dbgButton, dbgLabel, dbgTitle,
+                DebugPanelLayout.ScrollbarWidth(), out float contentWidth, out float contentHeight);
+            var content = new Rect(0f, 0f, contentWidth, Mathf.Max(contentHeight, 1f));
+            var scrollSkin = GUI.skin.scrollView;
+            GUI.skin.scrollView = GUIStyle.none;
+            debugScroll = GUI.BeginScrollView(view, debugScroll, content, false, false, GUIStyle.none, GUI.skin.verticalScrollbar);
+            try
+            {
+                for (int i = 0; i < debugEntries.Count; i++)
+                {
+                    var entry = debugEntries[i];
+                    var rect = rects[i];
+                    if (entry.control.kind == DebugControlKind.Button)
+                    {
+                        if (GUI.Button(rect, entry.control.text, entry.on ? dbgOn : dbgButton)) entry.click?.Invoke();
+                    }
+                    else GUI.Label(rect, entry.control.text, entry.control.title ? dbgTitle : dbgLabel);
+                }
+            }
+            finally
+            {
+                GUI.EndScrollView();
+                GUI.skin.scrollView = scrollSkin;
+            }
         }
 
         void DebugClearStage()
@@ -316,6 +368,8 @@ namespace Bubblewright
             bubbles.Clear();
             hitBubbles.Clear();
             ClearRollers();
+            waves = null;
+            HideWaveMarkers();
             if (boss != null && boss.Hp > 0) boss.Damage(boss.Hp);
             if (state == State.Intro)
             {
