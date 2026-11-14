@@ -79,6 +79,8 @@ namespace Bubblewright.Tests
                         Assert.AreEqual(mixed, plan.recipeName, $"seed {seed} stage {stage}");
                     }
 
+                    // A Drifter's first visit replaces the drawn recipe with a plain stage (see GuestTests).
+                    if (plan.recipeName == StageGenerator.DebutRecipeName) continue;
                     string counted = plan.recipeName;
                     if (drawn.id == RecipeId.RollingFloor && counted == mixed)
                         counted = drawn.name;
@@ -143,13 +145,13 @@ namespace Bubblewright.Tests
             var report = StageReport.From(1, plan, false);
             Assert.AreEqual("Mixed", report.recipe);
             string header = StageReport.Header();
-            Assert.IsTrue(header.Contains("layout\trecipe\tpattern\troad"), header);
+            Assert.IsTrue(header.Contains("layout\trecipe\tpattern\tguest\troad"), header);
             Assert.IsTrue(report.Line().Contains("\tMixed\t"), report.Line());
 
             var boss = StageGenerator.GenerateFor(new Run(1), 6);
             Assert.IsNull(StageReport.From(6, boss, false).recipe);
             string log = StageReport.LogRun(new Run(3));
-            Assert.IsTrue(log.Contains("layout\trecipe\tpattern\troad"), log);
+            Assert.IsTrue(log.Contains("layout\trecipe\tpattern\tguest\troad"), log);
             Assert.IsTrue(log.Contains("\tMixed\t"), "stage 1 of the log names Mixed");
         }
 

@@ -55,6 +55,7 @@ namespace Bubblewright
                 AddDebugLine(summary);
                 AddDebugLine($"BUBBLES CERAMIC {r.ceramicBubbles}  ·  ROLLERS {r.rollers} big ({r.ceramicRollers} ceramic)  ·  STEEL {r.steelRollers}");
             }
+            if (!r.boss) AddDebugLine($"GUEST {(string.IsNullOrEmpty(r.guest) ? "none" : r.guest.ToUpperInvariant())}");
             if (r.waves > 0) AddDebugLine($"WAVES {r.waves} ({r.waveBubbles} bubbles)");
             AddDebugLine($"TIME LIMIT {r.time:0} s  ·  SPIKE STRIPS {r.spikeStrips}  ·  GAPS {r.gaps}  ·  BREAKABLE TILES {r.breakables}");
             AddDebugLine($"Jump budget bonus x{T.jumpBudgetBonus:0.##}  ·  hard budget x{T.hardBudgetScale:0.##}  ·  seed {run.Seed}");
