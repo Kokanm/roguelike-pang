@@ -333,6 +333,10 @@ namespace Bubblewright
         public float clingerRestickDelay = 0.2f;
         [Tooltip("A Clinger lets go by itself after it has held a surface this long, even if Wick never crossed its lane (seconds). Keeps a big one on the floor from blocking Wick for good.")]
         public float clingerMaxStickTime = 4f;
+        [Tooltip("When a Clinger lets go it moves sideways this many times faster than a Gloop, until it sticks again.")]
+        public float clingerLetGoSpeedScale = 1.75f;
+        [Tooltip("A Clinger letting go of a ceiling starts falling at this speed instead of from rest (units per second).")]
+        public float clingerDropSpeed = 4f;
         [Tooltip("A Clinger only sticks under a platform when its bottom stays at least this high above the floor below, so Wick can walk under it.")]
         public float clingerMinClearance = 2f;
 
