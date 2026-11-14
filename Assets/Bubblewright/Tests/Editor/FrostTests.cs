@@ -158,6 +158,55 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void ThePatchIsOnePointFiveTimesTheBubbleWide()
+        {
+            var map = StageMap.Flat();
+            var ice = new TempIce();
+            float r = 0.8f; // diameter 1.6, patch 2.4 wide: x 5.3 to 7.7, so columns holding 5.3..7.7
+            ice.FreezeUnder(map, new Vector2(6.5f, r), r, 10f, -10f);
+            int c0 = StageMap.Col(5.3f), c1 = StageMap.Col(7.7f);
+            Assert.AreEqual(c1 - c0 + 1, ice.Count);
+            for (int c = c0; c <= c1; c++) Assert.AreEqual(Surface.Ice, map.GetGround(c));
+            Assert.AreEqual(Surface.Normal, map.GetGround(c0 - 1));
+            Assert.AreEqual(Surface.Normal, map.GetGround(c1 + 1));
+        }
+
+        [Test]
+        public void APlatformPatchFreezesNeighbouringTilesInTheSameRow()
+        {
+            var map = StageMap.Flat();
+            for (int c = 18; c <= 22; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid });
+            var ice = new TempIce();
+            float r = 0.8f;
+            ice.FreezeUnder(map, new Vector2(4.5f, 5f + r), r, 10f, -10f);
+            int hit = 0;
+            for (int c = 18; c <= 22; c++) if (map.Get(c, 4).surface == Surface.Ice) hit++;
+            Assert.Greater(hit, 1);
+            Assert.AreEqual(Surface.Normal, map.GetGround(20));
+        }
+
+        [Test]
+        public void EveryTierFreezesTheGroundUnderItOnEveryLanding([Values(0, 1, 2, 3)] int tier)
+        {
+            var map = StageMap.Flat();
+            SetMap(map);
+            var b = Bubble.Create(root.transform, BubbleKind.Frost, tier, new Vector2(8.3f, 9f), new Vector2(3f, 0f), false);
+            int landings = 0;
+            for (int i = 0; i < 60 * 30; i++)
+            {
+                float before = b.Velocity.y;
+                b.Tick(Dt);
+                if (before < 0f && b.Velocity.y > 0f)
+                {
+                    if (Mathf.Abs(b.Position.x) < 4f) continue; // the start safe zone (stage time is 0 here)
+                    landings++;
+                    Assert.AreEqual(Surface.Ice, map.GetGround(StageMap.Col(b.Position.x)), $"landing {landings} at x={b.Position.x}");
+                }
+            }
+            Assert.Greater(landings, 3);
+        }
+
+        [Test]
         public void AGapColumnIsNeverFrozen()
         {
             var map = StageMap.Flat();
@@ -175,7 +224,7 @@ namespace Bubblewright.Tests
             SetMap(map);
             var b = Bubble.Create(root.transform, BubbleKind.Frost, 2, new Vector2(6.5f, 3f), Vector2.zero, false);
             for (int i = 0; i < 240 && Game.Ice.Count == 0; i++) b.Tick(Dt);
-            Assert.AreEqual(1, Game.Ice.Count, "the bubble landed and froze one column");
+            Assert.Greater(Game.Ice.Count, 1, "the bubble landed and froze a patch");
             Assert.AreEqual(Surface.Ice, map.GetGround(StageMap.Col(b.Position.x)));
         }
     }
