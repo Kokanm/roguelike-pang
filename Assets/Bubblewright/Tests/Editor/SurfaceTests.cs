@@ -53,8 +53,8 @@ namespace Bubblewright.Tests
         [Test]
         public void IceTuningDefaultsMatchSpec()
         {
-            Assert.AreEqual(0.25f, Tuning.I.iceAccelTime, 1e-4f);
-            Assert.AreEqual(0.18f, Tuning.I.iceTurnTime, 1e-4f);
+            Assert.AreEqual(0.35f, Tuning.I.iceAccelTime, 1e-4f);
+            Assert.AreEqual(0.30f, Tuning.I.iceTurnTime, 1e-4f);
             Assert.AreEqual(0.9f, Tuning.I.iceStopTime, 1e-4f);
         }
 
@@ -62,11 +62,11 @@ namespace Bubblewright.Tests
         public void IceIsSlowToStart()
         {
             AllGround(map, Surface.Ice);
-            Step(0.12f, 1f);
+            Step(0.17f, 1f);
             float top = Tuning.I.runSpeed;
-            Assert.LessOrEqual(wick.VelocityX, top * 0.5f + 0.01f, "on ice he is around half of top speed after 0.12 s");
-            Step(0.18f, 1f);
-            Assert.AreEqual(top, wick.VelocityX, 0.001f, "reaches top speed by 0.30 s");
+            Assert.LessOrEqual(wick.VelocityX, top * 0.5f + 0.01f, "on ice he is around half of top speed after 0.17 s");
+            Step(0.20f, 1f);
+            Assert.AreEqual(top, wick.VelocityX, 0.001f, "reaches top speed by 0.37 s");
         }
 
         [Test]
@@ -81,26 +81,26 @@ namespace Bubblewright.Tests
             // Reset onto ice and reach full left speed (-runSpeed).
             AllGround(map, Surface.Ice);
             wick.ResetForStage(0f, 0f, 3);
-            Step(0.35f, -1f);
+            Step(0.45f, -1f);
             float top = Tuning.I.runSpeed;
             Assert.AreEqual(-top, wick.VelocityX, 0.001f);
 
-            // Press right: still sliding left for the first few frames, shedding speed progressively.
-            Step(3f * Dt, 1f); // 0.05 s
-            float vAfter3 = wick.VelocityX;
-            Assert.That(vAfter3, Is.InRange(-top + 0.5f, -1f), "still moving left, visibly slower after 3 frames");
+            // Press right: still sliding left for the first several frames, shedding speed progressively.
+            Step(4f * Dt, 1f); // ~0.067 s
+            float vAfter4 = wick.VelocityX;
+            Assert.That(vAfter4, Is.InRange(-top + 0.5f, -1f), "still moving left, visibly slower after 4 frames");
 
-            Step(4f * Dt, 1f); // ~0.117 s total
-            float vAfter7 = wick.VelocityX;
-            Assert.That(vAfter7, Is.GreaterThan(vAfter3).And.LessThan(0f), "still moving left, slower again after 7 frames");
+            Step(7f * Dt, 1f); // ~0.183 s total
+            float vAfter11 = wick.VelocityX;
+            Assert.That(vAfter11, Is.GreaterThan(vAfter4).And.LessThan(0f), "still moving left, slower again after 11 frames");
 
-            // Past 0.18 s of braking + a few frames of acceleration (~0.25 s total): now moving right, not yet at top speed.
-            Step(8f * Dt, 1f); // 0.25 s total
-            Assert.That(wick.VelocityX, Is.GreaterThan(0.5f).And.LessThan(top - 0.5f), "moving right and building speed by 0.25 s");
+            // Past 0.30 s of braking + 6 frames of acceleration (0.40 s total): now moving right, not yet at top speed.
+            Step(13f * Dt, 1f); // 0.40 s total
+            Assert.That(wick.VelocityX, Is.GreaterThan(0.5f).And.LessThan(top - 0.5f), "moving right and building speed by 0.40 s");
 
-            // Full reverse complete by ~0.47 s (vs 1.4 s previously).
-            Step(0.22f, 1f);
-            Assert.AreEqual(top, wick.VelocityX, 0.001f, "at full right speed by ~0.47 s");
+            // Full reverse complete by ~0.70 s (0.65 s exact, vs 1.4 s previously).
+            Step(0.30f, 1f);
+            Assert.AreEqual(top, wick.VelocityX, 0.001f, "at full right speed by ~0.70 s");
         }
 
         [Test]
@@ -108,20 +108,20 @@ namespace Bubblewright.Tests
         {
             AllGround(map, Surface.Ice);
             float top = Tuning.I.runSpeed;
-            Step(0.35f, 1f);
+            Step(0.45f, 1f);
             Assert.AreEqual(top, wick.VelocityX, 0.001f);
 
             // Coast to roughly half speed (~0.45 s of 0.9 s stop time -> ~4.5 u/s).
             Step(0.45f, 0f);
             Assert.That(wick.VelocityX, Is.InRange(top * 0.4f, top * 0.6f));
 
-            // After 4 frames (~0.067 s) pressing right, iceAccelTime (0.25 s) puts speed near 6.9 u/s,
-            // whereas mistakenly using iceTurnTime (0.18 s) would already exceed 7.5 u/s.
-            Step(4f * Dt, 1f);
-            Assert.That(wick.VelocityX, Is.InRange(top * 0.72f, top * 0.82f), "uses iceAccelTime rather than iceTurnTime");
+            // After 6 frames (0.10 s) pressing right, iceAccelTime (0.35 s) puts speed near 7.07 u/s,
+            // whereas mistakenly using iceTurnTime (0.30 s) would already reach 7.50 u/s.
+            Step(6f * Dt, 1f);
+            Assert.That(wick.VelocityX, Is.InRange(top * 0.75f, top * 0.81f), "uses iceAccelTime rather than iceTurnTime");
 
-            // Finishes recovering to top speed by ~0.15 s total.
-            Step(0.09f, 1f);
+            // Finishes recovering to top speed by ~0.22 s total.
+            Step(0.12f, 1f);
             Assert.AreEqual(top, wick.VelocityX, 0.001f);
         }
 
@@ -130,7 +130,7 @@ namespace Bubblewright.Tests
         {
             AllGround(map, Surface.Ice);
             float top = Tuning.I.runSpeed;
-            Step(0.35f, -1f);
+            Step(0.45f, -1f);
             Assert.AreEqual(-top, wick.VelocityX, 0.001f);
 
             // Jump while running left on ice, then press right in the air: airborne steering uses normal ground rates.
