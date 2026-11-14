@@ -64,5 +64,7 @@ namespace Bubblewright
         public bool plain;
         [Tooltip("Never uses a signature kind (Giants).")]
         public bool classicKindsOnly;
+        [Tooltip("The budget buys no big rolling balls (steel ones are still added by their own rule).")]
+        public bool noBudgetRollers;
     }
 }

@@ -419,6 +419,18 @@ namespace Bubblewright
         [Tooltip("An Introduction stage (stage 1 of worlds 2 to 6) spends this share of the normal budget.")]
         public float introBudgetScale = 0.6f;
 
+        [Header("Guests")]
+        [Tooltip("Chance that a normal stage has a guest: one kind from an earlier world (or the Drifter). Never in world 1, on Introduction, Giants or boss stages.")]
+        public float guestChance = 0.3f;
+        [Tooltip("The same chance in a hard world.")]
+        public float guestChanceHard = 0.4f;
+        [Tooltip("The guest bubbles cost at most this share of the stage's budget.")]
+        public float guestBudgetShare = 0.25f;
+        [Tooltip("Most guest bubbles on a stage.")]
+        public int guestMaxBubbles = 2;
+        [Tooltip("The Drifter has no home world: it can be a guest from this world on.")]
+        public int drifterFromWorld = 2;
+
         [Header("Reinforcements")]
         [Tooltip("A wave is called when this many enemies or fewer are left on screen.")]
         public int waveEnemiesLeft = 2;

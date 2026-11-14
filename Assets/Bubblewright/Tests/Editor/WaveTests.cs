@@ -194,11 +194,13 @@ namespace Bubblewright.Tests
                     Assert.AreEqual(row.timeScale, plan.timeScale, 1e-5f);
                     Assert.LessOrEqual(plan.waves.Count, row.waves, $"seed {seed} stage {stage}");
 
-                    float start = 0f, wave = 0f;
+                    float start = 0f, wave = 0f, guestCost = 0f;
                     int picks = 0;
                     foreach (var s in plan.spawns)
                     {
                         if (s.kind == BubbleKind.Lucky) continue;
+                        // A guest stays in the start group whatever the split says, so it is left out of the split.
+                        if (s.kind.ToString() == plan.guestName) { guestCost += Cost(s); continue; }
                         start += Cost(s);
                         picks++;
                     }
@@ -212,7 +214,7 @@ namespace Bubblewright.Tests
                         }
                     }
                     float all = start + wave;
-                    Assert.LessOrEqual(all + plan.rollerSpend, plan.budget + 0.01f, $"seed {seed} stage {stage} overspent");
+                    Assert.LessOrEqual(all + guestCost + plan.rollerSpend, plan.budget + 0.01f, $"seed {seed} stage {stage} overspent");
                     if (picks >= 4 && plan.waves.Count > 0)
                     {
                         // Too small only when no waiting bubble could have joined without pushing the start past 65%.
@@ -221,7 +223,7 @@ namespace Bubblewright.Tests
                             foreach (var s in list)
                                 if (start + Cost(s) <= all * 0.65f + 0.01f) couldJoin = true;
                         if (couldJoin) Assert.GreaterOrEqual(start, all * 0.35f - 0.01f, $"seed {seed} stage {stage} start too small");
-                        if (plan.spawns.FindAll(s => s.kind != BubbleKind.Lucky).Count > 1)
+                        if (plan.spawns.FindAll(s => s.kind != BubbleKind.Lucky && s.kind.ToString() != plan.guestName).Count > 1)
                             Assert.LessOrEqual(start, all * 0.65f + 0.01f, $"seed {seed} stage {stage} start too big");
                     }
 

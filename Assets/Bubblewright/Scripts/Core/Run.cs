@@ -318,6 +318,8 @@ namespace Bubblewright
         public string recipeName;
         /// <summary>The placement pattern that put the bubbles down. Null when no recipe was used.</summary>
         public string patternName;
+        /// <summary>The kind that visits as a guest, or null.</summary>
+        public string guestName;
         /// <summary>Bubbles that arrive after the start, one list per wave. Positions: only x is used (the wished entry point).</summary>
         public List<List<SpawnSpec>> waves = new List<List<SpawnSpec>>();
         /// <summary>Multiplies the stage's storm clock (1 unless the recipe says otherwise).</summary>
@@ -450,7 +452,14 @@ namespace Bubblewright
             RecipeDef recipe = forced ?? RecipeFor(run.Seed, stage);
             bool hard = run.IsHardWorld(Run.WorldOf(stage));
             System.Random layoutRng = layoutReroll <= 0 ? null : run.StageRngFor(stage, 100 + layoutReroll);
-            return Generate(stage, run.StageRngFor(stage, 0), hard, null, layoutRng, recipe);
+            BubbleKind? guest = null;
+            bool debut = false;
+            if (recipe != null && recipe.id != RecipeId.Introduction && !recipe.classicKindsOnly)
+            {
+                guest = GuestFor(run.Seed, stage, hard);
+                debut = guest == BubbleKind.Drifter && IsDrifterDebut(run, stage);
+            }
+            return Generate(stage, run.StageRngFor(stage, 0), hard, null, layoutRng, recipe, guest, debut);
         }
 
         /// <summary>
@@ -488,6 +497,55 @@ namespace Bubblewright
             return pool[slot % pool.Count];
         }
 
+        /// <summary>
+        /// The kind that visits this stage as a guest, or null. Never on a boss stage, in world 1, or when the stage's
+        /// recipe is Introduction or classic-kinds-only (Giants). Depends only on its three arguments.
+        /// </summary>
+        public static BubbleKind? GuestFor(int seed, int stage, bool hard)
+        {
+            if (Run.IsBossStageNumber(stage)) return null;
+            int world = Run.WorldOf(stage);
+            if (world <= 1) return null;
+            RecipeDef recipe = RecipeFor(seed, stage);
+            if (recipe == null || recipe.id == RecipeId.Introduction || recipe.classicKindsOnly) return null;
+            var t = Tuning.I;
+            var rng = new System.Random(unchecked(seed * 7919 + stage * 104729 + 9 * 31));
+            if (rng.NextDouble() >= (hard ? t.guestChanceHard : t.guestChance)) return null;
+            var eligible = new List<BubbleKind>();
+            for (int w = 2; w < world; w++)
+            {
+                BubbleKind? signature = SignatureKind(w);
+                if (signature.HasValue) eligible.Add(signature.Value);
+            }
+            if (world >= t.drifterFromWorld) eligible.Add(BubbleKind.Drifter);
+            if (eligible.Count == 0) return null;
+            return eligible[rng.Next(eligible.Count)];
+        }
+
+        /// <summary>True when this stage has a Drifter guest and no earlier stage of the run has one.</summary>
+        public static bool IsDrifterDebut(Run run, int stage)
+        {
+            if (GuestFor(run.Seed, stage, run.IsHardWorld(Run.WorldOf(stage))) != BubbleKind.Drifter) return false;
+            for (int s = 1; s < stage; s++)
+                if (GuestFor(run.Seed, s, run.IsHardWorld(Run.WorldOf(s))) == BubbleKind.Drifter) return false;
+            return true;
+        }
+
+        public const string DebutRecipeName = "Drifter arrives";
+
+        /// <summary>The plain stage a Drifter's first visit is built as: Mixed, all Gloops, nothing ceramic, no budget rolling balls.</summary>
+        static RecipeDef DebutRecipe()
+        {
+            RecipeDef mixed = Tuning.I.Recipe(RecipeId.Mixed);
+            return new RecipeDef
+            {
+                id = RecipeId.Mixed, name = DebutRecipeName, fromWorld = 1,
+                minTier = mixed.minTier, maxTier = mixed.maxTier, startCapScale = mixed.startCapScale, startCapMax = mixed.startCapMax,
+                ceramicChance = 0f, inPool = false, patterns = new[] { PlacementPattern.Scattered },
+                classicKindsOnly = true, noBudgetRollers = true,
+            };
+        }
+
         /// <summary>The enemy a world is known for, or null for Rooftops, an unknown world, or a world whose entry is Gloop.</summary>
         public static BubbleKind? SignatureKind(int world)
         {
@@ -497,7 +555,7 @@ namespace Bubblewright
             return kind == BubbleKind.Gloop ? (BubbleKind?)null : kind;
         }
 
-        static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride, System.Random layoutRng = null, RecipeDef recipe = null)
+        static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride, System.Random layoutRng = null, RecipeDef recipe = null, BubbleKind? guest = null, bool debut = false)
         {
             var t = Tuning.I;
             LayoutDef layout = layoutOverride ?? PickLayout(stage, rng);
@@ -516,6 +574,9 @@ namespace Bubblewright
             if (Run.IsBossStageNumber(stage))
                 return new StagePlan { map = map, spawns = new List<SpawnSpec>(), wickX = 0f, layoutName = layout.name }; // the boss is the whole stage
             float bubbleMinY = layout.bubbleMinY > 0f ? layout.bubbleMinY : 5f;
+            // A Drifter's first visit: a plain stage of Gloops with the Drifter among them.
+            debut = debut && guest == BubbleKind.Drifter;
+            if (debut) recipe = DebutRecipe();
             float budget = Budget(stage, hard);
             if (recipe != null && recipe.id == RecipeId.Introduction) budget *= t.introBudgetScale;
             else if (recipe != null && recipe.budgetScale > 0f) budget *= recipe.budgetScale;
@@ -535,10 +596,33 @@ namespace Bubblewright
             var picks = new List<(BubbleKind kind, int tier, bool ceramic)>();
             bool ceramicWorld = Run.WorldOf(stage) >= t.ceramicFromWorld;
 
-            while (picks.Count < maxBubbles)
+            // The guest takes its share first. Its bubbles count toward the start cap and are never ceramic.
+            var guestPicks = new List<(BubbleKind kind, int tier, bool ceramic)>();
+            if (guest.HasValue)
+            {
+                float guestLeft = Mathf.Min(t.guestBudgetShare * fullBudget, budget);
+                int wanted = 1 + rng.Next(Mathf.Max(1, t.guestMaxBubbles));
+                for (int i = 0; i < wanted && guestPicks.Count < maxBubbles; i++)
+                {
+                    int tier = BiggestAffordable(guest.Value, guestLeft);
+                    if (recipe != null) tier = TierInRange(recipe, tier);
+                    if (tier < 0) break;
+                    bool canShrink = tier < t.tiers.Length - 1 && (recipe == null || tier < recipe.maxTier);
+                    if (i > 0 && canShrink && rng.NextDouble() < 0.35) tier++;
+                    float cost = Cost(guest.Value, tier);
+                    if (cost > guestLeft + 0.001f) break;
+                    guestLeft -= cost;
+                    budget -= cost;
+                    guestPicks.Add((guest.Value, tier, false));
+                }
+            }
+
+            while (guestPicks.Count + picks.Count < maxBubbles)
             {
                 BubbleKind kind;
-                if (signature.HasValue)
+                if (debut)
+                    kind = BubbleKind.Gloop;
+                else if (signature.HasValue)
                     kind = rng.NextDouble() < signatureShare ? signature.Value : recipe.gloopFill ? BubbleKind.Gloop : PickKind(stage, rng);
                 else
                     kind = PickKind(stage, rng);
@@ -576,6 +660,7 @@ namespace Bubblewright
             }
             var waveLists = new List<List<SpawnSpec>>();
             if (hasWaves) picks = SplitWaves(picks, recipe, rng, waveLists);
+            picks.AddRange(guestPicks); // guests stay in the start group
             if (!plain && stage > 1 && rng.NextDouble() < t.luckyChance) picks.Add((BubbleKind.Lucky, 2, false));
 
             // Biggest first. Flat stages assign the furthest random positions to the biggest bubbles.
@@ -616,14 +701,54 @@ namespace Bubblewright
                 }
             }
             PlaceClingers(map, clingerPicks, specs, bubbleMinY, rng);
+            if (guest == BubbleKind.Drifter) MakeDriftersFair(map, specs, bubbleMinY, rng);
+            string guestName = null;
+            if (guest.HasValue && specs.Exists(s => s.kind == guest.Value)) guestName = guest.Value.ToString();
             return new StagePlan
             {
-                map = map, spawns = specs, rollers = rollers, wickX = 0f,
+                map = map, spawns = specs, rollers = rollers, wickX = 0f, guestName = guestName,
                 layoutName = layout.name, recipeName = recipe == null ? null : recipe.name,
                 patternName = recipe == null ? null : PlacementPatterns.NameOf(pattern),
                 budget = fullBudget, rollerSpend = rollerSpend,
                 waves = waveLists, timeScale = recipe == null ? 1f : recipe.timeScale,
             };
+        }
+
+        /// <summary>The velocity a Drifter spawned from this spec flies away with (see DrifterBehavior.OnSpawn).</summary>
+        static Vector2 DrifterStartVelocity(SpawnSpec spec)
+        {
+            float v = Tuning.I.drifterSpeed / Mathf.Sqrt(2f);
+            return new Vector2(spec.direction * v, spec.position.y >= 7f ? -v : v);
+        }
+
+        static bool DrifterIsFair(SpawnSpec spec) =>
+            DrifterBehavior.StartIsFair(spec.position, DrifterStartVelocity(spec), new Vector2(0f, 0f));
+
+        /// <summary>
+        /// Every Drifter in specs must start fair (not on a line to Wick in its first second). An unfair one flips its
+        /// direction, then tries up to 8 new scattered positions, and is dropped when none is fair.
+        /// </summary>
+        static void MakeDriftersFair(StageMap map, List<SpawnSpec> specs, float bubbleMinY, System.Random rng)
+        {
+            var t = Tuning.I;
+            for (int i = 0; i < specs.Count; i++)
+            {
+                SpawnSpec spec = specs[i];
+                if (spec.kind != BubbleKind.Drifter || DrifterIsFair(spec)) continue;
+                spec.direction = -spec.direction;
+                bool fair = DrifterIsFair(spec);
+                float clearance = t.tiers[spec.tier].diameter * 0.5f + 0.25f;
+                for (int attempt = 0; attempt < 8 && !fair; attempt++)
+                {
+                    if (!TryPosition(map, clearance, bubbleMinY, 0f, rng, out Vector2 position)) continue;
+                    spec.position = position;
+                    if (DrifterIsFair(spec)) { fair = true; break; }
+                    spec.direction = -spec.direction;
+                    fair = DrifterIsFair(spec);
+                }
+                if (fair) specs[i] = spec;
+                else specs.RemoveAt(i--);
+            }
         }
 
         /// <summary>
@@ -818,7 +943,7 @@ namespace Bubblewright
             int world = Run.WorldOf(stage);
             float spent = 0f;
             List<Vector2> spots = null;
-            bool skipBudget = recipe != null && (recipe.id == RecipeId.Giants || recipe.id == RecipeId.Swarm);
+            bool skipBudget = recipe != null && (recipe.id == RecipeId.Giants || recipe.id == RecipeId.Swarm || recipe.noBudgetRollers);
             bool share = recipe != null && recipe.rollerShare > 0f && !skipBudget;
 
             if (share)

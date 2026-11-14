@@ -41,9 +41,10 @@ namespace Bubblewright.Tests
 
                     foreach (var spawn in plan.spawns)
                     {
-                        Assert.AreNotEqual(BubbleKind.Drifter, spawn.kind, $"{where} drifter");
                         if (world == 1) CollectionAssert.DoesNotContain(NewKinds, spawn.kind, $"{where} world 1");
-                        if (Contains(NewKinds, spawn.kind) && (!signature.HasValue || spawn.kind != signature.Value))
+                        // Outside its home world a new kind may only be the stage's guest (see GuestTests).
+                        if (Contains(NewKinds, spawn.kind) && (!signature.HasValue || spawn.kind != signature.Value) &&
+                            spawn.kind.ToString() != plan.guestName)
                             Assert.Fail($"{where} has {spawn.kind} outside its home world");
                         if (spawn.kind == BubbleKind.Sinker) Assert.Greater(spawn.tier, 0, $"{where} sinker size");
                     }
@@ -63,7 +64,7 @@ namespace Bubblewright.Tests
                         homeStages++;
                         foreach (var spawn in plan.spawns)
                         {
-                            if (spawn.kind == BubbleKind.Lucky) continue;
+                            if (spawn.kind == BubbleKind.Lucky || spawn.kind.ToString() == plan.guestName) continue;
                             homeAll++;
                             if (spawn.kind == signature.Value) homeSig++;
                             else Assert.AreEqual(BubbleKind.Gloop, spawn.kind, $"{where} home turf fill");
@@ -73,7 +74,7 @@ namespace Bubblewright.Tests
                     {
                         foreach (var spawn in plan.spawns)
                         {
-                            if (spawn.kind == BubbleKind.Lucky) continue;
+                            if (spawn.kind == BubbleKind.Lucky || spawn.kind.ToString() == plan.guestName) continue;
                             otherAll++;
                             if (spawn.kind == signature.Value) otherSig++;
                         }
