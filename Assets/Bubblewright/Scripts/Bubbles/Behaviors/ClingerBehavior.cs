@@ -61,6 +61,8 @@ namespace Bubblewright
 
         public override bool Tick(Bubble b, float dt)
         {
+            // A Clinger born during the storm (a pop's children, a debug spawn) never sticks either.
+            if (!stormFree && Game.StormOn) OnStorm(b);
             switch (state)
             {
                 case State.Free:
@@ -129,9 +131,10 @@ namespace Bubblewright
             restick = T.clingerRestickDelay;
             if (dir == 0) dir = 1;
             b.VisualScale = Vector2.one;
-            if (normal.y < 0f) b.Velocity = new Vector2(dir * b.SpeedX, 0f);                          // drop
-            else if (normal.y > 0f) b.Velocity = new Vector2(dir * b.SpeedX, T.BounceSpeed(b.Kind, b.Tier)); // a Gloop's bounce
-            else b.Velocity = new Vector2(normal.x * b.SpeedX, 0f);                                   // push off the wall
+            float fast = b.SpeedX * T.clingerLetGoSpeedScale; // it springs off faster than a Gloop moves
+            if (normal.y < 0f) b.Velocity = new Vector2(dir * fast, -T.clingerDropSpeed);              // drop
+            else if (normal.y > 0f) b.Velocity = new Vector2(dir * fast, T.BounceSpeed(b.Kind, b.Tier)); // a Gloop's bounce height
+            else b.Velocity = new Vector2(normal.x * fast, 0f);                                        // push off the wall
             if (normal.x != 0f) dir = normal.x < 0f ? -1 : 1;
             ReleasePad();
         }

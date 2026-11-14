@@ -94,7 +94,7 @@ namespace Bubblewright.Tests
             Assert.AreEqual(hangY, b.Position.y, 0.0001f, "it must not move while it wobbles");
             Run(b, 0.1f);
             Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
-            Assert.AreEqual(b.SpeedX, b.Velocity.x, 0.001f);
+            Assert.AreEqual(b.SpeedX * Tuning.I.clingerLetGoSpeedScale, b.Velocity.x, 0.001f);
             Run(b, 0.2f);
             Assert.Less(b.Position.y, hangY, "it falls once dropped");
         }
