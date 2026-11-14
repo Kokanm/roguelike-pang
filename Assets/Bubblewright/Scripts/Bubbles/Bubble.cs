@@ -114,6 +114,7 @@ namespace Bubblewright
                 {
                     Velocity.y = T.BounceSpeed(Kind, Tier);
                     squashTimer = 0f;
+                    transform.position = p; // behaviours read Position: it must be the landing spot, not last frame's
                     behavior?.OnLanded(this);
                     Sfx.Play(Sound.Bounce, 1f + Tier * 0.25f, 0.5f - Tier * 0.1f); // big bubbles thud, small ones tap
                 }

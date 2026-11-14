@@ -186,6 +186,27 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void EveryTierFreezesTheGroundUnderItOnEveryLanding([Values(0, 1, 2, 3)] int tier)
+        {
+            var map = StageMap.Flat();
+            SetMap(map);
+            var b = Bubble.Create(root.transform, BubbleKind.Frost, tier, new Vector2(8.3f, 9f), new Vector2(3f, 0f), false);
+            int landings = 0;
+            for (int i = 0; i < 60 * 30; i++)
+            {
+                float before = b.Velocity.y;
+                b.Tick(Dt);
+                if (before < 0f && b.Velocity.y > 0f)
+                {
+                    if (Mathf.Abs(b.Position.x) < 4f) continue; // the start safe zone (stage time is 0 here)
+                    landings++;
+                    Assert.AreEqual(Surface.Ice, map.GetGround(StageMap.Col(b.Position.x)), $"landing {landings} at x={b.Position.x}");
+                }
+            }
+            Assert.Greater(landings, 3);
+        }
+
+        [Test]
         public void AGapColumnIsNeverFrozen()
         {
             var map = StageMap.Flat();
