@@ -25,7 +25,7 @@ namespace Bubblewright
         [Tooltip("Top speed in units per second.")]
         public float runSpeed = 9f;
         [Tooltip("Seconds to reach top speed from standing.")]
-        public float accelTime = 0.06f;
+        public float accelTime = 0.08f;
         [Tooltip("Seconds to stop from top speed (also used when reversing).")]
         public float stopTime = 0.04f;
         [Tooltip("Hitbox in units. 15 x 22 px. Bottom sits at his feet.")]
@@ -199,13 +199,15 @@ namespace Bubblewright
 
         [Header("Surfaces")]
         [Tooltip("Ice: seconds to reach top speed from standing still (normal floor: Accel Time).")]
-        public float iceAccelTime = 0.5f;
-        [Tooltip("Ice: seconds to slide from top speed to a stop (normal floor: Stop Time).")]
+        public float iceAccelTime = 0.40f;
+        [Tooltip("Ice: seconds to brake from baseline Run Speed to zero when pressing the opposite direction (higher top speeds slide proportionally longer).")]
+        public float iceTurnTime = 0.35f;
+        [Tooltip("Ice: seconds to slide from baseline Run Speed to a stop when letting go of movement (higher top speeds coast proportionally longer).")]
         public float iceStopTime = 0.9f;
         [Tooltip("Sand: top speed is the normal run speed times this.")]
         public float sandSpeedScale = 0.7f;
         [Tooltip("Sand: seconds to reach top speed from standing still.")]
-        public float sandAccelTime = 0.1f;
+        public float sandAccelTime = 0.12f;
         [Tooltip("Desert stages get this much more time on the storm clock, because everything takes longer.")]
         public float desertTimeScale = 1.15f;
         [Tooltip("While walking on sand, a dust puff at his feet every this many seconds.")]
@@ -323,6 +325,14 @@ namespace Bubblewright
         public int ceramicHits = 2;
         [Tooltip("A ceramic bubble or rolling ball costs this many times the budget of an ordinary one.")]
         public float ceramicCostScale = 1.5f;
+
+        [Header("Frost bubble")]
+        [Tooltip("Seconds a floor tile a Frost bubble landed on stays ice before it goes back to what it was.")]
+        public float frostIceTime = 4f;
+        [Tooltip("For this many seconds at the start of a stage a Frost bubble cannot freeze the ground next to where Wick starts.")]
+        public float frostSafeTime = 2f;
+        [Tooltip("How many ground columns each side of Wick's start are kept safe at first.")]
+        public int frostSafeHalfWidth = 2;
 
         [Header("Clinger")]
         [Tooltip("A stuck Clinger starts to wobble when Wick crosses the lane straight out from the surface it holds, this close to its centre line (units). Under a ceiling, Wick's centre x; on a floor, Wick's centre x; on a wall, the gap between its centre and Wick's box vertically.")]

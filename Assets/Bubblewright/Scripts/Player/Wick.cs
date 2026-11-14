@@ -346,13 +346,18 @@ namespace Bubblewright
                     if (Mode == Mode.Ground) groundTopSpeed = topSpeed;
                     else if (Jumping) topSpeed = airTopSpeed; // a jump keeps the top speed of the floor it left (shorter on sand)
                     float accelTime = surface == Surface.Ice ? T.iceAccelTime : surface == Surface.Sand ? T.sandAccelTime : T.accelTime;
+                    float turnTime = surface == Surface.Ice ? T.iceTurnTime : T.stopTime;
                     float stopTime = surface == Surface.Ice ? T.iceStopTime : T.stopTime;
                     float target = wantMove * topSpeed;
                     transform.position = pos;
                     if (Mode == Mode.Ground) DetectRunEdges(target, surface != Surface.Ice);
                     else lastWantDir = target > 0f ? 1 : target < 0f ? -1 : 0;
-                    bool stopping = target == 0f || (VelocityX != 0f && Mathf.Sign(target) != Mathf.Sign(VelocityX));
-                    float rate = topSpeed / Mathf.Max(0.001f, stopping ? stopTime : accelTime);
+                    bool coasting = target == 0f;
+                    bool reversing = !coasting && VelocityX != 0f && Mathf.Sign(target) != Mathf.Sign(VelocityX);
+                    float rampTime = coasting ? stopTime : reversing ? turnTime : accelTime;
+                    // Ice grip comes from the surface (Wick's baseline runSpeed), so faster builds slide longer when braking or coasting.
+                    float rateSpeed = surface == Surface.Ice && (coasting || reversing) ? T.runSpeed : topSpeed;
+                    float rate = rateSpeed / Mathf.Max(0.001f, rampTime);
                     VelocityX = Mathf.MoveTowards(VelocityX, target, rate * dt);
                     pos.x += VelocityX * dt;
                     TickSandDust(surface, dt);

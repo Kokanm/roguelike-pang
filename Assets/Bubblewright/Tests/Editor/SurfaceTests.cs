@@ -51,12 +51,97 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void IceTuningDefaultsMatchSpec()
+        {
+            Assert.AreEqual(0.40f, Tuning.I.iceAccelTime, 1e-4f);
+            Assert.AreEqual(0.35f, Tuning.I.iceTurnTime, 1e-4f);
+            Assert.AreEqual(0.9f, Tuning.I.iceStopTime, 1e-4f);
+        }
+
+        [Test]
         public void IceIsSlowToStart()
         {
             AllGround(map, Surface.Ice);
-            Step(0.25f, 1f);
+            Step(0.20f, 1f);
             float top = Tuning.I.runSpeed;
-            Assert.LessOrEqual(wick.VelocityX, top * 0.5f + 0.01f, "on ice he is at most half of top speed after 0.25 s");
+            Assert.LessOrEqual(wick.VelocityX, top * 0.5f + 0.01f, "on ice he is around half of top speed after 0.20 s");
+            Step(0.22f, 1f);
+            Assert.AreEqual(top, wick.VelocityX, 0.001f, "reaches top speed by 0.42 s");
+        }
+
+        [Test]
+        public void IceReversesMuchFasterThanCoastingButSlowerThanNormalGround()
+        {
+            // Normal ground reverses from -runSpeed to +runSpeed within 0.12 s.
+            Step(0.25f, -1f);
+            Assert.AreEqual(-Tuning.I.runSpeed, wick.VelocityX, 0.001f);
+            Step(0.12f, 1f);
+            Assert.AreEqual(Tuning.I.runSpeed, wick.VelocityX, 0.001f, "normal ground reverses almost immediately");
+
+            // Reset onto ice and reach full left speed (-runSpeed).
+            AllGround(map, Surface.Ice);
+            wick.ResetForStage(0f, 0f, 3);
+            Step(0.50f, -1f);
+            float top = Tuning.I.runSpeed;
+            Assert.AreEqual(-top, wick.VelocityX, 0.001f);
+
+            // Press right: still sliding left for the first several frames, shedding speed progressively.
+            Step(4f * Dt, 1f); // ~0.067 s
+            float vAfter4 = wick.VelocityX;
+            Assert.That(vAfter4, Is.InRange(-top + 0.5f, -1f), "still moving left, visibly slower after 4 frames");
+
+            Step(7f * Dt, 1f); // ~0.183 s total
+            float vAfter11 = wick.VelocityX;
+            Assert.That(vAfter11, Is.GreaterThan(vAfter4).And.LessThan(0f), "still moving left, slower again after 11 frames");
+
+            // At 0.30 s (frame 18) he is still sliding left. A 0.30 s brake would already be at zero here.
+            Step(7f * Dt, 1f);
+            Assert.Less(wick.VelocityX, -0.5f, "still clearly moving left at 0.30 s");
+
+            // Past 0.35 s of braking + a few frames of acceleration (0.40 s total): now moving right, not yet at top speed.
+            Step(6f * Dt, 1f); // 0.40 s total
+            Assert.That(wick.VelocityX, Is.GreaterThan(0.5f).And.LessThan(top - 0.5f), "moving right and building speed by 0.40 s");
+
+            // Full reverse complete by ~0.76 s (0.75 s exact, vs 1.4 s previously).
+            Step(0.36f, 1f);
+            Assert.AreEqual(top, wick.VelocityX, 0.001f, "at full right speed by ~0.76 s");
+        }
+
+        [Test]
+        public void IceReacceleratesWithIceAccelTimeAfterBriefCoast()
+        {
+            AllGround(map, Surface.Ice);
+            float top = Tuning.I.runSpeed;
+            Step(0.50f, 1f);
+            Assert.AreEqual(top, wick.VelocityX, 0.001f);
+
+            // Coast to roughly half speed (~0.45 s of 0.9 s stop time -> ~4.5 u/s).
+            Step(0.45f, 0f);
+            Assert.That(wick.VelocityX, Is.InRange(top * 0.4f, top * 0.6f));
+
+            // After 8 frames (~0.133 s) pressing right, iceAccelTime (0.40 s) puts speed near 7.5 u/s,
+            // whereas mistakenly using iceTurnTime (0.35 s) would already exceed 7.9 u/s.
+            Step(8f * Dt, 1f);
+            Assert.That(wick.VelocityX, Is.InRange(top * 0.80f, top * 0.86f), "uses iceAccelTime rather than iceTurnTime");
+
+            // Finishes recovering to top speed shortly after.
+            Step(0.10f, 1f);
+            Assert.AreEqual(top, wick.VelocityX, 0.001f);
+        }
+
+        [Test]
+        public void JumpingOffIceSteersAtNormalGroundRateInAir()
+        {
+            AllGround(map, Surface.Ice);
+            float top = Tuning.I.runSpeed;
+            Step(0.50f, -1f);
+            Assert.AreEqual(-top, wick.VelocityX, 0.001f);
+
+            // Jump while running left on ice, then press right in the air: airborne steering uses normal ground rates.
+            wick.Tick(-1f, 0f, true, Dt, true);
+            Assert.IsTrue(wick.Jumping);
+            Step(0.12f, 1f);
+            Assert.AreEqual(top, wick.VelocityX, 0.001f);
         }
 
         [Test]
@@ -64,6 +149,25 @@ namespace Bubblewright.Tests
         {
             Step(0.25f, 1f);
             Assert.AreEqual(Tuning.I.runSpeed, wick.VelocityX, 0.001f);
+        }
+
+        [Test]
+        public void NormalAndSandAccelerationAreALittleSlowerThanInstant()
+        {
+            // Normal floor: still short of top speed at 0.07 s (4 frames), there by 0.09 s.
+            Step(0.07f, 1f);
+            Assert.Less(wick.VelocityX, Tuning.I.runSpeed - 0.5f, "not at top speed after 0.07 s");
+            Step(0.02f, 1f);
+            Assert.AreEqual(Tuning.I.runSpeed, wick.VelocityX, 0.001f, "at top speed by 0.09 s");
+
+            AllGround(map, Surface.Sand);
+            wick.ResetForStage(0f, 0f, 3);
+            float sandTop = Tuning.I.runSpeed * Tuning.I.sandSpeedScale;
+            // Sand: still short at 0.10 s (6 frames), there by 0.15 s.
+            Step(0.10f, 1f);
+            Assert.Less(wick.VelocityX, sandTop - 0.3f, "sand is not at its top speed after 0.10 s");
+            Step(0.05f, 1f);
+            Assert.AreEqual(sandTop, wick.VelocityX, 0.01f, "sand reaches its top speed by 0.15 s");
         }
 
         [Test]
@@ -76,6 +180,51 @@ namespace Bubblewright.Tests
             Assert.Greater(wick.VelocityX, 0.5f, "still sliding 0.4 s after letting go");
             Step(0.6f, 0f);
             Assert.AreEqual(0f, wick.VelocityX, 0.001f, "stopped by 1.0 s");
+        }
+
+        [Test]
+        public void HigherTopSpeedSlidesLongerWhenBrakingAndCoastingOnIce()
+        {
+            // Fast build: Ember (10.5 u/s) with 3x Swift Boots (x1.36) -> 14.28 u/s (~1.59x base runSpeed).
+            wick.BaseRunSpeed = 10.5f;
+            wick.SpeedMultiplier = 1.36f;
+            float fastTop = 10.5f * 1.36f;
+
+            // Normal ground still reverses a fast build right away (~0.10 s).
+            Step(0.10f, -1f);
+            Assert.AreEqual(-fastTop, wick.VelocityX, 0.01f);
+            Step(0.12f, 1f);
+            Assert.AreEqual(fastTop, wick.VelocityX, 0.01f, "normal ground keeps snappy turns at high top speed");
+
+            // On ice, reaching top speed from rest still takes iceAccelTime (0.40 s).
+            AllGround(map, Surface.Ice);
+            wick.ResetForStage(0f, 0f, 3);
+            Step(0.42f, -1f);
+            Assert.AreEqual(-fastTop, wick.VelocityX, 0.01f, "reaches higher top speed within 0.42 s");
+
+            // Active brake on ice: at 0.36 s (where base Wick has already crossed 0), the fast build is still sliding left,
+            // then crosses 0 around 0.56 s (~1.59 * 0.35 s).
+            Step(0.36f, 1f);
+            Assert.Less(wick.VelocityX, -4f, "faster top speed is still sliding left past 0.35 s");
+            Step(0.22f, 1f); // 0.58 s total
+            Assert.Greater(wick.VelocityX, 0f, "crosses 0 around ~0.56 s");
+
+            // Coasting on ice: from +fastTop, still sliding past 1.0 s (where base Wick has stopped), stopped by 1.5 s.
+            Step(0.45f, 1f);
+            Assert.AreEqual(fastTop, wick.VelocityX, 0.01f);
+            Step(1.0f, 0f);
+            Assert.Greater(wick.VelocityX, 3.5f, "faster top speed still coasting at 1.0 s");
+            Step(0.5f, 0f);
+            Assert.AreEqual(0f, wick.VelocityX, 0.01f, "stopped by 1.5 s");
+
+            // Slower character (Moss: 7.5 u/s) carries less momentum and crosses 0 sooner (~0.29 s < 0.35 s).
+            wick.BaseRunSpeed = 7.5f;
+            wick.SpeedMultiplier = 1f;
+            wick.ResetForStage(0f, 0f, 3);
+            Step(0.45f, -1f);
+            Assert.AreEqual(-7.5f, wick.VelocityX, 0.01f);
+            Step(0.32f, 1f);
+            Assert.Greater(wick.VelocityX, 0f, "slower top speed finishes braking before 0.35 s");
         }
 
         [Test]

@@ -203,6 +203,7 @@ namespace Bubblewright
                 : StageGenerator.GenerateFor(run, run.Stage, layoutReroll, forced);
             stageReport = StageReport.From(run.Stage, plan, run.IsHard);
             Map = plan.map;
+            ResetFrost();
             debugSurface = -1;
             debugTheme = -1;
             ApplyTheme(Themes.ForWorld(run.World));
@@ -413,6 +414,7 @@ namespace Bubblewright
             HarpoonHitsRollers();
 
             spikes?.Tick(dt);
+            TickFrost(dt);
             Flames?.Tick(Map, dt);
 
             if (!debug.god && !wick.Invulnerable && !wick.Dead)
