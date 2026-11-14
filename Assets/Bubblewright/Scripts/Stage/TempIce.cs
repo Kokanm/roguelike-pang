@@ -81,19 +81,32 @@ namespace Bubblewright
         /// <summary>Forget every spot without restoring (a new stage's map replaces the old one).</summary>
         public void Clear() => spots.Clear();
 
-        /// <summary>Freeze what a bubble at centre with the given radius has just landed on.</summary>
+        /// <summary>Ice patch width as a multiple of the bubble's diameter.</summary>
+        public const float PatchWidthFactor = 1.5f;
+
+        /// <summary>
+        /// Freeze what a bubble at centre with the given radius has just landed on: every column the patch touches,
+        /// a patch PatchWidthFactor times the bubble's diameter wide and centred under it.
+        /// </summary>
         public void FreezeUnder(StageMap map, Vector2 centre, float radius, float stageTime, float wickStartX)
         {
             if (map == null) return;
             float lowest = centre.y - radius;
-            int col = StageMap.Col(centre.x);
-            if (Mathf.Abs(lowest) <= 0.05f)
+            float half = radius * PatchWidthFactor; // half of 1.5 x diameter
+            int first = StageMap.Col(centre.x - half);
+            int last = StageMap.Col(centre.x + half);
+            bool onGround = Mathf.Abs(lowest) <= 0.05f;
+            int row = StageMap.Row(lowest - 0.5f);
+            var T = Tuning.I;
+            for (int col = first; col <= last; col++)
             {
-                var T = Tuning.I;
-                if (stageTime < T.frostSafeTime && Mathf.Abs(col - StageMap.Col(wickStartX)) <= T.frostSafeHalfWidth) return;
-                FreezeGround(map, col);
+                if (onGround)
+                {
+                    if (stageTime < T.frostSafeTime && Mathf.Abs(col - StageMap.Col(wickStartX)) <= T.frostSafeHalfWidth) continue;
+                    FreezeGround(map, col);
+                }
+                else FreezeTile(map, col, row);
             }
-            else FreezeTile(map, col, StageMap.Row(lowest - 0.5f));
         }
     }
 }
