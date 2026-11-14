@@ -30,7 +30,7 @@ namespace Bubblewright
         }
 
         Tuning T => Tuning.I;
-        readonly GameInput input = new GameInput();
+        GameInput input = new GameInput();
         readonly List<Bubble> bubbles = new List<Bubble>();
         readonly List<Bubble> hitBubbles = new List<Bubble>(); // swelling during the hit-stop, popped when it ends
 
@@ -103,6 +103,26 @@ namespace Bubblewright
             touchView = TouchControlsView.Create(world, cam);
 
             try { bestScore = PlayerPrefs.GetInt(BestScoreKey, 0); } catch { bestScore = 0; }
+            OpenTitle();
+        }
+
+        void OnEnable() => PrepareAfterReload();
+
+        /// <summary>
+        /// A script reload restores serializable fields, including the private state enum, and drops
+        /// everything it cannot serialize. The run is one of those, so a gameplay state with no run
+        /// is not a run: go back to the title instead of drawing hearts from it.
+        /// </summary>
+        void PrepareAfterReload()
+        {
+            active = this;
+            if (input == null) input = new GameInput();
+            if (generatedSpikes == null) generatedSpikes = new List<StageMap.SpikeStrip>();
+            if (debugEntries == null) debugEntries = new List<DebugEntry>();
+            if (announcedMarkers == null) announcedMarkers = new HashSet<WaveDirector.Marker>();
+            if (choices == null) choices = new List<Upgrade>();
+            if (run != null || state == State.Title || state == State.Select || wick == null) return;
+            state = State.Title; // a repaint during OpenTitle must not see a gameplay state and come back in
             OpenTitle();
         }
 
@@ -271,6 +291,8 @@ namespace Bubblewright
 
         void Update()
         {
+            PrepareAfterReload();
+            if (run == null && state != State.Title && state != State.Select) return;
             input.Update();
             HandleDebugKeys();
             stageView.Tick();
@@ -658,6 +680,9 @@ namespace Bubblewright
 
         void OnGUI()
         {
+            PrepareAfterReload();
+            if (run == null && state != State.Title && state != State.Select) return;
+
             int k = DebugPanelLayout.Scale(Screen.width, Screen.height);
             if (textStyle == null)
             {

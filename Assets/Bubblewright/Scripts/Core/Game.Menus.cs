@@ -20,7 +20,7 @@ namespace Bubblewright
         bool paused, debugPanel;
         int pauseSelected, debugStage = 1;
         Vector2 debugScroll;
-        readonly List<DebugEntry> debugEntries = new List<DebugEntry>();
+        List<DebugEntry> debugEntries = new List<DebugEntry>();
 
         struct DebugEntry
         {

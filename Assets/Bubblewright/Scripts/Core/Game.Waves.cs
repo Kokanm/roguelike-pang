@@ -15,7 +15,7 @@ namespace Bubblewright
         float stageTimeScale = 1f;        // the plan's storm clock multiplier
         readonly List<SpriteRenderer> markerIcons = new List<SpriteRenderer>();
         readonly List<SpriteRenderer> markerLines = new List<SpriteRenderer>();
-        readonly HashSet<WaveDirector.Marker> announcedMarkers = new HashSet<WaveDirector.Marker>();
+        HashSet<WaveDirector.Marker> announcedMarkers = new HashSet<WaveDirector.Marker>();
         Transform markerRoot;
 
         /// <summary>A stage with waves is cleared only when no enemy is left and no wave or marker is still to come.</summary>
@@ -111,6 +111,7 @@ namespace Bubblewright
 
         void HideWaveMarkers()
         {
+            if (markerIcons == null) return;
             for (int i = 0; i < markerIcons.Count; i++)
             {
                 if (markerIcons[i]) markerIcons[i].gameObject.SetActive(false);
