@@ -5,11 +5,9 @@ using UnityEngine;
 
 namespace Bubblewright.Tests
 {
-    /// <summary>The six new kinds exist as data and art, bounce like a Gloop, and leave a hook for later behaviour.</summary>
+    /// <summary>The six new kinds exist as data and art. Once a kind has its own behaviour, that behaviour's tests own its motion.</summary>
     public class KindFoundationTests
     {
-        const float Dt = 1f / 60f;
-
         GameObject root;
         StageMap previousMap;
 
@@ -81,20 +79,6 @@ namespace Bubblewright.Tests
 
             AssertCentreIsNotBody(art.Bubbles[(int)BubbleKind.Frost, m], Tuning.I.Kind(BubbleKind.Frost).color);
             AssertCentreIsNotBody(art.Bubbles[(int)BubbleKind.Scorch, m], Tuning.I.Kind(BubbleKind.Scorch).color);
-        }
-
-        [Test]
-        public void AClingerWithNoBehaviourBouncesLikeAGloop()
-        {
-            var b = Bubble.Create(root.transform, BubbleKind.Clinger, 2,
-                new Vector2(0f, Tuning.I.tiers[2].diameter * 0.5f),
-                new Vector2(Tuning.I.bubbleSpeedX, Tuning.I.BounceSpeed(BubbleKind.Clinger, 2)), false);
-            float peak = Tuning.I.tiers[2].peakHeight;
-            for (int i = 0; i < 20 * 60; i++)
-            {
-                b.Tick(Dt);
-                Assert.LessOrEqual(b.Position.y + b.Radius, peak + 0.05f, $"top at tick {i}");
-            }
         }
 
         [Test]
