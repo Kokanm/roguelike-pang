@@ -4,7 +4,8 @@ namespace Bubblewright
 {
     /// <summary>
     /// The Clinger sticks to any surface it touches: floor, ceiling, wall, or any face of a platform. It waits there
-    /// until Wick crosses its lane, the strip straight out from that surface. Then it wobbles, lets go away from the
+    /// until Wick crosses its lane, the strip straight out from that surface, or until it has held on for
+    /// Tuning.clingerMaxStickTime. Then it wobbles, lets go away from the
     /// surface, and sticks again to the next surface it touches. Under a ceiling Wick crosses by passing below it, on a
     /// floor by being above it (a jump or a platform), on a right wall by being to its left, and so on.
     /// </summary>
@@ -16,6 +17,7 @@ namespace Bubblewright
 
         State state = State.Free;
         float timer;
+        float stuckTime;  // how long it has held the current surface
         float restick;    // counts down after letting go; no sticking while above 0
         bool stormFree;   // after the storm starts it never sticks again
         int dir;          // sideways direction it travels in after letting go of a floor or ceiling
@@ -75,7 +77,8 @@ namespace Bubblewright
                         LetGo(b);
                         return true;
                     }
-                    if (WickInLane(b))
+                    stuckTime += dt;
+                    if (WickInLane(b) || stuckTime >= T.clingerMaxStickTime)
                     {
                         state = State.Wobbling;
                         timer = 0f;
@@ -225,6 +228,7 @@ namespace Bubblewright
         void Stick(Bubble b, Vector2 n, bool tile, int col, int row)
         {
             state = State.Stuck;
+            stuckTime = 0f;
             normal = n;
             anchor = b.Position - n * b.Radius;
             onTile = tile;

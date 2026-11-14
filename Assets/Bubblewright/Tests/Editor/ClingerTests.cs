@@ -65,7 +65,7 @@ namespace Bubblewright.Tests
             Assert.AreEqual(14f - b.Radius, b.Position.y, 0.001f);
             Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
             var start = b.Position;
-            Run(b, 5f);
+            Run(b, Tuning.I.clingerMaxStickTime - 0.5f);
             Assert.AreEqual(start.x, b.Position.x, 0.0001f);
             Assert.AreEqual(start.y, b.Position.y, 0.0001f);
         }
@@ -152,6 +152,20 @@ namespace Bubblewright.Tests
             b.Tick(Dt);
             Assert.AreEqual(ClingerBehavior.State.Wobbling, Of(b).Current);
             Run(b, 0.45f);
+            Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
+            Assert.Greater(b.Velocity.y, 0f, "it leaves the floor with a bounce");
+        }
+
+        [Test]
+        public void ItLetsGoByItselfAfterTheMaxStickTime()
+        {
+            var b = StuckOnFloor(5f);
+            Game.WickFeet = new Vector2(-10f, 0f);
+            Run(b, Tuning.I.clingerMaxStickTime - 0.2f);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+            Run(b, 0.3f);
+            Assert.AreEqual(ClingerBehavior.State.Wobbling, Of(b).Current);
+            Run(b, Tuning.I.clingerWobbleTime + 0.05f);
             Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
             Assert.Greater(b.Velocity.y, 0f, "it leaves the floor with a bounce");
         }
