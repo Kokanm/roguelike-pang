@@ -349,6 +349,25 @@ namespace Bubblewright
             return s;
         }
 
+        Sprite[,] drifterBubbles; // [tier, direction index], built on first use
+
+        /// <summary>The Drifter with its arrowhead mirrored to point along (dirX, dirY), each -1 or +1. Only the mark is mirrored.</summary>
+        public Sprite DrifterBubble(int tier, int dirX, int dirY)
+        {
+            var t = Tuning.I;
+            int dx = dirX < 0 ? -1 : 1, dy = dirY < 0 ? -1 : 1;
+            if (drifterBubbles == null || drifterBubbles.GetLength(0) != t.tiers.Length)
+                drifterBubbles = new Sprite[t.tiers.Length, 4];
+            int di = (dx > 0 ? 1 : 0) + (dy > 0 ? 2 : 0);
+            var s = drifterBubbles[tier, di];
+            if (s == null || s.texture == null)
+            {
+                int d = Mathf.RoundToInt(t.tiers[tier].diameter * ppu);
+                s = drifterBubbles[tier, di] = BuildBubble(BubbleKind.Drifter, t.Kind(BubbleKind.Drifter).color, d, false, false, dx, dy);
+            }
+            return s;
+        }
+
         Sprite[,] ghostFaded; // [tier, 0 faint / 1 strong], built on first use
 
         /// <summary>
@@ -401,7 +420,7 @@ namespace Bubblewright
 
         static Color32 Alpha(Color32 c, float a) => new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
 
-        Sprite BuildBubble(BubbleKind kind, Color32 color, int d, bool ceramic = false, bool cracked = false)
+        Sprite BuildBubble(BubbleKind kind, Color32 color, int d, bool ceramic = false, bool cracked = false, int markDx = 1, int markDy = 1)
         {
             var c = new PixelCanvas(d, d);
             float cx = d * 0.5f, cy = d * 0.5f, r = d * 0.5f - 1f;
@@ -516,8 +535,8 @@ namespace Bubblewright
                             for (int u = -a; u <= a; u++)
                             {
                                 if (u + v < 0) continue;
-                                int x = Mathf.RoundToInt(cx + u);
-                                int y = Mathf.RoundToInt(cy + v);
+                                int x = Mathf.RoundToInt(cx + u * markDx);
+                                int y = Mathf.RoundToInt(cy + v * markDy);
                                 if (c.Filled(x, y)) c.Set(x, y, mark);
                             }
                         break;
@@ -534,7 +553,8 @@ namespace Bubblewright
                 if (cracked) AddCracks(c, cx, cy, r, Palette.Shade(color, 0.5f));
             }
             c.Outline(Palette.Ink);
-            return c.ToSprite($"Bubble_{kind}_{d}px{(ceramic ? (cracked ? "_cracked" : "_ceramic") : "")}", new Vector2(cx, cy), ppu);
+            string markSuffix = markDx < 0 || markDy < 0 ? "_mark" + markDx + markDy : "";
+            return c.ToSprite($"Bubble_{kind}_{d}px{(ceramic ? (cracked ? "_cracked" : "_ceramic") : "")}{markSuffix}", new Vector2(cx, cy), ppu);
         }
 
         // ---------------------------------------------------------------- Rolling balloons (no face: pearl + crossing bands)
