@@ -21,6 +21,9 @@ namespace Bubblewright
         {
             switch (kind)
             {
+                case BubbleKind.Sinker: return new SinkerBehavior();
+                case BubbleKind.Ghost: return new GhostBehavior();
+                case BubbleKind.Scorch: return new ScorchBehavior();
                 case BubbleKind.Drifter: return new DrifterBehavior();
                 default: return null;
             }
