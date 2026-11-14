@@ -465,11 +465,14 @@ namespace Bubblewright
             int world = Run.WorldOf(stage);
             int stageInWorld = Run.StageInWorldOf(stage);
             if (world == 1 && stageInWorld <= 2) return tuning.Recipe(RecipeId.Mixed);
+            bool hasSignature = SignatureKind(world).HasValue;
+            // Stage 1 of a world with a signature enemy introduces it.
+            if (stageInWorld == 1 && hasSignature) return tuning.Recipe(RecipeId.Introduction);
 
             var pool = new List<RecipeDef>();
             if (tuning.recipes != null)
                 foreach (var row in tuning.recipes)
-                    if (row != null && row.inPool && row.fromWorld <= world)
+                    if (row != null && row.inPool && row.fromWorld <= world && (hasSignature || row.signatureShare < 0f))
                         pool.Add(row);
             if (pool.Count == 0) return tuning.Recipe(RecipeId.Mixed);
 
@@ -481,8 +484,17 @@ namespace Bubblewright
                 pool[i] = pool[j];
                 pool[j] = swap;
             }
-            int slot = world == 1 ? stageInWorld - 3 : stageInWorld - 1;
+            int slot = world == 1 ? stageInWorld - 3 : hasSignature ? stageInWorld - 2 : stageInWorld - 1;
             return pool[slot % pool.Count];
+        }
+
+        /// <summary>The enemy a world is known for, or null for Rooftops, an unknown world, or a world whose entry is Gloop.</summary>
+        public static BubbleKind? SignatureKind(int world)
+        {
+            var kinds = Tuning.I.signatureKinds;
+            if (world < 2 || kinds == null || world > kinds.Length) return null;
+            BubbleKind kind = kinds[world - 1];
+            return kind == BubbleKind.Gloop ? (BubbleKind?)null : kind;
         }
 
         static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride, System.Random layoutRng = null, RecipeDef recipe = null)
@@ -505,12 +517,17 @@ namespace Bubblewright
                 return new StagePlan { map = map, spawns = new List<SpawnSpec>(), wickX = 0f, layoutName = layout.name }; // the boss is the whole stage
             float bubbleMinY = layout.bubbleMinY > 0f ? layout.bubbleMinY : 5f;
             float budget = Budget(stage, hard);
+            if (recipe != null && recipe.id == RecipeId.Introduction) budget *= t.introBudgetScale;
+            else if (recipe != null && recipe.budgetScale > 0f) budget *= recipe.budgetScale;
             float fullBudget = budget;
+            bool plain = recipe != null && recipe.plain;
+            BubbleKind? signature = recipe != null && !recipe.classicKindsOnly ? SignatureKind(Run.WorldOf(stage)) : null;
+            float signatureShare = recipe == null ? 0f : recipe.signatureShare < 0f ? t.signatureShare : recipe.signatureShare;
             // A rolling-floor recipe needs room for several balls. Without it, the stage is Mixed.
             if (recipe != null && recipe.rollerShare > 0f && RollerSpots(map, 0f).Count < 2)
                 recipe = t.Recipe(RecipeId.Mixed);
             var rollers = new List<RollerSpec>();
-            float rollerSpend = AddRollers(map, stage, rng, ref budget, rollers, 0f, recipe);
+            float rollerSpend = plain ? 0f : AddRollers(map, stage, rng, ref budget, rollers, 0f, recipe);
             int maxBubbles = StartCap(stage, recipe);
             bool hasWaves = recipe != null && recipe.waves > 0;
             // With waves, pick for the whole budget: the start cap is raised so there is something left to send later.
@@ -520,7 +537,11 @@ namespace Bubblewright
 
             while (picks.Count < maxBubbles)
             {
-                var kind = PickKind(stage, rng);
+                BubbleKind kind;
+                if (signature.HasValue)
+                    kind = rng.NextDouble() < signatureShare ? signature.Value : recipe.gloopFill ? BubbleKind.Gloop : PickKind(stage, rng);
+                else
+                    kind = PickKind(stage, rng);
                 int tier = BiggestAffordable(kind, budget);
                 // Outside the recipe's tiers counts as unaffordable, so the Gloop fallback still applies.
                 if (recipe != null) tier = TierInRange(recipe, tier);
@@ -538,7 +559,9 @@ namespace Bubblewright
                 // From ceramicFromWorld on some bubbles are ceramic: they take more hits, so they cost more budget.
                 // A recipe with ceramicChance at 0 or above uses that chance in every world.
                 bool ceramic;
-                if (recipe != null && recipe.ceramicChance >= 0f)
+                if (plain)
+                    ceramic = false;
+                else if (recipe != null && recipe.ceramicChance >= 0f)
                     ceramic = kind != BubbleKind.Lucky && tier <= t.ceramicMaxTier && rng.NextDouble() < recipe.ceramicChance;
                 else
                     ceramic = ceramicWorld && kind != BubbleKind.Lucky && tier <= t.ceramicMaxTier && rng.NextDouble() < t.ceramicChance;
@@ -553,7 +576,7 @@ namespace Bubblewright
             }
             var waveLists = new List<List<SpawnSpec>>();
             if (hasWaves) picks = SplitWaves(picks, recipe, rng, waveLists);
-            if (stage > 1 && rng.NextDouble() < t.luckyChance) picks.Add((BubbleKind.Lucky, 2, false));
+            if (!plain && stage > 1 && rng.NextDouble() < t.luckyChance) picks.Add((BubbleKind.Lucky, 2, false));
 
             // Biggest first. Flat stages assign the furthest random positions to the biggest bubbles.
             picks.Sort((a, b) => a.tier.CompareTo(b.tier));
@@ -563,6 +586,9 @@ namespace Bubblewright
             PlacementPattern pattern = PlacementPattern.Scattered;
             if (recipe != null && recipe.patterns != null && recipe.patterns.Length > 0)
                 pattern = recipe.patterns.Length == 1 ? recipe.patterns[0] : recipe.patterns[rng.Next(recipe.patterns.Length)];
+            // Clingers hang from a surface, so they are placed by their own rule and the rest go through the pattern.
+            var clingerPicks = picks.FindAll(p => p.kind == BubbleKind.Clinger);
+            picks.RemoveAll(p => p.kind == BubbleKind.Clinger);
             List<SpawnSpec> patterned = pattern == PlacementPattern.Scattered ? null : PlacementPatterns.Place(pattern, map, picks, bubbleMinY, rng);
             if (patterned != null)
             {
@@ -589,6 +615,7 @@ namespace Bubblewright
                         specs.Add(Spec(pick, position, rng));
                 }
             }
+            PlaceClingers(map, clingerPicks, specs, bubbleMinY, rng);
             return new StagePlan
             {
                 map = map, spawns = specs, rollers = rollers, wickX = 0f,
@@ -597,6 +624,81 @@ namespace Bubblewright
                 budget = fullBudget, rollerSpend = rollerSpend,
                 waves = waveLists, timeScale = recipe == null ? 1f : recipe.timeScale,
             };
+        }
+
+        /// <summary>
+        /// Places the Clinger picks (biggest first) on hanging spots, away from the bubbles already in specs and from
+        /// each other. A pick with no spot left is placed like any bubble and attaches to whatever is above it.
+        /// </summary>
+        static void PlaceClingers(StageMap map, List<(BubbleKind kind, int tier, bool ceramic)> clingers, List<SpawnSpec> specs, float bubbleMinY, System.Random rng)
+        {
+            var t = Tuning.I;
+            var taken = new List<(Vector2 pos, float radius)>();
+            foreach (var spec in specs) taken.Add((spec.position, t.tiers[spec.tier].diameter * 0.5f));
+            foreach (var pick in clingers)
+            {
+                float radius = t.tiers[pick.tier].diameter * 0.5f;
+                var ceiling = ClingerSpots(map, radius, 0f, true);
+                // XL bubbles only fit on the ceiling. Spots under a platform have y below the ceiling line.
+                var underPlatform = new List<Vector2>();
+                if (pick.tier > 0)
+                    foreach (var sp in ClingerSpots(map, radius, 0f, false))
+                        if (sp.y < t.arenaHeight - radius - 0.001f) underPlatform.Add(sp);
+                underPlatform.RemoveAll(sp => TooClose(sp, radius, taken));
+                ceiling.RemoveAll(sp => TooClose(sp, radius, taken));
+                List<Vector2> from;
+                if (underPlatform.Count > 0 && ceiling.Count > 0) from = rng.Next(3) < 2 ? underPlatform : ceiling;
+                else from = underPlatform.Count > 0 ? underPlatform : ceiling;
+                Vector2 spot;
+                if (from.Count > 0) spot = from[rng.Next(from.Count)];
+                else if (!TryPosition(map, radius + 0.25f, bubbleMinY, 0f, rng, out spot)) continue;
+                taken.Add((spot, radius));
+                specs.Add(Spec(pick, spot, rng));
+            }
+        }
+
+        static bool TooClose(Vector2 spot, float radius, List<(Vector2 pos, float radius)> centres)
+        {
+            foreach (var c in centres)
+                if ((c.pos - spot).magnitude < radius + c.radius) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Where a Clinger of this radius may hang: on the arena ceiling, and (unless ceilingOnly) under a platform tile
+        /// of rows 4 and 9 with open air below it. At least 5 units sideways from wickX, and clear of tiles apart from
+        /// touching the surface above it.
+        /// </summary>
+        public static List<Vector2> ClingerSpots(StageMap map, float radius, float wickX, bool ceilingOnly)
+        {
+            var t = Tuning.I;
+            var spots = new List<Vector2>();
+            for (float x = -t.HalfWidth + radius + 0.5f; x <= t.HalfWidth - radius - 0.5f + 0.0001f; x += 1f)
+            {
+                if (Mathf.Abs(x - wickX) < 5f) continue;
+                var spot = new Vector2(x, t.arenaHeight - radius);
+                if (ClearHanging(map, spot, radius)) spots.Add(spot);
+            }
+            if (ceilingOnly) return spots;
+            foreach (int row in new[] { 4, 9 })
+                for (int col = 0; col < StageMap.Cols; col++)
+                {
+                    if (!map.IsSolid(col, row) || map.IsSolid(col, row - 1)) continue;
+                    float x = StageMap.CenterX(col);
+                    if (Mathf.Abs(x - wickX) < 5f) continue;
+                    var spot = new Vector2(x, row - radius);
+                    if (ClearHanging(map, spot, radius)) spots.Add(spot);
+                }
+            return spots;
+        }
+
+        /// <summary>A circle that hangs from a surface: clear of tiles once moved down a little, so touching the surface is fine.</summary>
+        static bool ClearHanging(StageMap map, Vector2 spot, float radius)
+        {
+            var candidate = new Vector2(spot.x, spot.y - 0.05f);
+            Vector2 resolved = candidate;
+            Contact contact = map.ResolveCircle(ref resolved, radius);
+            return IsClear(candidate, resolved, contact);
         }
 
         /// <summary>

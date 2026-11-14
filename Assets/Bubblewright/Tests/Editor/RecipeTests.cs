@@ -13,7 +13,7 @@ namespace Bubblewright.Tests
             Assert.AreEqual(3, tuning.giantsMaxLate);
             Assert.AreEqual(4, tuning.giantsLateFromWorld);
             Assert.NotNull(tuning.recipes);
-            Assert.AreEqual(6, tuning.recipes.Length);
+            Assert.AreEqual(8, tuning.recipes.Length);
 
             Expect(tuning.recipes[0], RecipeId.Mixed, "Mixed", 1, 0, 3, 1f, 0, 0f, 0, -1f, false);
             Expect(tuning.recipes[1], RecipeId.Giants, "Giants", 1, 0, 0, 1f, 2, 0f, 0, -1f, false);
@@ -24,7 +24,10 @@ namespace Bubblewright.Tests
             Assert.AreEqual(2, tuning.recipes[5].waves);
             Assert.AreEqual(0.5f, tuning.recipes[5].startShare);
             Assert.AreEqual(1.15f, tuning.recipes[5].timeScale);
-            foreach (var row in tuning.recipes) Assert.IsTrue(row.inPool, row.name);
+            Assert.AreEqual(RecipeId.HomeTurf, tuning.recipes[6].id);
+            Assert.AreEqual(RecipeId.Introduction, tuning.recipes[7].id);
+            foreach (var row in tuning.recipes)
+                Assert.AreEqual(row.id != RecipeId.Introduction, row.inPool, row.name);
             Assert.AreSame(tuning.recipes[0], tuning.Recipe(RecipeId.Mixed));
             Assert.AreSame(tuning.recipes[0], tuning.Recipe((RecipeId)99), "an unknown id falls back to the first row");
         }
@@ -66,7 +69,8 @@ namespace Bubblewright.Tests
 
                     Assert.NotNull(drawn, $"seed {seed} stage {stage}");
                     Assert.LessOrEqual(drawn.fromWorld, world, $"seed {seed} stage {stage} drew {drawn.name}");
-                    Assert.IsTrue(drawn.inPool, drawn.name);
+                    Assert.IsTrue(drawn.inPool || drawn.id == RecipeId.Introduction, drawn.name);
+                    Assert.AreEqual(world > 1 && inWorldOf(stage) == 1, drawn.id == RecipeId.Introduction, $"seed {seed} stage {stage} introduction");
 
                     int inWorld = Run.StageInWorldOf(stage);
                     if (world == 1 && inWorld <= 2)
@@ -86,7 +90,7 @@ namespace Bubblewright.Tests
                         if (row.name == plan.recipeName) { shown = row; break; }
                     Assert.LessOrEqual(shown.fromWorld, world, $"seed {seed} stage {stage} shows {plan.recipeName}");
 
-                    bool slot = world > 1 || inWorld >= 3;
+                    bool slot = world == 1 ? inWorld >= 3 : inWorld >= 2;
                     if (slot)
                     {
                         counts[world].TryGetValue(counted, out int n);
@@ -105,7 +109,7 @@ namespace Bubblewright.Tests
 
                 for (int world = 1; world <= 6; world++)
                 {
-                    int slots = world == 1 ? 3 : 5;
+                    int slots = world == 1 ? 3 : 4;
                     int pool = 0;
                     foreach (var row in tuning.recipes)
                         if (row.inPool && row.fromWorld <= world) pool++;
@@ -148,6 +152,8 @@ namespace Bubblewright.Tests
             Assert.IsTrue(log.Contains("layout\trecipe\tpattern\troad"), log);
             Assert.IsTrue(log.Contains("\tMixed\t"), "stage 1 of the log names Mixed");
         }
+
+        static int inWorldOf(int stage) => Run.StageInWorldOf(stage);
 
         static void AssertGiants(StagePlan plan, int world, int seed, int stage)
         {

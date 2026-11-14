@@ -14,6 +14,8 @@ namespace Bubblewright
         RollingFloor,
         HardShell,
         Reinforcements,
+        HomeTurf,
+        Introduction,
     }
 
     /// <summary>
@@ -52,5 +54,15 @@ namespace Bubblewright
         public bool inPool = true;
         [Tooltip("The placement patterns this recipe may use. One is drawn per stage. Empty means Scattered.")]
         public PlacementPattern[] patterns;
+        [Tooltip("Share of the picks that are the world's signature kind. Below 0 means Tuning.signatureShare. A row with this at 0 or more needs a world that has a signature kind.")]
+        public float signatureShare = -1f;
+        [Tooltip("Picks that are not the signature kind are always Gloops.")]
+        public bool gloopFill;
+        [Tooltip("Multiplies the stage's budget before anything is spent. Introduction uses Tuning.introBudgetScale instead.")]
+        public float budgetScale = 1f;
+        [Tooltip("No rolling balls (steel too), no ceramic bubbles, no Lucky bubble and no waves.")]
+        public bool plain;
+        [Tooltip("Never uses a signature kind (Giants).")]
+        public bool classicKindsOnly;
     }
 }

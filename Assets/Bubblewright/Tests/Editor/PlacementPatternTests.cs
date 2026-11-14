@@ -31,6 +31,8 @@ namespace Bubblewright.Tests
                     seen.Add(plan.patternName);
                     foreach (var s in plan.spawns)
                     {
+                        // A Clinger hangs from a surface, so it has its own rule (see SignatureTests).
+                        if (s.kind == BubbleKind.Clinger) continue;
                         Vector2 resolved = s.position;
                         plan.map.ResolveCircle(ref resolved, Clearance(s.tier));
                         Assert.AreEqual(0f, (resolved - s.position).magnitude, 0.001f,

@@ -389,11 +389,13 @@ namespace Bubblewright
         public RecipeDef[] recipes =
         {
             new RecipeDef { id = RecipeId.Mixed, name = "Mixed", fromWorld = 1, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, patterns = new[] { PlacementPattern.Scattered } },
-            new RecipeDef { id = RecipeId.Giants, name = "Giants", fromWorld = 1, minTier = 0, maxTier = 0, startCapScale = 1f, startCapMax = 2, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, patterns = new[] { PlacementPattern.MirroredPair, PlacementPattern.TopRow } },
+            new RecipeDef { id = RecipeId.Giants, name = "Giants", fromWorld = 1, minTier = 0, maxTier = 0, startCapScale = 1f, startCapMax = 2, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, classicKindsOnly = true, patterns = new[] { PlacementPattern.MirroredPair, PlacementPattern.TopRow } },
             new RecipeDef { id = RecipeId.Swarm, name = "Swarm", fromWorld = 1, minTier = 2, maxTier = 3, startCapScale = 2f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, patterns = new[] { PlacementPattern.TopRow, PlacementPattern.OnePerFloor, PlacementPattern.Scattered } },
             new RecipeDef { id = RecipeId.RollingFloor, name = "Rolling floor", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 3, rollerShare = 0.6f, rollerMax = 4, ceramicChance = -1f, allRollersCeramic = false, inPool = true, patterns = new[] { PlacementPattern.TopRow, PlacementPattern.Scattered } },
             new RecipeDef { id = RecipeId.HardShell, name = "Hard shell", fromWorld = 3, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = 0.7f, allRollersCeramic = true, inPool = true, patterns = new[] { PlacementPattern.Scattered, PlacementPattern.MirroredPair, PlacementPattern.OnePerFloor } },
             new RecipeDef { id = RecipeId.Reinforcements, name = "Reinforcements", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, waves = 2, startShare = 0.5f, timeScale = 1.15f, patterns = new[] { PlacementPattern.Scattered } },
+            new RecipeDef { id = RecipeId.HomeTurf, name = "Home turf", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = true, signatureShare = 0.7f, gloopFill = true, patterns = new[] { PlacementPattern.Scattered, PlacementPattern.OnePerFloor } },
+            new RecipeDef { id = RecipeId.Introduction, name = "Introduction", fromWorld = 2, minTier = 0, maxTier = 3, startCapScale = 1f, startCapMax = 0, rollerShare = 0f, rollerMax = 0, ceramicChance = -1f, allRollersCeramic = false, inPool = false, signatureShare = 1f, gloopFill = true, budgetScale = 0.6f, plain = true, patterns = new[] { PlacementPattern.Scattered } },
         };
         [Tooltip("Bubbles a Giants stage may start with from Giants Late From World on, in place of that row's Start Cap Max.")]
         public int giantsMaxLate = 3;
@@ -408,6 +410,14 @@ namespace Bubblewright
                     if (row != null && row.id == id) return row;
             return recipes != null && recipes.Length > 0 ? recipes[0] : null;
         }
+
+        [Header("Signature enemies")]
+        [Tooltip("The enemy each world is known for, by world - 1. Gloop means none (Rooftops).")]
+        public BubbleKind[] signatureKinds = { BubbleKind.Gloop, BubbleKind.Clinger, BubbleKind.Sinker, BubbleKind.Frost, BubbleKind.Ghost, BubbleKind.Scorch };
+        [Tooltip("Share of the picks that are the signature kind in a recipe that does not set its own.")]
+        public float signatureShare = 0.33f;
+        [Tooltip("An Introduction stage (stage 1 of worlds 2 to 6) spends this share of the normal budget.")]
+        public float introBudgetScale = 0.6f;
 
         [Header("Reinforcements")]
         [Tooltip("A wave is called when this many enemies or fewer are left on screen.")]

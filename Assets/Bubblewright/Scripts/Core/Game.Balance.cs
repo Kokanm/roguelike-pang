@@ -43,7 +43,16 @@ namespace Bubblewright
             {
                 float left = Mathf.Max(0f, r.budget - r.bubbleSpend - r.rollerSpend);
                 AddDebugLine($"BUDGET {r.budget:0.#}  =  bubbles {r.bubbleSpend:0.#}  +  rollers {r.rollerSpend:0.#}  +  unspent {left:0.#}");
-                AddDebugLine($"BUBBLES  {r.BubbleSummary()}");
+                // With ten kinds the summary can be long: break it at a comma into lines of at most about 60 characters.
+                string summary = "BUBBLES  " + r.BubbleSummary();
+                while (summary.Length > 60)
+                {
+                    int cut = summary.LastIndexOf(", ", 60, System.StringComparison.Ordinal);
+                    if (cut < 0) break;
+                    AddDebugLine(summary.Substring(0, cut + 1));
+                    summary = "         " + summary.Substring(cut + 2);
+                }
+                AddDebugLine(summary);
                 AddDebugLine($"BUBBLES CERAMIC {r.ceramicBubbles}  ·  ROLLERS {r.rollers} big ({r.ceramicRollers} ceramic)  ·  STEEL {r.steelRollers}");
             }
             if (r.waves > 0) AddDebugLine($"WAVES {r.waves} ({r.waveBubbles} bubbles)");
