@@ -43,9 +43,9 @@ namespace Bubblewright
         public static readonly Color32 PearlShade = Hex(0xB7A9D6);
 
         // Floor surfaces (ice only in Winter, sand only in Desert)
-        public static readonly Color32 Ice = Hex(0xBFE6FF);
+        public static readonly Color32 Ice = Hex(0x9FDCFF);
         public static readonly Color32 IceGlint = Hex(0xF2FBFF);
-        public static readonly Color32 IceShade = Hex(0x7FB4E0);
+        public static readonly Color32 IceShade = Hex(0x5FA8E0);
         public static readonly Color32 Sand = Hex(0xC9A27A);
         public static readonly Color32 SandGrain = Hex(0x8C6A55);
 
