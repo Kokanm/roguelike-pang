@@ -26,9 +26,9 @@ Kokan picked **A**.
 
 ## Decisions
 
-- **Coasting on ice** (`wantMove == 0`): keeps `Tuning.iceStopTime = 0.9f`.
-- **Active braking / reversing on ice** (`wantMove` opposes `VelocityX`): uses a new `Tuning.iceTurnTime = 0.35f` (~21 frames from full speed to `0`).
-- **Accelerating on ice** (from `0` or with `VelocityX`): lowers `Tuning.iceAccelTime` from `0.5f` to `0.40f` (~24 frames from `0` to top speed; full reverse in ~`0.75s` instead of `1.4s`).
+- **Coasting on ice** (`wantMove == 0`): keeps `Tuning.iceStopTime = 0.9f` (anchored to `Tuning.runSpeed`, so faster builds coast proportionally longer).
+- **Active braking / reversing on ice** (`wantMove` opposes `VelocityX`): uses `Tuning.iceTurnTime = 0.35f` (~21 frames from baseline `runSpeed` to `0`; deceleration rate is fixed to `Tuning.runSpeed / iceTurnTime`, so faster characters and Swift Boots take proportionally longer to brake, while slower builds stop sooner).
+- **Accelerating on ice** (from `0` or with `VelocityX`): lowers `Tuning.iceAccelTime` from `0.5f` to `0.40f` (~24 frames from `0` to `topSpeed`; full reverse at baseline speed in ~`0.75s` instead of `1.4s`).
 - **Normal and sand surfaces:** continue using `Tuning.stopTime` (`0.04f`) for both coasting and reversing, leaving non-ice feel identical.
 
 ## Builder calls

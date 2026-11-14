@@ -355,7 +355,9 @@ namespace Bubblewright
                     bool coasting = target == 0f;
                     bool reversing = !coasting && VelocityX != 0f && Mathf.Sign(target) != Mathf.Sign(VelocityX);
                     float rampTime = coasting ? stopTime : reversing ? turnTime : accelTime;
-                    float rate = topSpeed / Mathf.Max(0.001f, rampTime);
+                    // Ice grip comes from the surface (Wick's baseline runSpeed), so faster builds slide longer when braking or coasting.
+                    float rateSpeed = surface == Surface.Ice && (coasting || reversing) ? T.runSpeed : topSpeed;
+                    float rate = rateSpeed / Mathf.Max(0.001f, rampTime);
                     VelocityX = Mathf.MoveTowards(VelocityX, target, rate * dt);
                     pos.x += VelocityX * dt;
                     TickSandDust(surface, dt);

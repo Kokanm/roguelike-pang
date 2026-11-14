@@ -164,6 +164,51 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void HigherTopSpeedSlidesLongerWhenBrakingAndCoastingOnIce()
+        {
+            // Fast build: Ember (10.5 u/s) with 3x Swift Boots (x1.36) -> 14.28 u/s (~1.59x base runSpeed).
+            wick.BaseRunSpeed = 10.5f;
+            wick.SpeedMultiplier = 1.36f;
+            float fastTop = 10.5f * 1.36f;
+
+            // Normal ground still reverses a fast build right away (~0.10 s).
+            Step(0.10f, -1f);
+            Assert.AreEqual(-fastTop, wick.VelocityX, 0.01f);
+            Step(0.12f, 1f);
+            Assert.AreEqual(fastTop, wick.VelocityX, 0.01f, "normal ground keeps snappy turns at high top speed");
+
+            // On ice, reaching top speed from rest still takes iceAccelTime (0.40 s).
+            AllGround(map, Surface.Ice);
+            wick.ResetForStage(0f, 0f, 3);
+            Step(0.42f, -1f);
+            Assert.AreEqual(-fastTop, wick.VelocityX, 0.01f, "reaches higher top speed within 0.42 s");
+
+            // Active brake on ice: at 0.36 s (where base Wick has already crossed 0), the fast build is still sliding left,
+            // then crosses 0 around 0.56 s (~1.59 * 0.35 s).
+            Step(0.36f, 1f);
+            Assert.Less(wick.VelocityX, -4f, "faster top speed is still sliding left past 0.35 s");
+            Step(0.22f, 1f); // 0.58 s total
+            Assert.Greater(wick.VelocityX, 0f, "crosses 0 around ~0.56 s");
+
+            // Coasting on ice: from +fastTop, still sliding past 1.0 s (where base Wick has stopped), stopped by 1.5 s.
+            Step(0.45f, 1f);
+            Assert.AreEqual(fastTop, wick.VelocityX, 0.01f);
+            Step(1.0f, 0f);
+            Assert.Greater(wick.VelocityX, 3.5f, "faster top speed still coasting at 1.0 s");
+            Step(0.5f, 0f);
+            Assert.AreEqual(0f, wick.VelocityX, 0.01f, "stopped by 1.5 s");
+
+            // Slower character (Moss: 7.5 u/s) carries less momentum and crosses 0 sooner (~0.29 s < 0.35 s).
+            wick.BaseRunSpeed = 7.5f;
+            wick.SpeedMultiplier = 1f;
+            wick.ResetForStage(0f, 0f, 3);
+            Step(0.45f, -1f);
+            Assert.AreEqual(-7.5f, wick.VelocityX, 0.01f);
+            Step(0.32f, 1f);
+            Assert.Greater(wick.VelocityX, 0f, "slower top speed finishes braking before 0.35 s");
+        }
+
+        [Test]
         public void SandCapsTopSpeed()
         {
             AllGround(map, Surface.Sand);
