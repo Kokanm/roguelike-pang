@@ -111,12 +111,17 @@ namespace Bubblewright.Tests
             Step(0.35f, 1f);
             Assert.AreEqual(top, wick.VelocityX, 0.001f);
 
-            // Coast to roughly half speed (~0.45 s of 0.9 s stop time).
+            // Coast to roughly half speed (~0.45 s of 0.9 s stop time -> ~4.5 u/s).
             Step(0.45f, 0f);
             Assert.That(wick.VelocityX, Is.InRange(top * 0.4f, top * 0.6f));
 
-            // Pressing right again should recover to top speed in ~0.13 s (half of 0.25 s iceAccelTime), not 0.45 s.
-            Step(0.15f, 1f);
+            // After 4 frames (~0.067 s) pressing right, iceAccelTime (0.25 s) puts speed near 6.9 u/s,
+            // whereas mistakenly using iceTurnTime (0.18 s) would already exceed 7.5 u/s.
+            Step(4f * Dt, 1f);
+            Assert.That(wick.VelocityX, Is.InRange(top * 0.72f, top * 0.82f), "uses iceAccelTime rather than iceTurnTime");
+
+            // Finishes recovering to top speed by ~0.15 s total.
+            Step(0.09f, 1f);
             Assert.AreEqual(top, wick.VelocityX, 0.001f);
         }
 
