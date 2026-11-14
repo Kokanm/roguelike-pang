@@ -130,8 +130,7 @@ namespace Bubblewright
             else if (normal.y > 0f) b.Velocity = new Vector2(dir * b.SpeedX, T.BounceSpeed(b.Kind, b.Tier)); // a Gloop's bounce
             else b.Velocity = new Vector2(normal.x * b.SpeedX, 0f);                                   // push off the wall
             if (normal.x != 0f) dir = normal.x < 0f ? -1 : 1;
-            if (pad != null) Object.Destroy(pad);
-            pad = null;
+            ReleasePad();
         }
 
         /// <summary>The same ballistic step as a plain bubble, but it sticks to the first surface it touches.</summary>
@@ -242,9 +241,20 @@ namespace Bubblewright
             b.transform.position = new Vector3(at.x, at.y, b.transform.position.z);
         }
 
+        /// <summary>
+        /// Edit-mode tests have no play-mode destroy queue, and Object.Destroy there logs an error that fails the test.
+        /// </summary>
+        void ReleasePad()
+        {
+            if (pad == null) return;
+            if (Application.isPlaying) Object.Destroy(pad);
+            else Object.DestroyImmediate(pad);
+            pad = null;
+        }
+
         void MakePad(Bubble b)
         {
-            if (pad != null) Object.Destroy(pad);
+            ReleasePad();
             var sprite = PlaceholderArt.I.ClingerPad(b.Tier);
             pad = new GameObject("Clinger pad");
             pad.transform.SetParent(b.transform, false);
