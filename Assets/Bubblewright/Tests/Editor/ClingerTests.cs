@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Bubblewright.Tests
 {
-    /// <summary>The Clinger hangs from a ceiling or platform, wobbles when Wick is below, then drops and bounces like a Gloop.</summary>
+    /// <summary>The Clinger sticks to any surface it touches and lets go, after a wobble, when Wick crosses the lane straight out from that surface.</summary>
     public class ClingerTests
     {
         const float Dt = 1f / 60f;
@@ -63,7 +63,7 @@ namespace Bubblewright.Tests
         {
             var b = Spawn(2, new Vector2(5f, 9f));
             Assert.AreEqual(14f - b.Radius, b.Position.y, 0.001f);
-            Assert.AreEqual(ClingerBehavior.State.Hanging, Of(b).Current);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
             var start = b.Position;
             Run(b, 5f);
             Assert.AreEqual(start.x, b.Position.x, 0.0001f);
@@ -106,50 +106,131 @@ namespace Bubblewright.Tests
             var b = Spawn(2, new Vector2(5.5f, 7f));
             Game.WickFeet = new Vector2(5.5f + 1.6f, 0f);
             Run(b, 1f);
-            Assert.AreEqual(ClingerBehavior.State.Hanging, Of(b).Current);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
             Game.WickFeet = new Vector2(5.5f, b.Position.y + 1f); // standing above its bottom
             Run(b, 1f);
-            Assert.AreEqual(ClingerBehavior.State.Hanging, Of(b).Current);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
         }
 
         [Test]
-        public void BouncesLikeAGloopAfterDropping()
+        public void AfterDroppingItSticksToTheFloorItLandsOn()
         {
             var b = Spawn(2, new Vector2(5f, 9f));
             Game.WickFeet = new Vector2(5f, 0f);
-            float peak = Tuning.I.tiers[2].peakHeight;
-            float highest = 0f;
-            bool bounced = false;
-            for (int i = 0; i < 20 * 60; i++)
-            {
-                b.Tick(Dt);
-                if (b.Velocity.y > 0f && Of(b).Current == ClingerBehavior.State.Free) bounced = true;
-                if (bounced) highest = Mathf.Max(highest, b.Position.y + b.Radius);
-            }
-            Assert.IsTrue(bounced, "it must have landed and bounced");
-            Assert.LessOrEqual(highest, peak + 0.05f);
-            Assert.GreaterOrEqual(highest, peak - 0.2f);
+            Run(b, 0.5f);
+            Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
+            Game.WickFeet = new Vector2(-10f, 0f);
+            Run(b, 3f);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+            Assert.AreEqual(Vector2.up, Of(b).Normal);
+            Assert.AreEqual(b.Radius, b.Position.y, 0.01f);
+        }
+
+        Bubble StuckOnFloor(float x)
+        {
+            var b = Spawn(3, new Vector2(x, 2f), child: true);
+            for (int i = 0; i < 5 * 60 && Of(b).Current != ClingerBehavior.State.Stuck; i++) b.Tick(Dt);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+            Assert.AreEqual(Vector2.up, Of(b).Normal);
+            return b;
         }
 
         [Test]
-        public void TheStormDropsAHangingClingerAtOnce()
+        public void OnTheFloorItIgnoresWickWalkingBesideIt()
+        {
+            var b = StuckOnFloor(5f);
+            Game.WickFeet = new Vector2(b.Position.x + 1.2f, 0f);
+            Run(b, 1f);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+        }
+
+        [Test]
+        public void OnTheFloorItLetsGoWhenWickJumpsOverItAndBouncesUp()
+        {
+            var b = StuckOnFloor(5f);
+            Game.WickFeet = new Vector2(b.Position.x, b.Position.y + b.Radius + 0.3f);
+            b.Tick(Dt);
+            Assert.AreEqual(ClingerBehavior.State.Wobbling, Of(b).Current);
+            Run(b, 0.45f);
+            Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
+            Assert.Greater(b.Velocity.y, 0f, "it leaves the floor with a bounce");
+        }
+
+        Bubble StuckOnRightWall()
+        {
+            var b = Bubble.Create(root.transform, BubbleKind.Clinger, 2, new Vector2(14.8f, 6f), new Vector2(6f, 0f), true);
+            for (int i = 0; i < 2 * 60 && Of(b).Current != ClingerBehavior.State.Stuck; i++) b.Tick(Dt);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+            Assert.AreEqual(Vector2.left, Of(b).Normal);
+            return b;
+        }
+
+        [Test]
+        public void OnARightWallItLetsGoWhenWickPassesToItsLeft()
+        {
+            var b = StuckOnRightWall();
+            Game.WickFeet = new Vector2(0f, b.Position.y - 0.7f);
+            b.Tick(Dt);
+            Assert.AreEqual(ClingerBehavior.State.Wobbling, Of(b).Current);
+            Run(b, 0.45f);
+            Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
+            Assert.Less(b.Velocity.x, 0f, "it pushes off the wall, away from it");
+        }
+
+        [Test]
+        public void OnARightWallItIgnoresWickFarBelowItsLane()
+        {
+            var b = StuckOnRightWall();
+            Game.WickFeet = new Vector2(0f, 0f);
+            Run(b, 1f);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+        }
+
+        [Test]
+        public void ItDoesNotHangUnderAPlatformTooLowForWickToWalkUnder()
+        {
+            var map = StageMap.Flat();
+            for (int c = 10; c <= 22; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid });
+            SetMap(map);
+            var l = Spawn(1, new Vector2(0f, 2f)); // an L under row 4 would leave 1.5 units, less than the clearance
+            Assert.AreEqual(14f - l.Radius, l.Position.y, 0.001f);
+            var m = Spawn(2, new Vector2(1f, 2f)); // an M leaves 2.4 units, enough
+            Assert.AreEqual(4f - m.Radius, m.Position.y, 0.001f);
+        }
+
+        [Test]
+        public void AfterTheStormItNeverSticksAgain()
+        {
+            var b = Spawn(2, new Vector2(5f, 9f));
+            b.OnStorm();
+            for (int i = 0; i < 5 * 60; i++)
+            {
+                b.Tick(Dt);
+                Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
+            }
+        }
+
+        [Test]
+        public void TheStormDropsAStuckClingerAtOnce()
         {
             var b = Spawn(1, new Vector2(5f, 9f));
-            Assert.AreEqual(ClingerBehavior.State.Hanging, Of(b).Current);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
             b.OnStorm();
             Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
         }
 
         [Test]
-        public void AChildIsFreeFromTheStartAndIsNotMovedToACeiling()
+        public void AChildIsFreeFromTheStartAndSticksToTheFirstSurfaceItTouches()
         {
             var b = Spawn(2, new Vector2(5f, 4f), child: true);
             Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
             Assert.AreEqual(4f, b.Position.y, 0.0001f);
+            Run(b, 3f);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
         }
 
         [Test]
-        public void AHangingClingerCanBeShotAndHurts()
+        public void AStuckClingerCanBeShotAndHurts()
         {
             var b = Spawn(2, new Vector2(5f, 9f));
             Assert.IsTrue(b.CanBeHit);
@@ -163,7 +244,7 @@ namespace Bubblewright.Tests
             SetMap(map);
             var b = Spawn(2, new Vector2(5.5f, 7f));
             b.Tick(Dt);
-            Assert.AreEqual(ClingerBehavior.State.Hanging, Of(b).Current);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
             map.Set(21, 9, new Cell { kind = TileKind.Empty });
             b.Tick(Dt);
             Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);

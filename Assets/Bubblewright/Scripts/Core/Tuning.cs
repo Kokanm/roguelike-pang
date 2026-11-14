@@ -325,10 +325,14 @@ namespace Bubblewright
         public float ceramicCostScale = 1.5f;
 
         [Header("Clinger")]
-        [Tooltip("A hanging Clinger starts to wobble when Wick is below it and no further away sideways than this (units).")]
+        [Tooltip("A stuck Clinger starts to wobble when Wick crosses the lane straight out from the surface it holds, this close to its centre line (units). Under a ceiling, Wick's centre x; on a floor, Wick's centre x; on a wall, the gap between its centre and Wick's box vertically.")]
         public float clingerTriggerX = 1.5f;
-        [Tooltip("How long a Clinger wobbles before it drops (seconds).")]
+        [Tooltip("How long a Clinger wobbles before it lets go (seconds).")]
         public float clingerWobbleTime = 0.4f;
+        [Tooltip("After letting go, a Clinger ignores surfaces for this long so it leaves the one it held (seconds).")]
+        public float clingerRestickDelay = 0.2f;
+        [Tooltip("A Clinger only sticks under a platform when its bottom stays at least this high above the floor below, so Wick can walk under it.")]
+        public float clingerMinClearance = 2f;
 
         [Header("Sinker")]
         [Tooltip("On sand, each landing keeps this share of the last bounce's height.")]
