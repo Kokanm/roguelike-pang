@@ -237,6 +237,8 @@ namespace Bubblewright.Tests
 
                     foreach (var spawn in plan.spawns)
                     {
+                        // A Clinger hangs from a surface, so it has its own rule (see SignatureTests).
+                        if (spawn.kind == BubbleKind.Clinger) continue;
                         float radius = Tuning.I.tiers[spawn.tier].diameter * 0.5f + 0.25f;
                         Vector2 resolved = spawn.position;
                         Contact contact = plan.map.ResolveCircle(ref resolved, radius);
