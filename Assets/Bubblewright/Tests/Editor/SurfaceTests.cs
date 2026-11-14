@@ -152,6 +152,25 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void NormalAndSandAccelerationAreALittleSlowerThanInstant()
+        {
+            // Normal floor: still short of top speed at 0.07 s (4 frames), there by 0.09 s.
+            Step(0.07f, 1f);
+            Assert.Less(wick.VelocityX, Tuning.I.runSpeed - 0.5f, "not at top speed after 0.07 s");
+            Step(0.02f, 1f);
+            Assert.AreEqual(Tuning.I.runSpeed, wick.VelocityX, 0.001f, "at top speed by 0.09 s");
+
+            AllGround(map, Surface.Sand);
+            wick.ResetForStage(0f, 0f, 3);
+            float sandTop = Tuning.I.runSpeed * Tuning.I.sandSpeedScale;
+            // Sand: still short at 0.10 s (6 frames), there by 0.15 s.
+            Step(0.10f, 1f);
+            Assert.Less(wick.VelocityX, sandTop - 0.3f, "sand is not at its top speed after 0.10 s");
+            Step(0.05f, 1f);
+            Assert.AreEqual(sandTop, wick.VelocityX, 0.01f, "sand reaches its top speed by 0.15 s");
+        }
+
+        [Test]
         public void IceIsSlowToStop()
         {
             AllGround(map, Surface.Ice);

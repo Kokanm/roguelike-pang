@@ -25,7 +25,7 @@ namespace Bubblewright
         [Tooltip("Top speed in units per second.")]
         public float runSpeed = 9f;
         [Tooltip("Seconds to reach top speed from standing.")]
-        public float accelTime = 0.06f;
+        public float accelTime = 0.08f;
         [Tooltip("Seconds to stop from top speed (also used when reversing).")]
         public float stopTime = 0.04f;
         [Tooltip("Hitbox in units. 15 x 22 px. Bottom sits at his feet.")]
@@ -207,7 +207,7 @@ namespace Bubblewright
         [Tooltip("Sand: top speed is the normal run speed times this.")]
         public float sandSpeedScale = 0.7f;
         [Tooltip("Sand: seconds to reach top speed from standing still.")]
-        public float sandAccelTime = 0.1f;
+        public float sandAccelTime = 0.12f;
         [Tooltip("Desert stages get this much more time on the storm clock, because everything takes longer.")]
         public float desertTimeScale = 1.15f;
         [Tooltip("While walking on sand, a dust puff at his feet every this many seconds.")]
