@@ -8,7 +8,7 @@ Walking on ice feels clunky and unresponsive because reversing direction uses th
 
 ## Goals, non-goals, anti-goals
 
-- **Goals:** Pressing the opposite direction on ice visibly cuts speed over ~18 frames (`0.30s`) and ramps up in the new direction over ~21 frames (`0.35s`), while releasing input still glides to a stop over `0.9s`.
+- **Goals:** Pressing the opposite direction on ice visibly cuts speed over ~21 frames (`0.35s`) and ramps up in the new direction over ~24 frames (`0.40s`), while releasing input still glides to a stop over `0.9s`.
 - **Non-goals:** Changing normal ground, sand, air control, Frost bubble timers, or Winter ice placement.
 - **Anti-goals:** Instant normal-ground snapping on ice (ice should still feel slippery), or a multi-second slide that ignores opposite-direction input.
 
@@ -27,11 +27,11 @@ Kokan picked **A**.
 ## Decisions
 
 - **Coasting on ice** (`wantMove == 0`): keeps `Tuning.iceStopTime = 0.9f`.
-- **Active braking / reversing on ice** (`wantMove` opposes `VelocityX`): uses a new `Tuning.iceTurnTime = 0.30f` (~18 frames from full speed to `0`).
-- **Accelerating on ice** (from `0` or with `VelocityX`): lowers `Tuning.iceAccelTime` from `0.5f` to `0.35f` (~21 frames from `0` to top speed; full reverse in ~`0.65s` instead of `1.4s`).
+- **Active braking / reversing on ice** (`wantMove` opposes `VelocityX`): uses a new `Tuning.iceTurnTime = 0.35f` (~21 frames from full speed to `0`).
+- **Accelerating on ice** (from `0` or with `VelocityX`): lowers `Tuning.iceAccelTime` from `0.5f` to `0.40f` (~24 frames from `0` to top speed; full reverse in ~`0.75s` instead of `1.4s`).
 - **Normal and sand surfaces:** continue using `Tuning.stopTime` (`0.04f`) for both coasting and reversing, leaving non-ice feel identical.
 
 ## Builder calls
 
-- Keep `canSkid` false on ice in `Wick.DetectRunEdges` so ice turns stay smooth rather than kicking up dirt dust and dry-ground skid SFX, while body lean naturally follows `VelocityX` across `0` in ~18 frames. **(call)**
-- Update `SurfaceTests.IceIsSlowToStart` for `iceAccelTime = 0.35f` (checked mid-ramp at `0.17s` and at top speed by `0.37s`), keep `IceIsSlowToStop` intact, and add dedicated tests proving active reversing on ice is much faster than passive coasting yet slower than normal ground. **(call)**
+- Keep `canSkid` false on ice in `Wick.DetectRunEdges` so ice turns stay smooth rather than kicking up dirt dust and dry-ground skid SFX, while body lean naturally follows `VelocityX` across `0` in ~21 frames. **(call)**
+- Update `SurfaceTests.IceIsSlowToStart` for `iceAccelTime = 0.40f` (checked mid-ramp at `0.20s` and at top speed by `0.42s`), keep `IceIsSlowToStop` intact, and add dedicated tests proving active reversing on ice is much faster than passive coasting yet slower than normal ground. **(call)**

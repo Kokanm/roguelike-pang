@@ -199,9 +199,9 @@ namespace Bubblewright
 
         [Header("Surfaces")]
         [Tooltip("Ice: seconds to reach top speed from standing still (normal floor: Accel Time).")]
-        public float iceAccelTime = 0.35f;
+        public float iceAccelTime = 0.40f;
         [Tooltip("Ice: seconds to brake from top speed to zero when pressing the opposite direction (normal floor: Stop Time).")]
-        public float iceTurnTime = 0.30f;
+        public float iceTurnTime = 0.35f;
         [Tooltip("Ice: seconds to slide from top speed to a stop when letting go of movement (normal floor: Stop Time).")]
         public float iceStopTime = 0.9f;
         [Tooltip("Sand: top speed is the normal run speed times this.")]
