@@ -16,14 +16,16 @@ namespace Bubblewright
         WeaponSpec heldWeapon;
         int heldAmmo;
         bool heldDimmed;
+        float heldGauge = -1f;
         static readonly Color DimTint = new Color(0.5f, 0.5f, 0.55f, 1f);
 
         /// <summary>The weapon in the weapon slot and its ammo, or null to hide the weapon button. Set before Refresh.</summary>
-        public void ShowWeapon(WeaponSpec spec, int ammo, bool dimmed = false)
+        public void ShowWeapon(WeaponSpec spec, int ammo, bool dimmed = false, float gauge = -1f)
         {
             heldWeapon = spec;
             heldAmmo = ammo;
             heldDimmed = dimmed;
+            heldGauge = gauge;
         }
 
         public static TouchControlsView Create(Transform parent, Camera cam)
@@ -99,7 +101,7 @@ namespace Bubblewright
                 weapon.sprite = WeaponArt.Button(heldWeapon, down);
                 weapon.color = weaponAmmo.color = heldDimmed ? DimTint : Color.white;
                 weapon.transform.position = weaponPos;
-                weaponAmmo.sprite = WeaponArt.Number(heldAmmo);
+                weaponAmmo.sprite = heldGauge >= 0f ? GaugeBar(heldGauge) : WeaponArt.Number(heldAmmo);
                 weaponAmmo.transform.position = weaponPos + new Vector3(0f, WeaponArt.ButtonNumberOffsetPixels(down) * px, 0f);
                 Vector2 centre = cam.WorldToScreenPoint(weaponPos);
                 Vector2 edge = cam.WorldToScreenPoint(weaponPos + new Vector3(JumpButtonRadiusPixels * px, 0f, 0f));
@@ -125,6 +127,23 @@ namespace Bubblewright
                 climbUp.transform.position = Snap(arrowAnchor + new Vector2(0f, arrowOffset), t);
                 climbDown.transform.position = Snap(arrowAnchor - new Vector2(0f, arrowOffset), t);
             }
+        }
+
+        const int GaugeWidth = 15;
+        static readonly Sprite[] gaugeBars = new Sprite[GaugeWidth + 1];
+
+        /// <summary>An ink frame 17 x 5 px filled with ink for the share left, in place of the ammo number (fuel).</summary>
+        static Sprite GaugeBar(float fraction)
+        {
+            int filled = Mathf.Clamp(Mathf.CeilToInt(fraction * GaugeWidth - 0.001f), 0, GaugeWidth);
+            if (gaugeBars[filled] != null) return gaugeBars[filled];
+            var c = new PixelCanvas(GaugeWidth + 2, 5);
+            c.Rect(0, 0, GaugeWidth + 2, 1, Palette.Ink);
+            c.Rect(0, 4, GaugeWidth + 2, 1, Palette.Ink);
+            c.Rect(0, 0, 1, 5, Palette.Ink);
+            c.Rect(GaugeWidth + 1, 0, 1, 5, Palette.Ink);
+            c.Rect(1, 1, filled, 3, Palette.Ink);
+            return gaugeBars[filled] = c.ToSprite("WeaponGauge_" + filled, new Vector2(Mathf.Floor(c.Width * 0.5f), 2f), Tuning.I.pixelsPerUnit);
         }
 
         /// <summary>Radius of the drawn jump (and fire) disc, in art pixels.</summary>

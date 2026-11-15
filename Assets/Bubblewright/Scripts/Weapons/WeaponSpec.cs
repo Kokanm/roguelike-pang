@@ -97,6 +97,9 @@ namespace Bubblewright
         /// <summary>A weapon-slot weapon with nothing to fire at right now: the touch button is drawn dim (Longshot).</summary>
         public virtual bool Dimmed => false;
 
+        /// <summary>0 to 1 to draw the touch button's ammo as a shrinking bar instead of a number (Lamplighter Torch's fuel); below 0 for the number.</summary>
+        public virtual float Gauge => -1f;
+
         /// <summary>The weapon left its slot (empty, replaced) or the stage is starting over. Remove anything it owns.</summary>
         public virtual void Dispose() { }
     }
