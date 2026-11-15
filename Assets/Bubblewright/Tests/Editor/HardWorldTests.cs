@@ -94,7 +94,7 @@ namespace Bubblewright.Tests
         public void RareUpgradesAreTheThreeInThePlan()
         {
             var rare = Upgrade.All.Where(u => u.Rarity == Rarity.Rare).Select(u => u.Name).OrderBy(n => n).ToArray();
-            CollectionAssert.AreEqual(new[] { "Anchor Tip", "Spare Wick", "Twin Cable" }, rare);
+            CollectionAssert.AreEqual(new[] { "Anchor Tip", "Spare Wick", "Twin Cable", "Updraft" }, rare);
         }
 
         [Test]

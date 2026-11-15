@@ -253,6 +253,7 @@ namespace Bubblewright
             wick.BaseInvulnerable = run.Character.BaseInvulnerable;
             wick.SpeedMultiplier = run.EffectiveSpeedMultiplier;
             wick.ExtraInvulnerable = run.ExtraInvulnerable;
+            wick.AirJumps = run.AirJumps;
             wick.InvulnerableScale = debuff?.invulnerableScale ?? 1f;
             while (harpoons.Count < run.Shots) harpoons.Add(Harpoon.Create(world, HitTile));
             foreach (var h in harpoons)
@@ -388,15 +389,17 @@ namespace Bubblewright
                 if (harpoons[i].Active) anyActive = true;
                 else if (free == null) free = harpoons[i];
             }
-            var shotTip = wick.LauncherTip;
-            bool canFire = (wick.Mode == Mode.Ground || wick.Mode == Mode.Climb) &&
-                           !Map.IsSolid(StageMap.Col(shotTip.x), StageMap.Row(shotTip.y));
+            // He fires on the ground, on ladders and in the air. Holding Down in the air fires straight down instead.
+            bool shootDown = wick.Mode == Mode.Fall && input.MoveY < 0f;
+            var shotTip = shootDown ? wick.DownShotStart : wick.LauncherTip;
+            bool canFire = !Map.IsSolid(StageMap.Col(shotTip.x), StageMap.Row(shotTip.y));
             if (free != null && canFire && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
             {
-                free.Fire(wick.LauncherTip, ChipColumn());
+                if (shootDown) free.FireDown(shotTip);
+                else free.Fire(shotTip, wick.Mode == Mode.Fall ? -1 : ChipColumn());
                 shotTimer = 0f;
                 wick.OnFire();
-                fx.MuzzleFlash(wick.LauncherTip);
+                fx.MuzzleFlash(shotTip);
                 Sfx.Play(Sound.Fire);
             }
             TickHarpoons(dt);

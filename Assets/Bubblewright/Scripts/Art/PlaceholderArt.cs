@@ -291,6 +291,16 @@ namespace Bubblewright
                     c.Rect(10, 11, 6, 1, Palette.Mint);
                     c.Rect(11, 13, 5, 1, Palette.Mint);
                     break;
+                case "Updraft":
+                    // Two rising chevrons over a puff of air.
+                    foreach (int y in new[] { 7, 12 })
+                        for (int i = 0; i < 4; i++)
+                        {
+                            c.Rect(5 + i, y + i, 2, 1, Palette.Mint);
+                            c.Rect(11 - i, y + i, 2, 1, Palette.Mint);
+                        }
+                    c.Ellipse(9f, 3f, 5f, 1.6f, Palette.Mist);
+                    break;
                 case "Long Glow":
                     c.Circle(9f, 9f, 7.6f, Palette.Mist);
                     c.Circle(9f, 9f, 6.4f, Palette.Clear);

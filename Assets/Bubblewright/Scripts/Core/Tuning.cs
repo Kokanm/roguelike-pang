@@ -261,7 +261,7 @@ namespace Bubblewright
         public float bossEnrageScale = 1.3f;
 
         [Header("Jump")]
-        [Tooltip("Height of a jump from standing, in units. Platforms are 5 units up, so a jump never reaches one.")]
+        [Tooltip("Height of a jump from standing, in units. Platforms are 5 units up, so one jump (or a jump and a double jump) never reaches one; wall jumps can.")]
         public float jumpHeight = 1.9f;
         [Tooltip("Seconds from take-off to the top of the jump. Jump gravity is 2 x height / time squared.")]
         public float jumpTimeToApex = 0.28f;
@@ -279,6 +279,24 @@ namespace Bubblewright
         public Vector2 jumpLandSquash = new Vector2(1.15f, 0.85f);
         [Tooltip("Seconds the landing squash lasts.")]
         public float jumpLandTime = 0.08f;
+        [Tooltip("Pushing into a wall while falling caps his fall speed at this, in units per second (the wall slide).")]
+        public float wallSlideSpeed = 4f;
+        [Tooltip("A wall counts as touched when it is this many units or less from the side of his hitbox.")]
+        public float wallGrabDistance = 2f / 15f;
+        [Tooltip("A wall jump pushes him away at this fraction of his run speed.")]
+        public float wallJumpPush = 1f;
+        [Tooltip("Seconds after a wall jump during which he keeps moving away from the wall whatever the stick says.")]
+        public float wallJumpLockTime = 0.14f;
+        [Tooltip("Height of a double jump (the Updraft upgrade) from where he presses it, in units.")]
+        public float airJumpHeight = 1.9f;
+        [Tooltip("Crouching (Down on the ground, no ladder below): his hitbox keeps this fraction of its height.")]
+        [Range(0.3f, 1f)] public float crouchHeightScale = 0.6f;
+        [Tooltip("Crouching: he shuffles at this fraction of his run speed.")]
+        [Range(0f, 1f)] public float crouchSpeedScale = 0.35f;
+        [Tooltip("Rig scale (x, y) while crouched. The launcher tip drops with the y scale.")]
+        public Vector2 crouchSquash = new Vector2(1.12f, 0.62f);
+        [Tooltip("Seconds to go down into the crouch and back up.")]
+        public float crouchTime = 0.05f;
         [Tooltip("From world 2 on, the chance that a normal stage uses a layout with gaps in the ground.")]
         [Range(0f, 1f)] public float gapLayoutChance = 0.33f;
         [Tooltip("He must stand on solid ground this long before that spot counts as safe to come back to after a gap.")]
@@ -473,6 +491,8 @@ namespace Bubblewright
         public float JumpGravity => 2f * jumpHeight / Mathf.Max(0.001f, jumpTimeToApex * jumpTimeToApex);
         /// <summary>Upward speed at take-off.</summary>
         public float JumpSpeed => JumpGravity * jumpTimeToApex;
+        /// <summary>Take-off speed of a double jump, from airJumpHeight under jump gravity.</summary>
+        public float AirJumpSpeed => Mathf.Sqrt(2f * JumpGravity * Mathf.Max(0f, airJumpHeight));
 
         public int RunLength => worlds * stagesPerWorld;
         public float HalfWidth => arenaWidth * 0.5f;
