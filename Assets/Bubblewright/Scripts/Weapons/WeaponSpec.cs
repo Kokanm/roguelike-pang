@@ -94,6 +94,9 @@ namespace Bubblewright
         /// </summary>
         public virtual bool VolleyReady(WeaponContext ctx) => ctx.HarpoonFree;
 
+        /// <summary>A weapon-slot weapon with nothing to fire at right now: the touch button is drawn dim (Longshot).</summary>
+        public virtual bool Dimmed => false;
+
         /// <summary>The weapon left its slot (empty, replaced) or the stage is starting over. Remove anything it owns.</summary>
         public virtual void Dispose() { }
     }

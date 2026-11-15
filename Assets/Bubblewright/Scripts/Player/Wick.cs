@@ -57,6 +57,8 @@ namespace Bubblewright
         /// and in the air no gravity, so he hangs where he is. He can still be hurt and knocked back.
         /// </summary>
         public bool HoldStill { get; set; }
+        /// <summary>Set by a weapon while it slows him (the Longshot while aiming): multiplies his top speed.</summary>
+        public float WeaponSpeedScale { get; set; } = 1f;
         public float ExtraInvulnerable { get; set; }
         /// <summary>Hard-world debuff: multiplies the whole safe time after a hit.</summary>
         public float InvulnerableScale { get; set; } = 1f;
@@ -440,6 +442,7 @@ namespace Bubblewright
                     if (Mode == Mode.Ground) groundTopSpeed = topSpeed;
                     else if (Jumping) topSpeed = airTopSpeed; // a jump keeps the top speed of the floor it left (shorter on sand)
                     if (Crouching) topSpeed *= T.crouchSpeedScale;
+                    topSpeed *= WeaponSpeedScale;
                     // Just after a wall jump he keeps going away from the wall, whatever the stick says.
                     if (wallLockClock > 0f)
                     {
