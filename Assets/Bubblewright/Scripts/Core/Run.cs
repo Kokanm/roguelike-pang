@@ -320,6 +320,8 @@ namespace Bubblewright
         public string patternName;
         /// <summary>The kind that visits as a guest, or null.</summary>
         public string guestName;
+        /// <summary>Steel Pogos: unbreakable, not needed to clear and outside the budget, so kept apart from spawns.</summary>
+        public List<SpawnSpec> steelPogos = new List<SpawnSpec>();
         /// <summary>Bubbles that arrive after the start, one list per wave. Positions: only x is used (the wished entry point).</summary>
         public List<List<SpawnSpec>> waves = new List<List<SpawnSpec>>();
         /// <summary>Multiplies the stage's storm clock (1 unless the recipe says otherwise).</summary>
@@ -702,6 +704,15 @@ namespace Bubblewright
             }
             PlaceClingers(map, clingerPicks, specs, bubbleMinY, rng);
             if (guest == BubbleKind.Drifter) MakeDriftersFair(map, specs, bubbleMinY, rng);
+            // Pogos come last, from their own random numbers, so the stage around them is the same as before they existed.
+            var steelPogos = new List<SpawnSpec>();
+            if (!plain && !debut)
+            {
+                var pogoRng = new System.Random(rng.Next());
+                MakePogos(stage, map, specs, pogoRng);
+                foreach (var wave in waveLists) MakePogos(stage, map, wave, pogoRng);
+                AddSteelPogo(stage, map, specs, steelPogos, pogoRng);
+            }
             string guestName = null;
             if (guest.HasValue && specs.Exists(s => s.kind == guest.Value)) guestName = guest.Value.ToString();
             return new StagePlan
@@ -710,8 +721,80 @@ namespace Bubblewright
                 layoutName = layout.name, recipeName = recipe == null ? null : recipe.name,
                 patternName = recipe == null ? null : PlacementPatterns.NameOf(pattern),
                 budget = fullBudget, rollerSpend = rollerSpend,
-                waves = waveLists, timeScale = recipe == null ? 1f : recipe.timeScale,
+                waves = waveLists, timeScale = recipe == null ? 1f : recipe.timeScale, steelPogos = steelPogos,
             };
+        }
+
+        /// <summary>Kinds that can come as a Pogo from Tuning.pogoFromStage on, with Tuning.pogoChance.</summary>
+        public static bool IsPlainPogoKind(BubbleKind kind) =>
+            kind == BubbleKind.Gloop || kind == BubbleKind.Trigloop || kind == BubbleKind.Lead;
+
+        /// <summary>
+        /// Turns some of the specs into Pogos. Plain kinds from Tuning.pogoFromStage, special kinds (not Lucky) with their
+        /// own chance. A Pogo never starts over a ground gap or a ladder, and never within Tuning.pogoMinSpacing sideways
+        /// of another Pogo; such a spec stays round. Draws one number per eligible spec, in order.
+        /// </summary>
+        public static void MakePogos(int stage, StageMap map, List<SpawnSpec> specs, System.Random rng)
+        {
+            var t = Tuning.I;
+            var pogoXs = new List<float>();
+            for (int i = 0; i < specs.Count; i++)
+            {
+                var spec = specs[i];
+                if (spec.kind == BubbleKind.Lucky || spec.pogo) continue;
+                bool plainKind = IsPlainPogoKind(spec.kind);
+                if (plainKind && stage < t.pogoFromStage) continue;
+                float chance = plainKind ? t.pogoChance : t.pogoSpecialChance;
+                if (rng.NextDouble() >= chance) continue;
+                if (!PogoSpotIsFair(map, spec.position.x, pogoXs)) continue;
+                spec.pogo = true;
+                specs[i] = spec;
+                pogoXs.Add(spec.position.x);
+            }
+        }
+
+        /// <summary>A Pogo may start at x: no ground gap or ladder in that column, and no other Pogo too close sideways.</summary>
+        public static bool PogoSpotIsFair(StageMap map, float x, List<float> otherPogoXs)
+        {
+            var t = Tuning.I;
+            int col = StageMap.Col(x);
+            if (map != null)
+            {
+                if (map.IsGap(col)) return false;
+                for (int r = 0; r < StageMap.Rows; r++)
+                    if (map.Get(col, r).ladder) return false;
+            }
+            foreach (float other in otherPogoXs)
+                if (Mathf.Abs(other - x) < t.pogoMinSpacing) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// From Tuning.pogoSteelFromWorld, sometimes one steel Pogo on the ground: away from Wick's start, the walls, gaps,
+        /// ladders, platforms overhead that would leave no room, and the other Pogos.
+        /// </summary>
+        static void AddSteelPogo(int stage, StageMap map, List<SpawnSpec> specs, List<SpawnSpec> steel, System.Random rng)
+        {
+            var t = Tuning.I;
+            if (Run.WorldOf(stage) < t.pogoSteelFromWorld || rng.NextDouble() >= t.pogoSteelChance) return;
+            int tier = Mathf.Clamp(t.pogoSteelTier, 0, t.tiers.Length - 1);
+            float r = t.tiers[tier].diameter * 0.5f;
+            var pogoXs = new List<float>();
+            foreach (var s in specs) if (s.pogo) pogoXs.Add(s.position.x);
+            var spots = new List<float>();
+            for (int c = 0; c < StageMap.Cols; c++)
+            {
+                float x = StageMap.CenterX(c);
+                if (Mathf.Abs(x) < 5f || Mathf.Abs(x) > t.HalfWidth - 3f) continue;
+                if (!PogoSpotIsFair(map, x, pogoXs)) continue;
+                // Room for its full bounce: no tile in its column below its peak.
+                float top = map != null ? map.CeilingAbove(x, 0.01f, out _) : t.arenaHeight;
+                if (top < t.tiers[tier].peakHeight) continue;
+                spots.Add(x);
+            }
+            if (spots.Count == 0) return;
+            float at = spots[rng.Next(spots.Count)];
+            steel.Add(new SpawnSpec { kind = BubbleKind.Gloop, tier = tier, position = new Vector2(at, r), direction = 1, pogo = true, steel = true });
         }
 
         /// <summary>The velocity a Drifter spawned from this spec flies away with (see DrifterBehavior.OnSpawn).</summary>

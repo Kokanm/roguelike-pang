@@ -13,6 +13,11 @@ namespace Bubblewright
         public virtual bool CanBeHit(Bubble b) => true;
         /// <summary>False while touching it should not hurt Wick.</summary>
         public virtual bool CanHurt(Bubble b) => true;
+        /// <summary>
+        /// A Pogo's shape (0 points up, 1 points down) when the behaviour moves it its own way, or below 0 to let the
+        /// bubble follow its bounce height.
+        /// </summary>
+        public virtual float PogoMorph(Bubble b) => -1f;
         /// <summary>Called on every bubble when the storm starts.</summary>
         public virtual void OnStorm(Bubble b) { }
 

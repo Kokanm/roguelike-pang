@@ -384,6 +384,30 @@ namespace Bubblewright
         [Tooltip("Seconds of straight flight checked for the Drifter fair-start rule.")]
         public float drifterSafeTime = 1f;
 
+        [Header("Pogo (triangle that bounces in place)")]
+        [Tooltip("Plain Pogos (Gloop, Trigloop, Lead) can appear from this stage of the run on.")]
+        public int pogoFromStage = 3;
+        [Tooltip("Chance that an eligible Gloop, Trigloop or Lead is a Pogo.")]
+        [Range(0f, 1f)] public float pogoChance = 0.2f;
+        [Tooltip("Chance that an eligible Clinger, Sinker, Frost, Ghost, Scorch or Drifter is a Pogo. Never on an Introduction stage or the Drifter's first visit.")]
+        [Range(0f, 1f)] public float pogoSpecialChance = 0.25f;
+        [Tooltip("No two Pogos start closer than this sideways (units).")]
+        public float pogoMinSpacing = 2f;
+        [Tooltip("When a Pogo pops, each child hops sideways about this many of its own widths, then bounces in place.")]
+        public float pogoHopWidths = 1.5f;
+        [Tooltip("Shapes painted between pointing up (on the floor) and pointing down (at the top of the bounce).")]
+        public int pogoFrames = 9;
+        [Tooltip("A Sinker Pogo that has run out of bounce rests this long before it springs back up (seconds).")]
+        public float pogoSinkerRest = 1.2f;
+        [Tooltip("The last part of that rest is a wobble, as a warning (seconds).")]
+        public float pogoSinkerWobble = 0.4f;
+        [Tooltip("A steel Pogo (unbreakable, not needed to clear) can appear from this world on.")]
+        public int pogoSteelFromWorld = 3;
+        [Tooltip("Chance per normal stage, from Pogo Steel From World on, of one steel Pogo. It costs no budget.")]
+        [Range(0f, 1f)] public float pogoSteelChance = 0.25f;
+        [Tooltip("Size of a steel Pogo: 0 XL, 1 L, 2 M, 3 S.")]
+        public int pogoSteelTier = 2;
+
         [Header("Stage recipes")]
         [Tooltip("How a normal stage spends its budget. World 1 stages 1 and 2 always use Mixed. Every other normal stage draws one row with In Pool on and From World at or below that world, and a row is not drawn again in that world until every such row has been used. Boss stages are not recipes.")]
         public RecipeDef[] recipes =
@@ -532,5 +556,7 @@ namespace Bubblewright
         public Vector2 position;
         [Tooltip("-1 left, +1 right")] public int direction;
         [Tooltip("Takes Tuning.ceramicHits hits to break.")] public bool ceramic;
+        [Tooltip("A triangle that bounces in place and never moves sideways.")] public bool pogo;
+        [Tooltip("A steel Pogo: unbreakable and not needed to clear the stage. Only with pogo.")] public bool steel;
     }
 }

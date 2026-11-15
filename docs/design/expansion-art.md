@@ -91,3 +91,16 @@ Mark shade is the body colour at 68% brightness unless said otherwise.
 - **Scorch flame:** 13 x 10 px, three pointed tongues in the Scorch colour (about 6, 10 and 6 px tall), an inner tongue mixed 50% toward cream, two cream pixels at the base, ink outline. Two frames swapped every 0.12 s (side tongue heights swap, middle tip moves 2 px).
 - **Frost bubble ice patch:** the normal ice look from "Surfaces". Nothing new.
 - **Reinforcement warning marker:** 9 x 8 px lemon triangle pointing down, flat side against the ceiling, ink exclamation mark, ink outline, blinking 0.1 s on and 0.05 s off, with a dotted lemon line (2 px on, 2 px off, 1 px wide, 2 units long) under it. **Wave pips:** 5 x 5 px cream dots to the right of the storm bar, filled for a wave still to come, hollow for a wave already called.
+
+## Pogos (approved 2026-11-14)
+
+A Pogo is a soft triangle that bounces in place and never moves sideways. Any bubble kind except Lucky can come as a Pogo and keeps its colour, centre mark and behaviour. Visual reference: the "Bubblewright Pogo Sheet" artifact (https://claude.ai/artifact/JKFz1SPc4veKuorPWbCs3s); Kokan picked the goo morph (B), with no wobble.
+
+- **Shape:** same canvas and centre as the tier's round bubble, base on the bottom of the circle, height 0.866 of the width. 1 px ink outline, corners of the widest end softened by a pixel.
+- **Goo morph:** it points up on the surface it bounced from and points down at the top of its bounce. In between its weight flows through a rounded blob (row half width = triangle blend mixed with an ellipse by sin(pi x morph) x 0.6). The morph follows height exactly, with no lag and no wobble. 9 frames per kind and tier (`Tuning.pogoFrames`).
+- **Light and mark:** darker band (body at 78%) down the right side and along the right of the base, cream shine inside the left edge. The kind's mark (about 60% of its bubble size) stays upright and sits on the weight: a third of the way up when pointing up, two thirds when pointing down. Drifter arrow points up or down with its motion.
+- **Looks:** ceramic = body mixed 55% toward cream, lilac edge, cracks when hit. Steel = `9AA4BC` body, `5C6480` band and rivets, `DCE2EE` left edge. Faded Ghost = no outline, body 20%, rim on every second segment, ring 45% (flicker: rim 95%, body 45%, ring 80%).
+- **Hitbox:** the shape itself at its current morph, for the harpoon and for Wick.
+- **Split:** two children (a Trigloop's third stays on the spot and kicks higher). Each hops sideways about 1.5 of its own widths (`pogoHopWidths`), stops at walls and the edge of a ground gap, then bounces in place.
+- **Kinds:** Clinger hangs point-down with its flat side on the pad, drops when Wick walks under, stands point-up, and leaps straight up to the surface above when Wick comes within reach. Sinker rests 1.2 s when its bounce runs out (wobbling the last 0.4 s), then springs back to full height. Frost and Scorch keep hitting the same spot. Ghost rises through platforms. Drifter flies straight up and down at its speed. Steel: unbreakable, harpoons glance off, not needed to clear, one at most from world 3, size M, no budget.
+- **Where:** plain kinds (Gloop, Trigloop, Lead) from stage 3 at 20%; special kinds at 25%; never on Introduction stages or the Drifter's first visit. Never over a gap or ladder, never within 2 units sideways of another Pogo.

@@ -8,7 +8,7 @@ namespace Bubblewright
     /// 15 px per unit with a 1 px ink outline on the outer edge. Real art (SVG exported to PNG) replaces
     /// these later without touching gameplay code: swap the sprites, keep the pivots.
     /// </summary>
-    public class PlaceholderArt
+    public partial class PlaceholderArt
     {
         public Sprite WickBack, WickFront, Flame, PickupRing;
         public Sprite WickBackFlash, WickFrontFlash; // cream silhouettes for the hurt flash
