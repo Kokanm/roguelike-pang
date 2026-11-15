@@ -55,7 +55,8 @@ Timings come from the sheet's animation table and live in `Tuning.asset` under *
 | --- | --- | --- | --- |
 | Move | Drag left or right anywhere in the left half (relative to where your thumb lands) | A / D or Left / Right | Left stick or d-pad left / right |
 | Climb (Down on the ground with no ladder: crouch) | Drag up or down anywhere in the left half | W / S or Up / Down | Left stick or d-pad up / down |
-| Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J or K | A / Cross, X / Square, RT or RB |
+| Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J or K | A / Cross or X / Square |
+| Weapon (only while Wick holds one; Down in the air fires down) | Tap the third mint button, left of the jump button, with the weapon icon and ammo | I or U | RT or RB |
 | Jump (also off walls; fire works in the air, Down + fire shoots down) | Tap the round arrow button left of the fire button | L, Left Shift or Right Shift | B / Circle or Y / Triangle |
 | Menu / continue / pick a card or a door | Tap | Arrows or WASD, then Enter, Space or R (cards: 1-3, doors: 1-2) | Left stick or d-pad, then A or Start |
 | Back (character select) | Tap a card to start; no back button | Esc | B / Circle |
@@ -66,7 +67,7 @@ The mouse acts as one finger, so you can try the touch controls on desktop: clic
 
 **Characters.** NEW RUN opens a select screen with four heroes: Wick (3 hearts, the all-rounder), Ember (2 hearts, fast), Moss (4 hearts, slow) and Flint (two cables, slow shots). Wick and Ember are open from the start; finishing the whole run with Wick unlocks Moss, and with Ember unlocks Flint. All stats live in one table in `Scripts/Player/Character.cs`; Wick's row follows `Tuning`. The debug panel has UNLOCK ALL (this session only) and RESET UNLOCKS.
 
-Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **5** spawns a big rolling balloon on the ground, **6** a steel one, **7** a ceramic Gloop, **8** a ceramic rolling balloon; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces). **SPIKES** adds Lava's retracting strips to the current stage in any world. The **THEME** button cycles the look of the current stage (sky, hills, tiles, ground strip) through the six world themes without changing the world.
+Debug keys on desktop: **1-4** spawn an XL Gloop, Trigloop, Lead or Lucky bubble; **5** spawns a big rolling balloon on the ground, **6** a steel one, **7** a ceramic Gloop, **8** a ceramic rolling balloon; **9** drops a weapon crate of the next weapon above Wick; **F1** shows hitboxes; **F3** cycles through all 14 test layouts and shows the current layout name in the HUD. The debug panel's **SURFACE** button turns the whole stage normal, all ice, then all sand, to tune the feel in any world (numbers in Tuning > Surfaces). **SPIKES** adds Lava's retracting strips to the current stage in any world. The **THEME** button cycles the look of the current stage (sky, hills, tiles, ground strip) through the six world themes without changing the world.
 
 ### Rolling balloons
 
@@ -103,6 +104,14 @@ CINDER TYRANT enrages below half health: its speed and every attack rate go up b
 
 After the upgrade pick that follows each boss except the last one (stages 6, 12, 18, 24 and 30), two doors stand in front of the next world's scenery. One of them, chosen at random from the run seed, is the hard road for the whole next world: it carries a random debuff (never the one the finished world had), and its card spells out the numbers and the reward. The other door changes nothing. Choose with left/right and Enter, Space or pad A, keys 1 (left) and 2 (right), or a tap or click on a door or its card; Wick then runs into the door and the screen fades. A row of six squares at the top shows the worlds so far (mint calm, lemon hard, outline not reached, cream bracket on the world in question); it appears on this screen and on the pause screen. The numbers live in `Tuning` under **Road choice** and **Hard worlds**. The code is in `Scripts/Core/Game.Path.cs`, the door art in `Scripts/Art/DoorArt.cs`.
 
+### Weapons (framework)
+
+A popped bubble (5%) or a broken block (10%) can drop a **weapon crate**: a mint-ringed box with the weapon's icon. It falls to the floor, stays 8 s and blinks for the last 2. Walking over it takes it. At most 2 crates a stage, never while one is on screen, none in stages 1-1 and 1-2; uncommon weapons from world 2, rare and very rare from world 3. Wick has two slots: the **weapon slot** (guns and gadgets, fired with the weapon button; the harpoon keeps working on fire) and the **harpoon slot** (heads that change what fire shoots). The same weapon again tops its ammo up to 1.5 loads; a different one replaces it. Ammo carries over between stages and is saved at the start of each stage. The HUD shows the icon and ammo right of the hearts. Numbers are in Tuning > Weapons.
+
+No real weapon is in yet, so nothing drops in normal play. The debug panel's **GIVE WEAPON** button and key **9** give or drop the debug **Test Shot** (20 spark bullets, one per press). Every weapon follows the shared hit rules in `Scripts/Weapons/WeaponWorld.cs`: steel sparks and stops a shot, ceramic takes one hit of two, a faded Ghost lets it through, a breakable block takes one hit, and boss damage adds up in fractions.
+
+**Adding a weapon** touches no shared list: add a sealed `[Preserve]` subclass of `WeaponSpec` in its own file under `Scripts/Weapons/` (copy `TestWeapon.cs`), with its pixel maps, a behaviour inside it, and its numbers in a `partial class Tuning` under a "Weapon: Name" header. `WeaponSpec.All` finds it by itself, and its icon, crate, button and in-hand sprite are painted from its pixel maps.
+
 ### Tuning
 
 Every number lives in `Assets/Bubblewright/Resources/Tuning.asset`. Select it and edit in the Inspector, even while playing. Bubble gravity is derived per tier from its peak height and a bounce time, so it always reaches the sheet's peak height.
@@ -127,7 +136,7 @@ Assets/Bubblewright/
   Scripts/Core/      Game (bootstrap and loop), Tuning (all numbers), GameInput (touch/keys/pad), Palette and sorting layers
   Scripts/Player/    Wick: movement and all his procedural animation (run, skid, fire, hurt, turn, wave, celebrate)
   Scripts/Bubbles/   Bubble: own bounce maths, split children
-  Scripts/Weapons/   Harpoon: cable and barbed tip
+  Scripts/Weapons/   Harpoon: cable and barbed tip; temporary weapons: WeaponSpec (the table), WeaponWorld (shared hits and Shots), one file per weapon
   Scripts/FX/        Effects (pop, dust, muzzle flash, confetti) and Sfx (placeholder sounds made in code)
   Scripts/UI/        Thumb controls drawn in the ground strip
   Scripts/Art/       PixelCanvas and PlaceholderArt: sprites painted in code at 15 px per unit

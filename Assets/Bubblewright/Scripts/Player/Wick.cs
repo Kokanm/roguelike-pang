@@ -245,7 +245,21 @@ namespace Bubblewright
             bodyBack.sprite = on ? sprites.BackFlash : sprites.Back;
             clingBack.sprite = on ? sprites.ClingFlash : sprites.Cling;
             bodyFront.sprite = on ? sprites.FrontFlash : sprites.Front;
-            launcherBack.sprite = launcherFront.sprite = on ? sprites.LauncherFlash : sprites.Launcher;
+            launcherBack.sprite = launcherFront.sprite = on ? heldFlash ?? sprites.LauncherFlash : held ?? sprites.Launcher;
+        }
+
+        Sprite held, heldFlash;
+
+        /// <summary>
+        /// Shows a weapon in his raised hand in place of the launcher (null puts the launcher back). Its sprite is pivoted
+        /// like the launcher's, so LauncherTip, the fire kick and the wall-pose mirroring stay the same.
+        /// </summary>
+        public void SetHeld(Sprite sprite, Sprite flash = null)
+        {
+            if (sprite == held && flash == heldFlash) return;
+            held = sprite;
+            heldFlash = sprite != null ? flash ?? sprite : null;
+            ApplyFlash(hurtFlash >= 0f);
         }
 
         /// <summary>Swaps the cloak colours. Starting numbers (speed, safe time) are set by the game from the run.</summary>

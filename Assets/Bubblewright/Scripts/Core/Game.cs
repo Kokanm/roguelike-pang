@@ -221,6 +221,7 @@ namespace Bubblewright
             ApplyRunUpgrades();
             HideHarpoons();
             wick.ResetForStage(plan.wickX, 0f, run.Hearts);
+            ResetWeaponsForStage();
             WickFeet = wick.transform.position;
             WickBox = wick.Hitbox;
             wick.Waving = true;
@@ -395,13 +396,17 @@ namespace Bubblewright
             bool canFire = !Map.IsSolid(StageMap.Col(shotTip.x), StageMap.Row(shotTip.y));
             if (free != null && canFire && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
             {
-                if (shootDown) free.FireDown(shotTip);
-                else free.Fire(shotTip, wick.Mode == Mode.Fall ? -1 : ChipColumn());
+                if (!FireHeadVolley()) // a held harpoon head fires its own volley instead (Game.Weapons.cs)
+                {
+                    if (shootDown) free.FireDown(shotTip);
+                    else free.Fire(shotTip, wick.Mode == Mode.Fall ? -1 : ChipColumn());
+                }
                 shotTimer = 0f;
                 wick.OnFire();
                 fx.MuzzleFlash(shotTip);
                 Sfx.Play(Sound.Fire);
             }
+            TickWeapons(dt);
             TickHarpoons(dt);
             TickPickups(dt);
 
@@ -468,6 +473,7 @@ namespace Bubblewright
             {
                 slowMo = T.lastPopSlowMo;
                 run.Hearts = wick.Hearts;
+                ClearWeaponShots();
                 if (run.IsLastStage)
                 {
                     SaveGame.Delete();
@@ -652,6 +658,7 @@ namespace Bubblewright
                     if (b.Pogo && i < 2) child.StartHop(dir * PogoHopSpeed(b.Kind, next, pos, vy), PogoHopDistance(next));
                 }
             }
+            if (spawnChildren) MaybeDropCrate(b.Position, T.weaponDropChance);
             Destroy(b.gameObject);
         }
 
@@ -705,6 +712,7 @@ namespace Bubblewright
                 else if (input.DebugSpawn == 6) DebugSpawnRoller(steel: true);
                 else if (input.DebugSpawn == 7) DebugSpawn(BubbleKind.Gloop, true);
                 else if (input.DebugSpawn == 8) DebugSpawnRoller(ceramic: true);
+                else if (input.DebugSpawn == 9) DebugDropCrate();
                 else DebugSpawn((BubbleKind)(input.DebugSpawn - 1));
             }
         }
@@ -778,7 +786,9 @@ namespace Bubblewright
                 GUI.DrawTexture(new Rect(topLeft.x + pad + i * (ft.width + 2) * k, topLeft.y + pad + hudDrop, ft.width * k, ft.height * k), ft);
             }
             GUI.color = Color.white;
-            Label(StageLabel(), topLeft.x + pad + run.MaxHearts * (ft.width + 2) * k + 4 * k, topLeft.y + pad + 2 * k + hudDrop, UiText.Primary, TextAnchor.UpperLeft, 200 * k);
+            float heartsEnd = topLeft.x + pad + run.MaxHearts * (ft.width + 2) * k;
+            heartsEnd += DrawWeaponHud(heartsEnd, topLeft.y + pad + hudDrop, k); // held weapon and head, with their ammo
+            Label(StageLabel(), heartsEnd + 4 * k, topLeft.y + pad + 2 * k + hudDrop, UiText.Primary, TextAnchor.UpperLeft, 200 * k);
 
             // Pause button in the top right corner, the score just left of it.
             pauseButtonRect = new Rect(topRight.x - pad - 14 * k, topLeft.y + pad - k + hudDrop, 14 * k, 14 * k);
@@ -797,7 +807,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
-                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   Pad: stick/d-pad + A, B/Y jump   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   F1: hitboxes   F3: next layout",
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   I/U: weapon   Pad: stick/d-pad + A, B/Y jump, RT/RB weapon   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   9: weapon crate   F1: hitboxes   F3: next layout",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }
@@ -871,6 +881,7 @@ namespace Bubblewright
                     Screen.height * 0.32f + 20 * k, 8 * k, UiText.Primary);
             }
 
+            DrawWeaponBanner(k);
             if (showHitboxes) DrawHitboxes(k);
             if (paused) DrawPause(k, touchUi);
         }

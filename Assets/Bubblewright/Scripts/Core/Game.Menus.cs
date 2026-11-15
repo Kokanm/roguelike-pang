@@ -261,7 +261,7 @@ namespace Bubblewright
             FillRect(Grow(panel, -k), WithAlpha(Palette.Ink, 0.95f));
 
             debugEntries.Clear();
-            AddDebugLine("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, F1 hitboxes, F3 test layout", true);
+            AddDebugLine("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, 9 weapon crate, F1 hitboxes, F3 test layout", true);
             if (balancePage) AddBalancePage(k);
             else AddDebugPage(k);
             DrawDebugEntries(DebugPanelLayout.Content(panel, k), k);
@@ -291,6 +291,7 @@ namespace Bubblewright
             AddDebugButton(DebugThemeLabel(), k, false, DebugCycleTheme, minUnits: 120);
             AddDebugButton("BOSS -5 HP", k, false, () => DebugBossDamage(5), minUnits: 90);
             AddDebugButton("BALANCE", k, false, () => { balancePage = true; balanceNote = null; debugScroll = Vector2.zero; }, minUnits: 80);
+            AddDebugButton(DebugGiveLabel(), k, false, DebugGiveWeapon, minUnits: 110);
 
             if (boss != null)
             {

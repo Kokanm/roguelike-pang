@@ -6,11 +6,22 @@ namespace Bubblewright
     /// Draws the thumb controls inside the ground strip, as world sprites so they stay pixel perfect.
     /// Left: move pad hint, plus a knob where the thumb landed and a dot that follows it.
     /// Right: the big mint fire button, with the round jump button 3.5 units to its left. Shown on phones, or on desktop once the mouse has been used as a finger.
+    /// While Wick holds a weapon, a third disc (the weapon button) sits 3.5 units left of the jump button, with the
+    /// weapon's icon and the ammo left under it.
     /// </summary>
     public class TouchControlsView : MonoBehaviour
     {
-        SpriteRenderer hint, knob, dot, climbUp, climbDown, fire, jump;
+        SpriteRenderer hint, knob, dot, climbUp, climbDown, fire, jump, weapon, weaponAmmo;
         Camera cam;
+        WeaponSpec heldWeapon;
+        int heldAmmo;
+
+        /// <summary>The weapon in the weapon slot and its ammo, or null to hide the weapon button. Set before Refresh.</summary>
+        public void ShowWeapon(WeaponSpec spec, int ammo)
+        {
+            heldWeapon = spec;
+            heldAmmo = ammo;
+        }
 
         public static TouchControlsView Create(Transform parent, Camera cam)
         {
@@ -26,6 +37,8 @@ namespace Bubblewright
             v.climbDown = v.Part("Climb Down", art.ClimbDownHint, 1);
             v.fire = v.Part("Fire Button", art.FireButton, 0);
             v.jump = v.Part("Jump Button", art.JumpButton, 0);
+            v.weapon = v.Part("Weapon Button", null, 0);
+            v.weaponAmmo = v.Part("Weapon Ammo", null, 1);
             return v;
         }
 
@@ -72,6 +85,23 @@ namespace Bubblewright
                 input.SetJumpButton(centre, Mathf.Abs(edge.x - centre.x));
             }
             else input.SetJumpButton(Vector2.zero, 0f);
+
+            // Weapon: same size again, 3.5 units left of jump, only while a weapon is held. Excluded from the fire area.
+            bool showWeapon = show && heldWeapon != null;
+            weapon.enabled = weaponAmmo.enabled = showWeapon;
+            if (showWeapon)
+            {
+                bool down = input.TouchWeaponHeld;
+                Vector3 weaponPos = Snap(firePos - new Vector2(7f, 0f), t);
+                weapon.sprite = WeaponArt.Button(heldWeapon, down);
+                weapon.transform.position = weaponPos;
+                weaponAmmo.sprite = WeaponArt.Number(heldAmmo);
+                weaponAmmo.transform.position = weaponPos + new Vector3(0f, WeaponArt.ButtonNumberOffsetPixels(down) * px, 0f);
+                Vector2 centre = cam.WorldToScreenPoint(weaponPos);
+                Vector2 edge = cam.WorldToScreenPoint(weaponPos + new Vector3(JumpButtonRadiusPixels * px, 0f, 0f));
+                input.SetWeaponButton(centre, Mathf.Abs(edge.x - centre.x));
+            }
+            else input.SetWeaponButton(Vector2.zero, 0f);
 
             knob.enabled = dot.enabled = show && input.PadActive;
             Vector2 arrowAnchor = hintPos;

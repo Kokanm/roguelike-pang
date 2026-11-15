@@ -22,6 +22,12 @@ namespace Bubblewright
         public static readonly Color32 SteelLight = Hex(0xDCE2EE);
         public static readonly Color32 Steel = Hex(0x9AA4BC);
         public static readonly Color32 SteelDark = Hex(0x5C6480);
+        /// <summary>Everything a weapon fires: spark red with a yellow core, white for the hottest part.</summary>
+        public static readonly Color32 Spark = Hex(0xFF3B3B);
+        public static readonly Color32 SparkCore = Hex(0xFFE45C);
+        /// <summary>Gas Flask clouds: dull olive, darker than any bubble.</summary>
+        public static readonly Color32 Gas = Hex(0x9DA63A);
+        public static readonly Color32 GasDark = Hex(0x6B7426);
         // Catacombs masonry
         public static readonly Color32 CatacombBrick = Hex(0xAAA2C9);
         public static readonly Color32 CatacombBrickLight = Hex(0xD1CAE5);
