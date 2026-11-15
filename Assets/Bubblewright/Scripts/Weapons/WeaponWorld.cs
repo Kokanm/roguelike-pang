@@ -278,6 +278,7 @@ namespace Bubblewright
             s.BossDamage = bossDamage;
             s.Range = range;
             s.Travelled = 0f;
+            s.Ignores = null;
             s.Alive = true;
             shots.Add(s);
             s.Show();
@@ -345,6 +346,7 @@ namespace Bubblewright
             {
                 var b = Bubbles[i];
                 if (b == null || b.Popped || !b.Overlaps(box)) continue;
+                if (s.Ignores != null && s.Ignores(b)) continue;
                 if (b.Steel) { WeaponHit(b); return true; }
                 if (!b.CanBeHit) continue;
                 WeaponHit(b);
@@ -354,6 +356,7 @@ namespace Bubblewright
             {
                 var r = Rollers[i];
                 if (r == null || r.Popped || !r.Overlaps(box)) continue;
+                if (s.Ignores != null && s.Ignores(r)) continue;
                 WeaponHit(r);
                 return true;
             }
