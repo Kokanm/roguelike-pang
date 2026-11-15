@@ -18,6 +18,11 @@ namespace Bubblewright
         /// <summary>Units it may travel before it fades (pellets). Infinity for a normal bullet.</summary>
         public float Range = float.PositiveInfinity;
         public float Travelled;
+        /// <summary>
+        /// Things this shot passes through as if they were not there (a bubble or rolling balloon). The Scattergun sets it
+        /// so a blast's pellets never hit the halves its own pops made. Cleared by FireShot.
+        /// </summary>
+        public System.Predicate<object> Ignores;
         public bool Alive;
 
         internal GameObject go;
