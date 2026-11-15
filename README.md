@@ -114,6 +114,8 @@ No real weapon is in yet, so nothing drops in normal play. The debug panel's **G
 
 **Trimmer Blade** (W05, common, weapon slot, 30 swings): a round melee swing from his left side, over his head and down his right side, 2.2 units from his hand, so it reaches the floor on both sides. Tap or hold (one swing every 0.3 s). Solid tiles shield what is behind them, steel clangs and a steel rolling ball is turned away, boss bullets in the arc are cut, and a boss in reach takes 1 health per swing. Falling with Down held, the arc covers both sides and below him. Numbers in Tuning > Weapon: Trimmer Blade; code in `Scripts/Weapons/TrimmerBlade.cs`.
 
+**Lamp Lance** (W06, very rare, weapon slot, 1 charge): one tap winds up for 0.35 s (he cannot move), then a beam one tile wide runs from the lance to the ceiling for 0.5 s (down to the floor with Down held in the air). Everything that touches it is removed whole with no smaller bubbles: steel, ceramic, Ghosts, rolling balloons and boss bullets too. It passes through platforms, destroys every breakable block in the column, melts Frost ice, and takes 6 boss health once per beam. In the air he hangs still for the whole shot. Only one can be held: a second crate stays on the floor. Numbers in Tuning > Weapon: Lamp Lance; code in `Scripts/Weapons/LampLance.cs`.
+
 **Twin Carbine** (W01, common, weapon slot, 30 bullets): one spark bullet per press from two barrels in turn, with no limit on bullets in the air. Tapping fires up to 8 a second, holding fires 4 a second. Three bullets take 1 boss health. Numbers in Tuning > Weapon: Twin Carbine; code in `Scripts/Weapons/TwinCarbine.cs`.
 
 ### Tuning

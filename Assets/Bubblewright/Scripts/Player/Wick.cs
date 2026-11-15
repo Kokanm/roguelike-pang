@@ -52,6 +52,11 @@ namespace Bubblewright
         public bool Waving { get; set; }
         /// <summary>Run upgrades: multiplies top speed, and adds seconds of safety after a hit.</summary>
         public float SpeedMultiplier { get; set; } = 1f;
+        /// <summary>
+        /// Held in place by a weapon (the Lamp Lance wind-up and, in the air, its beam): no walking, climbing or jumping,
+        /// and in the air no gravity, so he hangs where he is. He can still be hurt and knocked back.
+        /// </summary>
+        public bool HoldStill { get; set; }
         public float ExtraInvulnerable { get; set; }
         /// <summary>Hard-world debuff: multiplies the whole safe time after a hit.</summary>
         public float InvulnerableScale { get; set; } = 1f;
@@ -375,6 +380,13 @@ namespace Bubblewright
         public void Tick(float move, float climb, bool jump, float dt, bool controllable)
         {
             var map = Game.Map ?? StageMap.Flat();
+            if (HoldStill)
+            {
+                controllable = false;
+                jump = false;
+                VelocityX = 0f;
+                if (Mode == Mode.Fall) fallSpeed = 0f;
+            }
             float wantMove = controllable && !Dead ? Mathf.Clamp(move, -1f, 1f) : 0f;
             float wantClimb = controllable && !Dead ? Mathf.Clamp(climb, -1f, 1f) : 0f;
             var pos = transform.position;
@@ -492,7 +504,7 @@ namespace Bubblewright
                 if (Mode != Mode.Ground) Crouching = false;
 
                 // Walking off an edge starts falling next frame, as before; a jump moves this frame.
-                if (Mode == Mode.Fall && !walkedOff)
+                if (Mode == Mode.Fall && !walkedOff && !HoldStill)
                 {
                     float previousFeetY = pos.y;
                     float gravity = Jumping ? T.JumpGravity : T.fallGravity;
