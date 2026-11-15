@@ -53,6 +53,7 @@ namespace Bubblewright
         void ResetWeaponsForStage()
         {
             Weapons.ClearShots();
+            ClearGas();
             ClearCrates();
             DisposeWeaponBehaviours();
             dropper = new WeaponDropper(run.Seed, run.Stage);
@@ -181,12 +182,17 @@ namespace Bubblewright
             }
             SyncHeldWeapons(); // the last shot may have emptied the slot
             Weapons.TickShots(dt);
+            TickGas(dt);
             TickCrates(dt);
             if (weaponBannerTime > 0f) weaponBannerTime -= dt;
         }
 
         /// <summary>The stage was cleared: shots vanish, crates stay put until the next stage clears them.</summary>
-        void ClearWeaponShots() => Weapons.ClearShots();
+        void ClearWeaponShots()
+        {
+            Weapons.ClearShots();
+            ClearGas();
+        }
 
         // ------------------------------------------------------------------ crates
 
