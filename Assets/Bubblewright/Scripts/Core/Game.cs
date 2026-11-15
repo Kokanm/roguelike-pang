@@ -436,8 +436,8 @@ namespace Bubblewright
                         Sfx.Play(Sound.Bounce, 1.8f, 0.5f);
                         break;
                     }
-                    if (!bubbles[i].CanBeHit || !h.Hits(bubbles[i])) continue;
-                    h.Hide();
+                    if (!bubbles[i].CanBeHit || h.Ignores(bubbles[i]) || !h.Hits(bubbles[i])) continue;
+                    h.Spend(bubbles[i]); // a Skewer Harpoon stays up for more
                     Hit(bubbles[i]);
                     break;
                 }

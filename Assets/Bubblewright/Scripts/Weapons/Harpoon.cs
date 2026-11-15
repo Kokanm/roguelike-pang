@@ -26,6 +26,23 @@ namespace Bubblewright
         /// (BossFight.HarpoonHits). Null for a normal shot. Every Fire clears it.
         /// </summary>
         public HarpoonVolley Volley { get; set; }
+        /// <summary>
+        /// A Skewer Harpoon cable keeps going after a hit until its pops run out (HarpoonPierce). Null for a normal shot.
+        /// Every Fire clears it.
+        /// </summary>
+        public HarpoonPierce Pierce { get; set; }
+
+        /// <summary>True if this harpoon leaves the thing alone for now (a skewer and what it just hit or what was just born).</summary>
+        public bool Ignores(Object thing) => Pierce != null && Pierce.Ignores(thing);
+
+        /// <summary>
+        /// Called by the hit loops when this harpoon hits thing. A normal harpoon is used up; a skewer counts one pop and
+        /// stays up until none are left. ends forces it to go (steel).
+        /// </summary>
+        public void Spend(Object thing, bool ends = false)
+        {
+            if (ends || Pierce == null || !Pierce.Strike(thing)) Hide();
+        }
 
         Tuning T => Tuning.I;
         SpriteRenderer tip, rope;
@@ -101,6 +118,7 @@ namespace Bubblewright
             bottomY = Mathf.Min(from.y, Mathf.Max(bottomY, from.y - T.launcherTip.y + TailBottomPixels * px));
             Down = false;
             Volley = null;
+            Pierce = null;
             ClearAngle();
             tip.transform.localRotation = Quaternion.identity;
             this.chipColumn = chipColumn;
@@ -130,6 +148,7 @@ namespace Bubblewright
             clock = 0f;
             Down = true;
             Volley = null;
+            Pierce = null;
             ClearAngle();
             Active = true;
             tip.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
@@ -161,6 +180,7 @@ namespace Bubblewright
         {
             if (!Active) return;
             clock += dt;
+            Pierce?.Tick(dt);
             if (held >= 0f)
             {
                 held += dt;
@@ -276,6 +296,7 @@ namespace Bubblewright
             baseY = tipY = from.y;
             Down = angleDir.y < 0f;
             Volley = null;
+            Pierce = null;
             Angled = true;
             chipColumn = -1;
             held = -1f;
