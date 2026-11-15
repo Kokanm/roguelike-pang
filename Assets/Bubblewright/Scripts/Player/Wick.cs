@@ -57,8 +57,10 @@ namespace Bubblewright
         /// and in the air no gravity, so he hangs where he is. He can still be hurt and knocked back.
         /// </summary>
         public bool HoldStill { get; set; }
-        /// <summary>Set by a weapon while it slows him (the Longshot while aiming): multiplies his top speed.</summary>
-        public float WeaponSpeedScale { get; set; } = 1f;
+        /// <summary>Set by a weapon while it fires (the Rattler): multiplies his top walking speed. 1 is normal.</summary>
+        public float WeaponWalkScale { get; set; } = 1f;
+        /// <summary>Set by a weapon while it fires down in the air (the Rattler): multiplies how far he drops each frame. 1 is normal.</summary>
+        public float WeaponFallScale { get; set; } = 1f;
         public float ExtraInvulnerable { get; set; }
         /// <summary>Hard-world debuff: multiplies the whole safe time after a hit.</summary>
         public float InvulnerableScale { get; set; } = 1f;
@@ -442,7 +444,7 @@ namespace Bubblewright
                     if (Mode == Mode.Ground) groundTopSpeed = topSpeed;
                     else if (Jumping) topSpeed = airTopSpeed; // a jump keeps the top speed of the floor it left (shorter on sand)
                     if (Crouching) topSpeed *= T.crouchSpeedScale;
-                    topSpeed *= WeaponSpeedScale;
+                    topSpeed *= WeaponWalkScale;
                     // Just after a wall jump he keeps going away from the wall, whatever the stick says.
                     if (wallLockClock > 0f)
                     {
@@ -516,7 +518,9 @@ namespace Bubblewright
                     WallSliding = WallSide != 0 && wantMove * WallSide > 0f && newSpeed > T.wallSlideSpeed;
                     if (WallSliding) newSpeed = T.wallSlideSpeed;
                     // A jump integrates exactly (average speed over the frame) so its height does not depend on the frame rate.
-                    pos.y -= (Jumping ? (fallSpeed + newSpeed) * 0.5f : newSpeed) * dt;
+                    float drop = (Jumping ? (fallSpeed + newSpeed) * 0.5f : newSpeed) * dt;
+                    if (drop > 0f) drop *= WeaponFallScale; // only the fall is slowed, never the rise
+                    pos.y -= drop;
                     bool wasRising = fallSpeed < 0f;
                     fallSpeed = newSpeed;
                     if (wasRising && fallSpeed >= 0f) jumpRise = -1f; // the top: back to 1 x 1

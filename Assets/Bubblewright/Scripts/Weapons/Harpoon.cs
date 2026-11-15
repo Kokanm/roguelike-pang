@@ -101,6 +101,7 @@ namespace Bubblewright
             bottomY = Mathf.Min(from.y, Mathf.Max(bottomY, from.y - T.launcherTip.y + TailBottomPixels * px));
             Down = false;
             Volley = null;
+            ClearAngle();
             tip.transform.localRotation = Quaternion.identity;
             this.chipColumn = chipColumn;
             chipNextRow = map != null ? Mathf.Max(0, StageMap.Row(map.FloorBelow(x, from.y))) : 0;
@@ -129,6 +130,7 @@ namespace Bubblewright
             clock = 0f;
             Down = true;
             Volley = null;
+            ClearAngle();
             Active = true;
             tip.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
             tip.enabled = rope.enabled = true;
@@ -168,6 +170,11 @@ namespace Bubblewright
             }
             // The map can change under a flying cable (breakable tiles), so look again for what is above.
             var map = Game.Map;
+            if (Angled)
+            {
+                TickAngled(map, dt);
+                return;
+            }
             if (Down)
             {
                 TickDown(map, dt);
@@ -236,11 +243,145 @@ namespace Bubblewright
             }
         }
 
+        // ------------------------------------------------------------------ angled cables (Vee Harpoon)
+
+        Vector2 angleBase, angleTip, angleDir;
+
+        /// <summary>True for a slanted cable (FireAngled): a straight segment from where it was fired to its tip.</summary>
+        public bool Angled { get; private set; }
+        /// <summary>Where a slanted cable was fired from.</summary>
+        public Vector2 AngledBase => angleBase;
+        /// <summary>The front point of a slanted cable's tip.</summary>
+        public Vector2 AngledTip => angleTip;
+
+        void ClearAngle()
+        {
+            Angled = false;
+            if (rope) rope.transform.localRotation = Quaternion.identity;
+        }
+
+        /// <summary>
+        /// A slanted cable: the tip flies along direction (pointing down counts as a down shot) and the cable is the
+        /// straight segment from where it was fired to the tip. It does not sway and has no hanging tail. The tip stops at
+        /// the first solid tile, wall, ceiling or the floor; a breakable tile there takes one hit and the cable goes, any
+        /// other surface hooks it for HoldTime like the straight harpoon. Hit tests use the segment with the cable's width.
+        /// </summary>
+        public void FireAngled(Vector2 from, Vector2 direction)
+        {
+            float px = 1f / T.pixelsPerUnit;
+            angleDir = direction.sqrMagnitude > 1e-8f ? direction.normalized : Vector2.up;
+            angleBase = new Vector2(Mathf.Round(from.x / px) * px, from.y);
+            angleTip = angleBase;
+            x = angleBase.x;
+            baseY = tipY = from.y;
+            Down = angleDir.y < 0f;
+            Volley = null;
+            Angled = true;
+            chipColumn = -1;
+            held = -1f;
+            clock = 0f;
+            Active = true;
+            var turn = Quaternion.FromToRotation(Vector3.up, angleDir);
+            tip.transform.localRotation = turn;
+            rope.transform.localRotation = turn;
+            tip.enabled = rope.enabled = true;
+            foreach (var t in tail) t.enabled = false;
+            UpdateVisual();
+        }
+
+        void TickAngled(StageMap map, float dt)
+        {
+            float travel = BaseSpeed * SpeedMultiplier * dt;
+            float step = 0.5f / T.pixelsPerUnit;
+            int steps = Mathf.Max(1, Mathf.CeilToInt(travel / step));
+            Vector2 move = angleDir * (travel / steps);
+            for (int i = 0; i < steps; i++)
+            {
+                Vector2 next = angleTip + move;
+                if (AngledStop(map, next, out int col, out int row))
+                {
+                    if (map != null && row >= 0 && map.Get(col, row).kind == TileKind.Breakable)
+                    {
+                        UpdateVisual();
+                        hitTile?.Invoke(col, row);
+                        Hide();
+                        return;
+                    }
+                    UpdateVisual();
+                    bool overGap = map != null && next.y <= 0f && map.IsGap(StageMap.Col(next.x));
+                    if (HoldTime <= 0f || overGap) Hide();
+                    else held = 0f;
+                    return;
+                }
+                angleTip = next;
+            }
+            UpdateVisual();
+        }
+
+        /// <summary>True when the tip at p has left the arena or entered a solid tile (that tile's column and row, or row -1).</summary>
+        bool AngledStop(StageMap map, Vector2 p, out int col, out int row)
+        {
+            col = StageMap.Col(p.x);
+            row = -1;
+            if (p.x <= -T.HalfWidth || p.x >= T.HalfWidth || p.y <= 0f || p.y >= T.arenaHeight) return true;
+            if (map == null) return false;
+            int r = StageMap.Row(p.y);
+            if (col < 0 || col >= StageMap.Cols || r < 0 || r >= StageMap.Rows || !map.IsSolid(col, r)) return false;
+            row = r;
+            return true;
+        }
+
+        void UpdateAngledVisual(float px)
+        {
+            float length = Vector2.Distance(angleBase, angleTip);
+            rope.transform.position = angleBase;
+            rope.size = new Vector2(px, Mathf.Max(px, length - TipHeight + px));
+            tip.transform.position = angleTip - angleDir * TipHeight;
+        }
+
+        static Rect AngledBounds(Vector2 a, Vector2 b, float halfWidth) =>
+            Rect.MinMaxRect(Mathf.Min(a.x, b.x) - halfWidth, Mathf.Min(a.y, b.y) - halfWidth,
+                Mathf.Max(a.x, b.x) + halfWidth, Mathf.Max(a.y, b.y) + halfWidth);
+
+        /// <summary>
+        /// True if a thing with this rectangle test touches the slanted cable or its tip. The cable is checked as small
+        /// squares one pixel apart along the segment, so each thing keeps its own exact shape test (circles, Pogos,
+        /// boss bodies). reach skips anything whose rough circle is nowhere near the segment.
+        /// </summary>
+        bool AngledTouches(System.Func<Rect, bool> overlaps, Vector2 centre, float reach)
+        {
+            float px = 1f / T.pixelsPerUnit;
+            float half = px * WidthMultiplier;
+            float tipHalf = 3.5f * px * WidthMultiplier;
+            Vector2 closest = WeaponWorld.ClosestOnSegment(angleBase, angleTip, centre);
+            if (Vector2.Distance(closest, centre) > reach + tipHalf + px) return false;
+
+            Vector2 tipBack = angleTip - angleDir * TipHeight;
+            for (int k = 0; k <= 4; k++) // the barbed tip, as wide as the straight harpoon's
+            {
+                Vector2 q = Vector2.Lerp(tipBack, angleTip, k / 4f);
+                if (overlaps(new Rect(q.x - tipHalf, q.y - tipHalf, tipHalf * 2f, tipHalf * 2f))) return true;
+            }
+            float length = Vector2.Distance(angleBase, angleTip);
+            int n = Mathf.Max(1, Mathf.CeilToInt(length / px));
+            for (int i = 0; i <= n; i++)
+            {
+                Vector2 q = Vector2.Lerp(angleBase, angleTip, i / (float)n);
+                if (overlaps(new Rect(q.x - half, q.y - half, half * 2f, half * 2f))) return true;
+            }
+            return false;
+        }
+
         float TipHeight => (float)PlaceholderArt.HarpoonTipHeight / T.pixelsPerUnit;
 
         void UpdateVisual()
         {
             float px = 1f / T.pixelsPerUnit;
+            if (Angled)
+            {
+                UpdateAngledVisual(px);
+                return;
+            }
             if (Down)
             {
                 // Turned upside down about its pivot, the point ends at tipY.
@@ -279,6 +420,7 @@ namespace Bubblewright
             {
                 float px = 1f / T.pixelsPerUnit;
                 float w = WidthMultiplier;
+                if (Angled) return AngledBounds(angleBase, angleTip, px * w);
                 if (Down) return new Rect(x - px * w, tipY, px * 2f * w, Mathf.Max(0f, baseY - tipY));
                 return new Rect(x - px * w, bottomY, px * 2f * w, tipY - bottomY);
             }
@@ -291,17 +433,24 @@ namespace Bubblewright
             {
                 float px = 1f / T.pixelsPerUnit;
                 float w = WidthMultiplier;
+                if (Angled) return AngledBounds(angleTip - angleDir * TipHeight, angleTip, 3.5f * px * w);
                 return new Rect(x - 3.5f * px * w, tipY, 7f * px * w, TipHeight);
             }
         }
 
         /// <summary>True if the rectangle touches the cable or the tip.</summary>
-        public bool Hits(Rect rect) => Active && (rect.Overlaps(CableRect) || rect.Overlaps(TipRect));
+        public bool Hits(Rect rect)
+        {
+            if (!Active) return false;
+            if (Angled) return AngledTouches(rect.Overlaps, rect.center, Mathf.Max(rect.width, rect.height) * 0.75f);
+            return rect.Overlaps(CableRect) || rect.Overlaps(TipRect);
+        }
 
         /// <summary>True if the rolling balloon touches the cable or the tip.</summary>
         public bool Hits(Roller r)
         {
             if (!Active) return false;
+            if (Angled) return AngledTouches(r.Overlaps, r.Position, r.Radius);
             return r.Overlaps(CableRect) || r.Overlaps(TipRect);
         }
 
@@ -309,6 +458,7 @@ namespace Bubblewright
         public bool Hits(Bubble b)
         {
             if (!Active) return false;
+            if (Angled) return AngledTouches(b.Overlaps, b.Position, b.Radius * 1.5f); // a Pogo reaches past its radius
             return b.Overlaps(CableRect) || b.Overlaps(TipRect);
         }
     }

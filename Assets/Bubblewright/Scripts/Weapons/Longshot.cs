@@ -406,7 +406,7 @@ namespace Bubblewright
 
             void Slow(bool on)
             {
-                if (wick != null) wick.WeaponSpeedScale = on ? Tuning.I.longshotWalkScale : 1f;
+                if (wick != null) wick.WeaponWalkScale = on ? Tuning.I.longshotWalkScale : 1f;
             }
 
             public override void Dispose()
