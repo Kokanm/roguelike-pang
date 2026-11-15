@@ -6,10 +6,14 @@ namespace Bubblewright
     /// The starting weapon: a barbed steel tip trailing a 1 px twisted steel cable, fired straight up
     /// from the launcher tip at 20 u/s. The cable stays where it was fired. A bubble touching the cable
     /// or the tip pops. Gone when it pops something or reaches the ceiling or the underside of a platform. One on screen at a time.
+    /// Fired with Down in the air it flies straight down instead (FireDown) and stops at the floor or platform below,
+    /// breaking a breakable tile it lands on.
     /// </summary>
     public class Harpoon : MonoBehaviour
     {
         public bool Active { get; private set; }
+        /// <summary>True for a downward shot (fire + Down in the air).</summary>
+        public bool Down { get; private set; }
         /// <summary>Run upgrades: cable speed, extra hit width, and seconds the tip stays hooked in the ceiling.</summary>
         float? baseSpeed;
         /// <summary>The character's own shot speed; Wick's follows Tuning until a character sets it.</summary>
@@ -88,6 +92,10 @@ namespace Bubblewright
             var map = Game.Map;
             topY = map != null ? map.CeilingAbove(x, from.y, out _) : T.arenaHeight;
             bottomY = (map != null ? Mathf.Max(0f, map.FloorBelow(x, from.y)) : 0f) + TailBottomPixels * px; // the cable never hangs into a gap
+            // Fired in the air, the cable hangs only as far as his feet were, like a shot from the ground.
+            bottomY = Mathf.Min(from.y, Mathf.Max(bottomY, from.y - T.launcherTip.y + TailBottomPixels * px));
+            Down = false;
+            tip.transform.localRotation = Quaternion.identity;
             this.chipColumn = chipColumn;
             chipNextRow = map != null ? Mathf.Max(0, StageMap.Row(map.FloorBelow(x, from.y))) : 0;
             tipY = from.y;
@@ -97,6 +105,39 @@ namespace Bubblewright
             tip.enabled = rope.enabled = true;
             foreach (var t in tail) t.enabled = true;
             UpdateVisual();
+        }
+
+        /// <summary>
+        /// Fire + Down in the air: the tip flies straight down from his feet. The cable runs from where it was fired down
+        /// to the tip, with no hanging tail. It stops on the floor or platform below (or the floor line over a gap).
+        /// </summary>
+        public void FireDown(Vector2 from)
+        {
+            float px = 1f / T.pixelsPerUnit;
+            x = Mathf.Round(from.x / px) * px;
+            baseY = from.y;
+            bottomY = DownStop(Game.Map, out _);
+            chipColumn = -1;
+            tipY = from.y;
+            held = -1f;
+            clock = 0f;
+            Down = true;
+            Active = true;
+            tip.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
+            tip.enabled = rope.enabled = true;
+            foreach (var t in tail) t.enabled = false;
+            UpdateVisual();
+        }
+
+        /// <summary>Top of the first solid tile under the shot (and that tile's row, or -1 for the ground), never below the floor line.</summary>
+        float DownStop(StageMap map, out int hitRow)
+        {
+            hitRow = -1;
+            if (map == null) return 0f;
+            float floor = map.FloorBelow(x, baseY);
+            if (floor <= 0f) return 0f;
+            hitRow = Mathf.RoundToInt(floor) - 1;
+            return floor;
         }
 
         public void Hide()
@@ -120,6 +161,11 @@ namespace Bubblewright
             }
             // The map can change under a flying cable (breakable tiles), so look again for what is above.
             var map = Game.Map;
+            if (Down)
+            {
+                TickDown(map, dt);
+                return;
+            }
             int hitRow = StageMap.Rows;
             topY = map != null ? map.CeilingAbove(x, baseY, out hitRow) : T.arenaHeight;
             tipY += BaseSpeed * SpeedMultiplier * dt;
@@ -145,6 +191,32 @@ namespace Bubblewright
             UpdateVisual();
         }
 
+        void TickDown(StageMap map, float dt)
+        {
+            float stop = DownStop(map, out int hitRow);
+            bottomY = stop;
+            tipY -= BaseSpeed * SpeedMultiplier * dt;
+            if (tipY <= stop)
+            {
+                tipY = stop;
+                UpdateVisual();
+                if (map != null && hitRow >= 0 && map.Get(StageMap.Col(x), hitRow).kind == TileKind.Breakable)
+                {
+                    hitTile?.Invoke(StageMap.Col(x), hitRow);
+                    Hide();
+                    return;
+                }
+                if (HoldTime <= 0f || stop <= 0f && map != null && map.IsGap(StageMap.Col(x)))
+                {
+                    Hide();
+                    return;
+                }
+                held = 0f;
+                return;
+            }
+            UpdateVisual();
+        }
+
         void ChipPassedRows(StageMap map)
         {
             if (map == null || chipColumn < 0 || chipColumn >= StageMap.Cols) return;
@@ -162,6 +234,14 @@ namespace Bubblewright
         void UpdateVisual()
         {
             float px = 1f / T.pixelsPerUnit;
+            if (Down)
+            {
+                // Turned upside down about its pivot, the point ends at tipY.
+                tip.transform.position = new Vector3(x, tipY + TipHeight, 0f);
+                rope.transform.position = new Vector3(x, tipY + TipHeight, 0f);
+                rope.size = new Vector2(px, Mathf.Max(px, baseY - tipY - TipHeight + px));
+                return;
+            }
             tip.transform.position = new Vector3(x, tipY, 0f);
             rope.transform.position = new Vector3(x, baseY, 0f);
             rope.size = new Vector2(px, Mathf.Max(px, tipY - baseY + px));
@@ -192,6 +272,7 @@ namespace Bubblewright
             {
                 float px = 1f / T.pixelsPerUnit;
                 float w = WidthMultiplier;
+                if (Down) return new Rect(x - px * w, tipY, px * 2f * w, Mathf.Max(0f, baseY - tipY));
                 return new Rect(x - px * w, bottomY, px * 2f * w, tipY - bottomY);
             }
         }

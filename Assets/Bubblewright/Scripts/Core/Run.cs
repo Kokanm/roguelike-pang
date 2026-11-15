@@ -25,6 +25,8 @@ namespace Bubblewright
         public float CableHold;
         public float ExtraInvulnerable;
         public int Shots = 1;
+        /// <summary>Double jumps in the air before landing (the Updraft upgrade).</summary>
+        public int AirJumps;
 
         // Hard worlds, indexed by world number 1 to 6. A hard world has more bubbles, less time, one debuff and richer rewards.
         public readonly bool[] hardWorld = new bool[7];
@@ -291,6 +293,7 @@ namespace Bubblewright
             new Upgrade { Name = "Wide Barbs", Text = "Harpoons hit bubbles from twice as far to the side.", Apply = r => r.HarpoonWidthMultiplier = 2f },
             new Upgrade { Name = "Swift Boots", Text = "Run 12% faster.", Max = 3, Apply = r => r.SpeedMultiplier += 0.12f },
             new Upgrade { Name = "Long Glow", Text = "Stay safe 0.75 s longer after a hit.", Max = 2, Apply = r => r.ExtraInvulnerable += 0.75f },
+            new Upgrade { Name = "Updraft", Text = "Jump once more in mid-air. It comes back when you land.", Rarity = Rarity.Rare, Apply = r => r.AirJumps = 1 },
             new Upgrade { Name = "Spare Wick", Text = "One more heart, and it starts lit.", Max = 2, Rarity = Rarity.Rare, Apply = r => { r.MaxHearts++; r.Hearts++; } },
             new Upgrade { Name = "Relight", Text = "Get back one lost heart.", Max = 0, Extra = r => r.Hearts < r.MaxHearts && !(r.CurrentDebuff?.noRelight ?? false), Apply = r => r.Hearts++ },
         };
