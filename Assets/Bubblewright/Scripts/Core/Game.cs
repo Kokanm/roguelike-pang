@@ -394,17 +394,22 @@ namespace Bubblewright
             bool shootDown = wick.Mode == Mode.Fall && input.MoveY < 0f;
             var shotTip = shootDown ? wick.DownShotStart : wick.LauncherTip;
             bool canFire = !Map.IsSolid(StageMap.Col(shotTip.x), StageMap.Row(shotTip.y));
-            if (free != null && canFire && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
+            if (canFire && HarpoonReady(free != null) && (input.FirePressed || (T.holdToRefire && input.FireHeld && (!anyActive || shotTimer >= T.multiShotGap))))
             {
-                if (!FireHeadVolley()) // a held harpoon head fires its own volley instead (Game.Weapons.cs)
+                bool fired = FireHeadVolley(); // a held harpoon head fires its own volley instead (Game.Weapons.cs)
+                if (!fired && free != null)
                 {
                     if (shootDown) free.FireDown(shotTip);
                     else free.Fire(shotTip, wick.Mode == Mode.Fall ? -1 : ChipColumn());
+                    fired = true;
                 }
-                shotTimer = 0f;
-                wick.OnFire();
-                fx.MuzzleFlash(shotTip);
-                Sfx.Play(Sound.Fire);
+                if (fired)
+                {
+                    shotTimer = 0f;
+                    wick.OnFire();
+                    fx.MuzzleFlash(shotTip);
+                    Sfx.Play(Sound.Fire);
+                }
             }
             TickWeapons(dt);
             TickHarpoons(dt);

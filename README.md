@@ -116,6 +116,8 @@ No real weapon is in yet, so nothing drops in normal play. The debug panel's **G
 
 **Twin Carbine** (W01, common, weapon slot, 30 bullets): one spark bullet per press from two barrels in turn, with no limit on bullets in the air. Tapping fires up to 8 a second, holding fires 4 a second. Three bullets take 1 boss health. Numbers in Tuning > Weapon: Twin Carbine; code in `Scripts/Weapons/TwinCarbine.cs`.
 
+**Double Harpoon** (W10, common, harpoon slot, 12 volleys): the normal fire button launches two harpoons at once, 1.6 units apart and centred on Wick (Flint gets a third in the middle). The next volley waits until all its cables are gone; each Twin Cable pick allows one more volley in the air. The cables are ordinary harpoons, so upgrades, steel, ceramic, tiles and down shots work as usual, and a volley takes at most 1 boss health. Numbers in Tuning > Weapon: Double Harpoon; code in `Scripts/Weapons/DoubleHarpoon.cs`.
+
 ### Tuning
 
 Every number lives in `Assets/Bubblewright/Resources/Tuning.asset`. Select it and edit in the Inspector, even while playing. Bubble gravity is derived per tier from its peak height and a bounce time, so it always reaches the sheet's peak height.

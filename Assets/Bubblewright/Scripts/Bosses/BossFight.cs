@@ -15,7 +15,8 @@ namespace Bubblewright
 
         /// <summary>
         /// Every active harpoon whose cable or tip touches the boss's body is hidden and calls damage(1, point) once.
-        /// Returns the number of harpoons that hit. Later weapons call the same damage method.
+        /// Cables of one harpoon-head volley (Harpoon.Volley) deal the volley's damage once between them.
+        /// Returns the number of harpoons that did damage. Later weapons call the same damage method.
         /// </summary>
         public static int HarpoonHits(Boss boss, IList<Harpoon> harpoons, Action<int, Vector2> damage)
         {
@@ -28,7 +29,14 @@ namespace Bubblewright
                 var cable = h.CableRect;
                 var at = new Vector2(Mathf.Clamp(cable.center.x, body.xMin, body.xMax), Mathf.Clamp(h.TipRect.center.y, body.yMin, body.yMax));
                 h.Hide();
-                damage(1, at);
+                if (h.Volley != null)
+                {
+                    // A head's volley hurts the boss once, however many of its cables touch.
+                    if (h.Volley.BossHit) continue;
+                    h.Volley.BossHit = true;
+                    if (h.Volley.BossDamage > 0) damage(h.Volley.BossDamage, at);
+                }
+                else damage(1, at);
                 hits++;
             }
             return hits;

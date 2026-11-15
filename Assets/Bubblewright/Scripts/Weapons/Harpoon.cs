@@ -21,6 +21,11 @@ namespace Bubblewright
         public float SpeedMultiplier { get; set; } = 1f;
         public float WidthMultiplier { get; set; } = 1f;
         public float HoldTime { get; set; }
+        /// <summary>
+        /// The cables fired together by a harpoon head share one volley, so the boss takes damage once per volley
+        /// (BossFight.HarpoonHits). Null for a normal shot. Every Fire clears it.
+        /// </summary>
+        public HarpoonVolley Volley { get; set; }
 
         Tuning T => Tuning.I;
         SpriteRenderer tip, rope;
@@ -95,6 +100,7 @@ namespace Bubblewright
             // Fired in the air, the cable hangs only as far as his feet were, like a shot from the ground.
             bottomY = Mathf.Min(from.y, Mathf.Max(bottomY, from.y - T.launcherTip.y + TailBottomPixels * px));
             Down = false;
+            Volley = null;
             tip.transform.localRotation = Quaternion.identity;
             this.chipColumn = chipColumn;
             chipNextRow = map != null ? Mathf.Max(0, StageMap.Row(map.FloorBelow(x, from.y))) : 0;
@@ -122,6 +128,7 @@ namespace Bubblewright
             held = -1f;
             clock = 0f;
             Down = true;
+            Volley = null;
             Active = true;
             tip.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
             tip.enabled = rope.enabled = true;
@@ -304,5 +311,12 @@ namespace Bubblewright
             if (!Active) return false;
             return b.Overlaps(CableRect) || b.Overlaps(TipRect);
         }
+    }
+
+    /// <summary>Cables a harpoon head fired together. The first one to reach the boss deals BossDamage; the rest deal none.</summary>
+    public class HarpoonVolley
+    {
+        public int BossDamage = 1;
+        public bool BossHit;
     }
 }
