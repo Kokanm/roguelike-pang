@@ -78,6 +78,33 @@ namespace Bubblewright
             }
         }
 
+        /// <summary>
+        /// Melts now, restoring the old surface, every spot in columns firstCol to lastCol: tile spots in rows firstRow to
+        /// lastRow, and ground spots too when withGround. Returns how many melted (the Lamp Lance).
+        /// </summary>
+        public int Melt(StageMap map, int firstCol, int lastCol, int firstRow, int lastRow, bool withGround)
+        {
+            int melted = 0;
+            for (int i = spots.Count - 1; i >= 0; i--)
+            {
+                var s = spots[i];
+                if (s.col < firstCol || s.col > lastCol) continue;
+                if (s.ground ? !withGround : s.row < firstRow || s.row > lastRow) continue;
+                spots.RemoveAt(i);
+                melted++;
+                if (map == null) continue;
+                if (s.ground) map.SetGround(s.col, s.before);
+                else
+                {
+                    Cell cell = map.Get(s.col, s.row);
+                    if (cell.kind == TileKind.Empty) continue;
+                    cell.surface = s.before;
+                    map.Set(s.col, s.row, cell);
+                }
+            }
+            return melted;
+        }
+
         /// <summary>Forget every spot without restoring (a new stage's map replaces the old one).</summary>
         public void Clear() => spots.Clear();
 
