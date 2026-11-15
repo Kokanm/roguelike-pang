@@ -87,7 +87,7 @@ namespace Bubblewright
                 headBehaviour = run.Head?.CreateBehaviour();
             }
             wick.SetHeld(WeaponArt.Held(run.Weapon), WeaponArt.Held(run.Weapon, true));
-            touchView.ShowWeapon(run.Weapon, run.WeaponAmmo);
+            touchView.ShowWeapon(run.Weapon, run.WeaponAmmo, weaponBehaviour != null && weaponBehaviour.Dimmed);
         }
 
         void FillWeaponContext(WeaponSpec spec, WeaponSlot slot, bool pressed, bool held)

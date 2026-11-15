@@ -15,12 +15,15 @@ namespace Bubblewright
         Camera cam;
         WeaponSpec heldWeapon;
         int heldAmmo;
+        bool heldDimmed;
+        static readonly Color DimTint = new Color(0.5f, 0.5f, 0.55f, 1f);
 
         /// <summary>The weapon in the weapon slot and its ammo, or null to hide the weapon button. Set before Refresh.</summary>
-        public void ShowWeapon(WeaponSpec spec, int ammo)
+        public void ShowWeapon(WeaponSpec spec, int ammo, bool dimmed = false)
         {
             heldWeapon = spec;
             heldAmmo = ammo;
+            heldDimmed = dimmed;
         }
 
         public static TouchControlsView Create(Transform parent, Camera cam)
@@ -94,6 +97,7 @@ namespace Bubblewright
                 bool down = input.TouchWeaponHeld;
                 Vector3 weaponPos = Snap(firePos - new Vector2(7f, 0f), t);
                 weapon.sprite = WeaponArt.Button(heldWeapon, down);
+                weapon.color = weaponAmmo.color = heldDimmed ? DimTint : Color.white;
                 weapon.transform.position = weaponPos;
                 weaponAmmo.sprite = WeaponArt.Number(heldAmmo);
                 weaponAmmo.transform.position = weaponPos + new Vector3(0f, WeaponArt.ButtonNumberOffsetPixels(down) * px, 0f);
