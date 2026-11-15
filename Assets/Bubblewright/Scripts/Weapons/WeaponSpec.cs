@@ -88,6 +88,12 @@ namespace Bubblewright
         /// </summary>
         public virtual bool FireVolley(WeaponContext ctx) => false;
 
+        /// <summary>
+        /// A harpoon head: may the fire button fire a volley now? False skips the press entirely (no normal harpoon,
+        /// no flash). The default asks for a free normal harpoon (ctx.HarpoonFree), like the plain launcher.
+        /// </summary>
+        public virtual bool VolleyReady(WeaponContext ctx) => ctx.HarpoonFree;
+
         /// <summary>The weapon left its slot (empty, replaced) or the stage is starting over. Remove anything it owns.</summary>
         public virtual void Dispose() { }
     }

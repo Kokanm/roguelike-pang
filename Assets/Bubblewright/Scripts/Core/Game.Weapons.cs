@@ -107,6 +107,39 @@ namespace Bubblewright
             c.Rng = weaponRng;
             c.spend = n => run.SpendAmmo(slot, n);
             c.flash = WeaponFlash;
+            c.harpoons = HeadHarpoons;
+        }
+
+        /// <summary>The harpoon list, grown to count. New ones get the same upgrades as the first.</summary>
+        IReadOnlyList<Harpoon> HeadHarpoons(int count)
+        {
+            while (harpoons.Count < count)
+            {
+                var h = Harpoon.Create(world, HitTile);
+                if (harpoons.Count > 0)
+                {
+                    var first = harpoons[0];
+                    h.BaseSpeed = first.BaseSpeed;
+                    h.SpeedMultiplier = first.SpeedMultiplier;
+                    h.WidthMultiplier = first.WidthMultiplier;
+                    h.HoldTime = first.HoldTime;
+                }
+                harpoons.Add(h);
+            }
+            return harpoons;
+        }
+
+        /// <summary>
+        /// Called from the harpoon firing block: may fire fire now? Without a head, when a normal harpoon is free.
+        /// A held head decides for itself (the Double Harpoon waits until its cables are gone).
+        /// </summary>
+        bool HarpoonReady(bool harpoonFree)
+        {
+            SyncHeldWeapons();
+            if (headBehaviour == null || run.Head == null) return harpoonFree;
+            FillWeaponContext(run.Head, WeaponSlot.Harpoon, input.FirePressed, input.FireHeld);
+            weaponContext.HarpoonFree = harpoonFree;
+            return headBehaviour.VolleyReady(weaponContext);
         }
 
         void WeaponFlash()
@@ -124,7 +157,9 @@ namespace Bubblewright
         {
             SyncHeldWeapons();
             if (headBehaviour == null || run.Head == null) return false;
+            bool harpoonFree = weaponContext.HarpoonFree;
             FillWeaponContext(run.Head, WeaponSlot.Harpoon, true, input.FireHeld);
+            weaponContext.HarpoonFree = harpoonFree;
             if (!weaponContext.CanFire || !headBehaviour.FireVolley(weaponContext)) return false;
             run.SpendAmmo(WeaponSlot.Harpoon);
             return true;

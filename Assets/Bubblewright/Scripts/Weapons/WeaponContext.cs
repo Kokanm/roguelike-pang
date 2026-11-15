@@ -30,11 +30,23 @@ namespace Bubblewright
         /// <summary>Seeded from the run seed and the stage, so a weapon's randomness repeats in tests and replays.</summary>
         public System.Random Rng;
 
+        /// <summary>For a head: one of the normal harpoons (the first run.Shots) is free to fire.</summary>
+        public bool HarpoonFree;
+
         internal System.Func<int, bool> spend;
+        internal System.Func<int, System.Collections.Generic.IReadOnlyList<Harpoon>> harpoons;
         internal System.Action flash;
 
         /// <summary>Spends ammo from this weapon's slot. False (and nothing spent) when there is not that much left. The slot empties at 0.</summary>
         public bool Spend(int amount = 1) => spend != null && spend(amount);
+
+        /// <summary>
+        /// The game's harpoons, grown to at least count. A head that fires cables uses these, so the normal harpoon
+        /// hit loops (bubbles, steel, ceramic, Ghosts, rolling balloons, the boss), run upgrades and stage cleanup all
+        /// apply to its cables too. Empty when there is no game (tests set their own).
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyList<Harpoon> Harpoons(int count = 0) =>
+            harpoons != null ? harpoons(count) : System.Array.Empty<Harpoon>();
 
         /// <summary>The shared firing feedback: launcher kick, muzzle flash and the fire sound.</summary>
         public void Flash() => flash?.Invoke();
