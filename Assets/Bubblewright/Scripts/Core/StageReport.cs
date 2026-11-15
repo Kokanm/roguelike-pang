@@ -158,6 +158,143 @@ namespace Bubblewright
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Harpoon hits that pop one bubble of this kind and tier and all its children, if nothing is wasted: an S takes
+        /// one, a bigger one takes one plus its children's. A ceramic bubble takes Tuning.ceramicHits - 1 more (its
+        /// children are not ceramic).
+        /// </summary>
+        public static int PopsNeeded(BubbleKind kind, int tier, bool ceramic = false)
+        {
+            var t = Tuning.I;
+            int children = Mathf.Max(1, t.Kind(kind).children);
+            int pops = 1;
+            for (int next = t.tiers.Length - 1; next > tier; next--) pops = 1 + children * pops;
+            return pops + (ceramic ? Mathf.Max(0, t.ceramicHits - 1) : 0);
+        }
+
+        /// <summary>Hits that clear a rolling ball: a big one is itself and two small ones, a ceramic one takes more. Steel takes none.</summary>
+        public static int PopsNeeded(RollerSpec roller)
+        {
+            if (roller.steel) return 0;
+            int pops = roller.tier == 0 ? 3 : 1;
+            return pops + (roller.ceramic ? Mathf.Max(0, Tuning.I.ceramicHits - 1) : 0);
+        }
+
+        /// <summary>Hits that clear a whole plan: start bubbles, waves and rolling balls. Lucky, steel balls and steel Pogos do not count.</summary>
+        public static int PopsNeeded(StagePlan plan)
+        {
+            int pops = 0;
+            if (plan.spawns != null)
+                foreach (var s in plan.spawns)
+                    if (s.kind != BubbleKind.Lucky && !s.steel) pops += PopsNeeded(s.kind, s.tier, s.ceramic);
+            if (plan.waves != null)
+                foreach (var wave in plan.waves)
+                    foreach (var s in wave)
+                        if (s.kind != BubbleKind.Lucky && !s.steel) pops += PopsNeeded(s.kind, s.tier, s.ceramic);
+            if (plan.rollers != null)
+                foreach (var r in plan.rollers) pops += PopsNeeded(r);
+            return pops;
+        }
+
+        /// <summary>
+        /// Every normal stage slot (world and stage in world) averaged over seeds 1 to seeds on a calm road, as a
+        /// tab-separated header and 30 lines: budget, spend, bubbles at the start and in waves, rolling balls, pops
+        /// needed, time limit, pops per second, how often each recipe is drawn, the share of spawns per kind and how
+        /// often the stage has a guest.
+        /// </summary>
+        public static string Summary(int seeds)
+        {
+            var t = Tuning.I;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            seeds = Mathf.Max(1, seeds);
+            var kinds = (BubbleKind[])System.Enum.GetValues(typeof(BubbleKind));
+
+            // Recipe columns: every row of Tuning.recipes, the Drifter's first visit, and anything else under "other".
+            var recipeNames = new List<string>();
+            if (t.recipes != null)
+                foreach (var row in t.recipes)
+                    if (row != null && !string.IsNullOrEmpty(row.name) && !recipeNames.Contains(row.name)) recipeNames.Add(row.name);
+            if (!recipeNames.Contains(StageGenerator.DebutRecipeName)) recipeNames.Add(StageGenerator.DebutRecipeName);
+            int otherRecipe = recipeNames.Count;
+
+            var slots = new List<int>();
+            for (int s = 1; s <= t.RunLength; s++)
+                if (!Run.IsBossStageNumber(s)) slots.Add(s);
+            int n = slots.Count;
+            var budget = new double[n];
+            var spend = new double[n];
+            var start = new double[n];
+            var waved = new double[n];
+            var rollers = new double[n];
+            var pops = new double[n];
+            var time = new double[n];
+            var guests = new double[n];
+            var recipes = new double[n, otherRecipe + 1];
+            var kindSpawns = new double[n, kinds.Length];
+            var allSpawns = new double[n];
+
+            for (int seed = 1; seed <= seeds; seed++)
+            {
+                var run = new Run(seed); // a new run is calm in every world
+                for (int i = 0; i < n; i++)
+                {
+                    int stage = slots[i];
+                    var plan = StageGenerator.GenerateFor(run, stage);
+                    var r = From(stage, plan, false);
+                    budget[i] += r.budget;
+                    spend[i] += r.bubbleSpend + r.rollerSpend;
+                    rollers[i] += r.rollers;
+                    pops[i] += PopsNeeded(plan);
+                    time[i] += r.time;
+                    if (!string.IsNullOrEmpty(r.guest)) guests[i]++;
+                    int ri = r.recipe == null ? -1 : recipeNames.IndexOf(r.recipe);
+                    recipes[i, ri < 0 ? otherRecipe : ri]++;
+                    if (plan.spawns != null)
+                        foreach (var s in plan.spawns)
+                        {
+                            if (s.kind != BubbleKind.Lucky) start[i]++;
+                            kindSpawns[i, (int)s.kind]++;
+                            allSpawns[i]++;
+                        }
+                    if (plan.waves != null)
+                        foreach (var wave in plan.waves)
+                            foreach (var s in wave)
+                            {
+                                waved[i]++;
+                                kindSpawns[i, (int)s.kind]++;
+                                allSpawns[i]++;
+                            }
+                }
+            }
+
+            var sb = new StringBuilder("stage\tworld\tbudget\tspend\tstart bubbles\twave bubbles\trolling balls\tpops needed\ttime\tpops per s");
+            foreach (var name in recipeNames) sb.Append("\trecipe ").Append(name);
+            sb.Append("\trecipe other");
+            foreach (var kind in kinds) sb.Append("\tkind ").Append(kind);
+            sb.Append("\tguest");
+
+            string F(double v, string format = "0.##") => v.ToString(format, inv);
+            for (int i = 0; i < n; i++)
+            {
+                int stage = slots[i];
+                double avgPops = pops[i] / seeds, avgTime = time[i] / seeds;
+                sb.Append('\n').Append(Run.WorldOf(stage)).Append('-').Append(Run.StageInWorldOf(stage));
+                sb.Append('\t').Append(Run.WorldNameOf(Run.WorldOf(stage)));
+                sb.Append('\t').Append(F(budget[i] / seeds, "0.#"));
+                sb.Append('\t').Append(F(spend[i] / seeds, "0.#"));
+                sb.Append('\t').Append(F(start[i] / seeds));
+                sb.Append('\t').Append(F(waved[i] / seeds));
+                sb.Append('\t').Append(F(rollers[i] / seeds));
+                sb.Append('\t').Append(F(avgPops, "0.#"));
+                sb.Append('\t').Append(F(avgTime, "0.#"));
+                sb.Append('\t').Append(F(avgTime > 0 ? avgPops / avgTime : 0, "0.###"));
+                for (int c = 0; c <= otherRecipe; c++) sb.Append('\t').Append(F(recipes[i, c] / seeds));
+                for (int k = 0; k < kinds.Length; k++) sb.Append('\t').Append(F(allSpawns[i] > 0 ? kindSpawns[i, k] / allSpawns[i] : 0));
+                sb.Append('\t').Append(F(guests[i] / seeds));
+            }
+            return sb.ToString();
+        }
+
         /// <summary>Every stage of a run's seed, with that run's calm and hard worlds, as a header and one line per stage.</summary>
         public static string LogRun(Run run)
         {
