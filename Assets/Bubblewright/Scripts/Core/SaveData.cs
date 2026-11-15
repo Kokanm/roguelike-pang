@@ -12,6 +12,8 @@ namespace Bubblewright
         public string character = "wick"; // id of the character playing; unknown ids load as Wick
         public bool[] hardWorld;         // length 7, index = world
         public string[] worldDebuff;     // length 7
+        public string weapon, head;      // weapon slot and harpoon-head slot ids; missing or unknown ids load as empty
+        public int weaponAmmo, headAmmo; // as at the start of the stage, so quitting mid-stage cannot bank ammo
     }
 
     public static class SaveGame

@@ -9,7 +9,7 @@ namespace Bubblewright
     /// Edit it in the Inspector, even while playing: changes apply on the next frame.
     /// </summary>
     [CreateAssetMenu(menuName = "Bubblewright/Tuning", fileName = "Tuning")]
-    public class Tuning : ScriptableObject
+    public partial class Tuning : ScriptableObject
     {
         [Header("Screen and arena (units, 15 px per unit)")]
         public int pixelsPerUnit = 15;

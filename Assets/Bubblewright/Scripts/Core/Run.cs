@@ -9,7 +9,7 @@ namespace Bubblewright
     /// carries over to the next run except the best score. Hearts, score and upgrades live here, and the
     /// game copies the upgrade numbers onto Wick and the harpoons at the start of every stage.
     /// </summary>
-    public class Run
+    public partial class Run
     {
         public int Stage = 1;
         public int Score;
@@ -173,7 +173,7 @@ namespace Bubblewright
         {
             var names = new string[taken.Count];
             for (int i = 0; i < taken.Count; i++) names[i] = taken[i].Name;
-            return new SaveData
+            var save = new SaveData
             {
                 version = 1,
                 seed = Seed,
@@ -186,6 +186,8 @@ namespace Bubblewright
                 hardWorld = (bool[])hardWorld.Clone(),
                 worldDebuff = (string[])worldDebuff.Clone(),
             };
+            SaveWeapons(save);
+            return save;
         }
 
         public static Run FromSave(SaveData d)
@@ -210,6 +212,7 @@ namespace Bubblewright
             if (d.worldDebuff != null)
                 for (int i = 0; i < Mathf.Min(run.worldDebuff.Length, d.worldDebuff.Length); i++)
                     run.worldDebuff[i] = string.IsNullOrEmpty(d.worldDebuff[i]) ? null : d.worldDebuff[i];
+            run.LoadWeapons(d);
             return run;
         }
 

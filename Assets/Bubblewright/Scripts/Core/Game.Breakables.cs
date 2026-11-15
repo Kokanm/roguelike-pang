@@ -27,6 +27,7 @@ namespace Bubblewright
 
             if (wick.Hearts < run.MaxHearts && Random.value < T.breakableHeartChance)
                 pickups.Add(Pickup.Create(world, centre));
+            MaybeDropCrate(centre, T.breakableCrateChance);
         }
 
         int ChipColumn()

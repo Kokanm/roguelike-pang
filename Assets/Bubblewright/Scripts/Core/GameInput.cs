@@ -27,6 +27,9 @@ namespace Bubblewright
         public bool FirePressed { get; private set; }
         /// <summary>Jump pressed this frame: L or Shift, pad B / Circle or Y / Triangle, or the touch jump button.</summary>
         public bool JumpPressed { get; private set; }
+        /// <summary>The weapon button: I or U, pad right trigger or right shoulder, or the touch weapon button.</summary>
+        public bool WeaponHeld { get; private set; }
+        public bool WeaponPressed { get; private set; }
         public bool ConfirmPressed { get; private set; }
         public bool AnyInput { get; private set; }
         /// <summary>Confirm from keys or pad only, for menus where a tap should hit a button instead.</summary>
@@ -51,6 +54,7 @@ namespace Bubblewright
         public Vector2 PadCurrent { get; private set; }
         public bool TouchFireHeld { get; private set; }
         public bool TouchJumpHeld { get; private set; }
+        public bool TouchWeaponHeld { get; private set; }
 
         /// <summary>Where the jump button is on screen (pixels, origin bottom left). Set every frame by the touch view.</summary>
         Vector2 jumpButtonCentre;
@@ -67,6 +71,19 @@ namespace Bubblewright
         public bool InJumpButton(Vector2 screenPosition) =>
             jumpButtonRadius > 0f && (screenPosition - jumpButtonCentre).sqrMagnitude <= Sq(jumpButtonRadius * JumpTouchSlack);
 
+        /// <summary>Where the weapon button is on screen; radius 0 while Wick holds no weapon (the button is hidden).</summary>
+        Vector2 weaponButtonCentre;
+        float weaponButtonRadius;
+
+        public void SetWeaponButton(Vector2 screenCentre, float screenRadius)
+        {
+            weaponButtonCentre = screenCentre;
+            weaponButtonRadius = screenRadius;
+        }
+
+        public bool InWeaponButton(Vector2 screenPosition) =>
+            weaponButtonRadius > 0f && (screenPosition - weaponButtonCentre).sqrMagnitude <= Sq(weaponButtonRadius * JumpTouchSlack);
+
         static float Sq(float v) => v * v;
 
         const int NoPointer = int.MinValue;
@@ -74,6 +91,7 @@ namespace Bubblewright
         int padPointer = NoPointer;
         readonly HashSet<int> firePointers = new HashSet<int>();
         readonly HashSet<int> jumpPointers = new HashSet<int>();
+        readonly HashSet<int> weaponPointers = new HashSet<int>();
         readonly List<PointerSample> pointers = new List<PointerSample>(8);
 
         struct PointerSample
@@ -103,6 +121,7 @@ namespace Bubblewright
             pointers.Clear();
             float keyMove = 0f, keyMoveY = 0f, keyClimb = 0f;
             bool keyFire = false, keyFirePressed = false, keyJump = false, confirm = false, any = false;
+            bool keyWeapon = false, keyWeaponPressed = false;
             DebugSpawn = 0;
             DebugToggleHitboxes = false;
             DebugTestLayoutPressed = false;
@@ -121,6 +140,8 @@ namespace Bubblewright
                 keyFire |= kb.spaceKey.isPressed || kb.jKey.isPressed || kb.kKey.isPressed;
                 keyFirePressed |= kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame || kb.kKey.wasPressedThisFrame;
                 keyJump |= kb.lKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame || kb.rightShiftKey.wasPressedThisFrame;
+                keyWeapon |= kb.iKey.isPressed || kb.uKey.isPressed;
+                keyWeaponPressed |= kb.iKey.wasPressedThisFrame || kb.uKey.wasPressedThisFrame;
                 confirm |= kb.rKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame;
                 any |= kb.anyKey.wasPressedThisFrame;
                 if (kb.digit1Key.wasPressedThisFrame) DebugSpawn = 1;
@@ -131,6 +152,7 @@ namespace Bubblewright
                 if (kb.digit6Key.wasPressedThisFrame) DebugSpawn = 6; // a steel rolling ball
                 if (kb.digit7Key.wasPressedThisFrame) DebugSpawn = 7; // a ceramic Gloop
                 if (kb.digit8Key.wasPressedThisFrame) DebugSpawn = 8; // a ceramic rolling ball
+                if (kb.digit9Key.wasPressedThisFrame) DebugSpawn = 9; // a weapon crate above Wick
                 DebugToggleHitboxes = kb.f1Key.wasPressedThisFrame;
                 DebugTestLayoutPressed = kb.f3Key.wasPressedThisFrame;
                 PausePressed |= kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame;
@@ -148,14 +170,17 @@ namespace Bubblewright
                 if (Mathf.Abs(y) > 0.35f) keyMoveY += Mathf.Sign(y);
                 if (pad.dpad.up.isPressed || stickY > 0.5f) keyClimb += 1f;
                 if (pad.dpad.down.isPressed || stickY < -0.5f) keyClimb -= 1f;
-                keyFire |= pad.buttonSouth.isPressed || pad.buttonWest.isPressed || pad.rightTrigger.isPressed || pad.rightShoulder.isPressed;
-                keyFirePressed |= pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame || pad.rightTrigger.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame;
+                keyFire |= pad.buttonSouth.isPressed || pad.buttonWest.isPressed;
+                keyFirePressed |= pad.buttonSouth.wasPressedThisFrame || pad.buttonWest.wasPressedThisFrame;
+                // The right trigger and shoulder are the weapon button, not fire.
+                keyWeapon |= pad.rightTrigger.isPressed || pad.rightShoulder.isPressed;
+                keyWeaponPressed |= pad.rightTrigger.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame;
                 bool padJump = pad.buttonEast.wasPressedThisFrame || pad.buttonNorth.wasPressedThisFrame;
                 keyJump |= padJump;
                 confirm |= pad.startButton.wasPressedThisFrame || pad.buttonSouth.wasPressedThisFrame;
                 PausePressed |= pad.startButton.wasPressedThisFrame;
                 BackPressed |= pad.buttonEast.wasPressedThisFrame;
-                any |= keyFirePressed || padJump || Mathf.Abs(x) > 0.35f || keyClimb != 0f;
+                any |= keyFirePressed || keyWeaponPressed || padJump || Mathf.Abs(x) > 0.35f || keyClimb != 0f;
             }
             var ts = Touchscreen.current;
             if (ts != null)
@@ -180,11 +205,18 @@ namespace Bubblewright
             if (keyMove == 0f && Mathf.Abs(axis) > 0.35f) keyMove = Mathf.Sign(axis);
             if (keyMoveY == 0f && Mathf.Abs(axisY) > 0.35f) keyMoveY = Mathf.Sign(axisY);
             if (keyClimb == 0f && Mathf.Abs(axisY) > 0.5f) keyClimb = Mathf.Sign(axisY);
-            KeyCode[] fireKeys = { KeyCode.Space, KeyCode.J, KeyCode.K, KeyCode.JoystickButton0, KeyCode.JoystickButton2, KeyCode.JoystickButton5 };
+            KeyCode[] fireKeys = { KeyCode.Space, KeyCode.J, KeyCode.K, KeyCode.JoystickButton0, KeyCode.JoystickButton2 };
             foreach (var k in fireKeys)
             {
                 keyFire |= Input.GetKey(k);
                 keyFirePressed |= Input.GetKeyDown(k);
+            }
+            // Weapon: I, U or pad right shoulder (button 5). The legacy Input Manager has no right trigger axis set up.
+            KeyCode[] weaponKeys = { KeyCode.I, KeyCode.U, KeyCode.JoystickButton5 };
+            foreach (var k in weaponKeys)
+            {
+                keyWeapon |= Input.GetKey(k);
+                keyWeaponPressed |= Input.GetKeyDown(k);
             }
             // Jump: L, either Shift, pad B / Circle (button 1) or Y / Triangle (button 3).
             KeyCode[] jumpKeys = { KeyCode.L, KeyCode.LeftShift, KeyCode.RightShift, KeyCode.JoystickButton1, KeyCode.JoystickButton3 };
@@ -192,7 +224,7 @@ namespace Bubblewright
             confirm |= Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space)
                        || Input.GetKeyDown(KeyCode.JoystickButton7) || Input.GetKeyDown(KeyCode.JoystickButton0);
             any |= Input.anyKeyDown;
-            for (int d = 1; d <= 8; d++) if (Input.GetKeyDown(KeyCode.Alpha0 + d)) DebugSpawn = d; // 5 roller, 6 steel roller, 7 ceramic Gloop, 8 ceramic roller
+            for (int d = 1; d <= 9; d++) if (Input.GetKeyDown(KeyCode.Alpha0 + d)) DebugSpawn = d; // 5 roller, 6 steel roller, 7 ceramic Gloop, 8 ceramic roller, 9 weapon crate
             DebugToggleHitboxes = Input.GetKeyDown(KeyCode.F1);
             DebugTestLayoutPressed = Input.GetKeyDown(KeyCode.F3);
             PausePressed = Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P) || Input.GetKeyDown(KeyCode.JoystickButton7);
@@ -208,7 +240,8 @@ namespace Bubblewright
                 pointers.Add(new PointerSample { id = MousePointer, position = Input.mousePosition, began = Input.GetMouseButtonDown(0) });
 #endif
 
-            float touchMove = UpdateTouch(out float touchClimb, out bool touchFire, out bool touchFirePressed, out bool touchJumpPressed, out bool touchBegan);
+            float touchMove = UpdateTouch(out float touchClimb, out bool touchFire, out bool touchFirePressed, out bool touchJumpPressed,
+                out bool touchWeaponPressed, out bool touchBegan);
 
             if (touchClimb != 0f)
             {
@@ -229,17 +262,20 @@ namespace Bubblewright
             FireHeld = keyFire || touchFire;
             FirePressed = keyFirePressed || touchFirePressed;
             JumpPressed = keyJump || touchJumpPressed;
+            WeaponHeld = keyWeapon || TouchWeaponHeld;
+            WeaponPressed = keyWeaponPressed || touchWeaponPressed;
             ConfirmPressed = confirm || touchBegan;
             KeyConfirmPressed = confirm;
             AnyInput = any || touchBegan;
         }
 
-        float UpdateTouch(out float climb, out bool fire, out bool firePressed, out bool jumpPressed, out bool anyBegan)
+        float UpdateTouch(out float climb, out bool fire, out bool firePressed, out bool jumpPressed, out bool weaponPressed, out bool anyBegan)
         {
             climb = 0f;
             fire = false;
             firePressed = false;
             jumpPressed = false;
+            weaponPressed = false;
             anyBegan = false;
             TapPosition = null;
             float half = Screen.width * 0.5f;
@@ -248,6 +284,7 @@ namespace Bubblewright
             if (padPointer != NoPointer && !Contains(padPointer)) padPointer = NoPointer;
             firePointers.RemoveWhere(id => !Contains(id));
             jumpPointers.RemoveWhere(id => !Contains(id));
+            weaponPointers.RemoveWhere(id => !Contains(id));
 
             foreach (var p in pointers)
             {
@@ -259,6 +296,11 @@ namespace Bubblewright
                 {
                     jumpPointers.Add(p.id); // a jump touch never fires or moves, wherever it slides to
                     jumpPressed = true;
+                }
+                else if (InWeaponButton(p.position))
+                {
+                    weaponPointers.Add(p.id); // like jump: a weapon touch never fires the harpoon or moves
+                    weaponPressed = true;
                 }
                 else if (p.position.x < half && padPointer == NoPointer)
                 {
@@ -305,6 +347,9 @@ namespace Bubblewright
             bool jumpHeld = false;
             foreach (var p in pointers) jumpHeld |= jumpPointers.Contains(p.id);
             TouchJumpHeld = jumpHeld;
+            bool weaponHeld = false;
+            foreach (var p in pointers) weaponHeld |= weaponPointers.Contains(p.id);
+            TouchWeaponHeld = weaponHeld;
             return move;
         }
 
