@@ -55,6 +55,7 @@ namespace Bubblewright
             Weapons.ClearShots();
             ClearGas();
             ClearCrates();
+            ClearMines();
             DisposeWeaponBehaviours();
             dropper = new WeaponDropper(run.Seed, run.Stage);
             weaponRng = run.StageRngFor(run.Stage, 0x3EA);
@@ -87,7 +88,9 @@ namespace Bubblewright
                 headBehaviourSpec = run.Head;
                 headBehaviour = run.Head?.CreateBehaviour();
             }
-            wick.SetHeld(WeaponArt.Held(run.Weapon), WeaponArt.Held(run.Weapon, true));
+            // A gun in hand wins; otherwise a harpoon head may have its own in-hand art (Skewer Harpoon).
+            var inHand = run.Weapon?.HeldRows != null ? run.Weapon : run.Head;
+            wick.SetHeld(WeaponArt.Held(inHand), WeaponArt.Held(inHand, true));
             touchView.ShowWeapon(run.Weapon, run.WeaponAmmo, weaponBehaviour != null && weaponBehaviour.Dimmed);
         }
 
@@ -183,6 +186,7 @@ namespace Bubblewright
             SyncHeldWeapons(); // the last shot may have emptied the slot
             Weapons.TickShots(dt);
             TickGas(dt);
+            TickMines(dt);
             TickCrates(dt);
             if (weaponBannerTime > 0f) weaponBannerTime -= dt;
         }
@@ -192,6 +196,7 @@ namespace Bubblewright
         {
             Weapons.ClearShots();
             ClearGas();
+            PopMinesHarmlessly();
         }
 
         // ------------------------------------------------------------------ crates

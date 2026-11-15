@@ -50,8 +50,8 @@ namespace Bubblewright
                 if (!h.Active) continue;
                 for (int i = 0; i < rollers.Count; i++)
                 {
-                    if (rollers[i].Popped || !h.Hits(rollers[i])) continue;
-                    h.Hide();
+                    if (rollers[i].Popped || h.Ignores(rollers[i]) || !h.Hits(rollers[i])) continue;
+                    h.Spend(rollers[i], rollers[i].Steel); // a Skewer Harpoon stays up for more, except on steel
                     HitRoller(rollers[i]);
                     break;
                 }

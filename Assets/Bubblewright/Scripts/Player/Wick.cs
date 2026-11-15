@@ -607,6 +607,21 @@ namespace Bubblewright
             if (fx != null) fx.Dust(new Vector2(transform.position.x + wallSide * T.hitbox.x * 0.5f, FeetY + T.hitbox.y * 0.3f), -wallSide);
         }
 
+        /// <summary>
+        /// A weapon kick in the air (the Scattergun fired down): he rises height units from where he is, like a small
+        /// jump. Does nothing on the ground or a ladder, and never slows a rise that is already faster.
+        /// </summary>
+        public void Hop(float height)
+        {
+            if (Mode != Mode.Fall || height <= 0f) return;
+            float speed = Mathf.Sqrt(2f * T.JumpGravity * height);
+            if (-fallSpeed >= speed) return;
+            Jumping = true;
+            fallSpeed = -speed;
+            jumpRise = 0f;
+            jumpLand = landSquash = -1f;
+        }
+
         /// <summary>The Updraft double jump: a new jump from where he is, with its own height.</summary>
         void StartAirJump()
         {
