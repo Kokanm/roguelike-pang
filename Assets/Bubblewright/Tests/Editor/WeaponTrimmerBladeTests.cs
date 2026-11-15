@@ -115,6 +115,21 @@ namespace Bubblewright.Tests
             for (int i = 0; i < frames; i++) Frame(false, false);
         }
 
+        /// <summary>Lets the swing run for this much of its sweep. The opening frame is progress 0.</summary>
+        void Advance(float progress)
+        {
+            int frames = Mathf.Max(0, Mathf.CeilToInt(progress * Tuning.I.bladeSwingTime / Dt - 0.0001f));
+            Idle(frames);
+        }
+
+        void FinishSwing() => Advance(1.05f);
+
+        static Vector2 OnArc(float degrees, float distance)
+        {
+            float r = degrees * Mathf.Deg2Rad;
+            return Hand + new Vector2(Mathf.Cos(r), Mathf.Sin(r)) * distance;
+        }
+
         int Swung => blade.MaxAmmo - run.WeaponAmmo;
 
         // ------------------------------------------------------------------ table and ammo
@@ -236,8 +251,90 @@ namespace Bubblewright.Tests
             var below = AddBubble(ctx.Muzzle + new Vector2(0f, -1.6f));
             var above = AddBubble(ctx.Muzzle + new Vector2(0f, 1.6f));
             Frame(true, true);
+            FinishSwing();
             Assert.IsTrue(Hit(below));
             Assert.IsFalse(Hit(above), "the down swing does not cover straight up");
+        }
+
+        [Test]
+        public void TheBladeHitsASideWhenItArrivesThere()
+        {
+            var start = AddBubble(OnArc(225f, 0.9f)); // low on his left, where a left-to-right swing begins
+            var overhead = AddBubble(OnArc(90f, 1.2f));
+            var end = AddBubble(OnArc(-45f, 0.9f)); // low on his right, where that swing finishes
+            Frame(true, true);
+            Assert.IsTrue(Hit(start), "the blade is on his lower left as the swing starts");
+            Assert.IsFalse(Hit(overhead), "overhead waits until the blade gets there");
+            Assert.IsFalse(Hit(end), "the far side is not hit ahead of the blade");
+            Advance(0.55f);
+            Assert.IsTrue(Hit(overhead), "the blade passes over his head in the middle of the swing");
+            Assert.IsFalse(Hit(end), "the right side is still ahead of the blade");
+            FinishSwing();
+            Assert.IsTrue(Hit(end), "the blade reaches his lower right at the end");
+        }
+
+        [Test]
+        public void TheReturnSwingStartsOnTheOtherSide()
+        {
+            Frame(true, true);
+            FinishSwing();
+            Idle(Mathf.CeilToInt(Tuning.I.bladeCooldown / Dt) + 2);
+            var left = AddBubble(OnArc(225f, 0.9f));
+            var right = AddBubble(OnArc(-45f, 0.9f));
+            Frame(true, true);
+            Assert.IsTrue(Hit(right), "the next swing starts on his lower right");
+            Assert.IsFalse(Hit(left), "and only reaches the left as it comes back");
+        }
+
+        [Test]
+        public void ABalloonThatMovesIntoTheBladeIsHit()
+        {
+            var b = AddBubble(Hand + new Vector2(0f, Tuning.I.bladeReach + 1.5f));
+            Frame(true, true);
+            Assert.IsFalse(Hit(b), "it starts out of reach");
+            b.transform.position = OnArc(90f, 1.2f);
+            FinishSwing();
+            Assert.IsTrue(Hit(b), "it was over his head when the blade got there");
+        }
+
+        [Test]
+        public void ABalloonThatMovesInBehindTheBladeIsNotHit()
+        {
+            var b = AddBubble(Hand + new Vector2(-Tuning.I.bladeReach - 1.5f, 0.4f));
+            Frame(true, true);
+            Advance(0.55f); // the blade is over his head; the left side is already behind it
+            b.transform.position = OnArc(180f, 1.1f);
+            FinishSwing();
+            Assert.IsFalse(Hit(b), "the trail is not a hit; the blade has already passed");
+        }
+
+        [Test]
+        public void TheSwingHitsWhereHisHandHasMoved()
+        {
+            var moved = Hand + new Vector2(3.2f, 0f);
+            var b = AddBubble(moved + new Vector2(0f, 1.1f));
+            Assert.Greater(Vector2.Distance(Hand, b.Position), Tuning.I.bladeReach + b.Radius, "out of reach from where he starts");
+            Frame(true, true);
+            Assert.IsFalse(Hit(b));
+            ctx.Muzzle = moved;
+            FinishSwing();
+            Assert.IsTrue(Hit(b), "the blade is in his hand, so it hits where he has moved");
+        }
+
+        [Test]
+        public void ABubbleBornDuringTheSwingIsNotHit()
+        {
+            Frame(true, true);
+            var born = AddBubble(OnArc(90f, 1.2f));
+            FinishSwing();
+            Assert.IsFalse(Hit(born), "children of a pop appear after the hit, and this swing does not take them");
+        }
+
+        [Test]
+        public void SwingsAreALittleSlower()
+        {
+            Assert.GreaterOrEqual(Tuning.I.bladeCooldown, 0.4f, "slower than the old swing every 0.3 s");
+            Assert.Greater(Tuning.I.bladeCooldown, Tuning.I.bladeSwingTime, "one sweep finishes before the next swing starts");
         }
 
         [Test]

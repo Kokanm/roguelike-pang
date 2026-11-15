@@ -7,10 +7,13 @@ namespace Bubblewright
     /// <summary>
     /// W05 Trimmer Blade: a melee weapon. Each swing is one round sweep from his left side, over his head and down his
     /// right side (bladeArc degrees, centred on straight up), bladeReach units from his raised hand, so it reaches the
-    /// floor on both sides. Falling with Down held, the arc turns over and covers both sides and below him.
-    /// The hit test runs once at the start of the swing; the swing time is only the drawing. Solid tiles cut the swing
-    /// off, so a wall or block beside him shields that side. Boss bullets in the arc are cut out of the air, and a
-    /// steel rolling ball is turned round so it rolls away from him. All hits go through the shared WeaponWorld rules.
+    /// floor on both sides. The next swing comes back the other way. Falling with Down held, the arc turns over and
+    /// covers both sides and below him.
+    /// The blade sweeps across that arc over bladeSwingTime, and a thing is hit when the blade reaches it — the same
+    /// moment the picture shows the blade there. A balloon that drifts into the blade is hit; one that steps into the
+    /// trail behind it is not, and children born from a pop during the swing are not hit by it. Solid tiles cut the
+    /// swing off, so a wall or block beside him shields that side. Boss bullets the blade meets are cut out of the air,
+    /// and a steel rolling ball is turned round so it rolls away from him. All hits go through the shared WeaponWorld rules.
     /// </summary>
     [Preserve]
     public sealed class TrimmerBlade : WeaponSpec
@@ -73,23 +76,104 @@ namespace Bubblewright
         /// <summary>The centre of the swing: his raised hand, a few pixels under the launcher tip.</summary>
         public static Vector2 HandPoint(Vector2 launcherTip) => launcherTip - new Vector2(0f, Tuning.I.bladeHandDrop * Tuning.I.Pixel);
 
+        /// <summary>How many degrees of sweep one drawn frame covers. Hits use these same frames, so the pop lines up with the blade.</summary>
+        const float SweepFrameDegrees = 8f;
+        /// <summary>The steel blade is a few pixels wide. This keeps a balloon the line visibly crosses from slipping between samples.</summary>
+        const float BladeHalfWidthDegrees = 4f;
+
+        /// <summary>Drawn frames in one sweep, from the first side to the last.</summary>
+        public static int SweepFrameCount => Mathf.Clamp(Mathf.CeilToInt(Tuning.I.bladeArc / SweepFrameDegrees), 3, 48);
+
+        /// <summary>Which drawn frame a sweep progress (0 at the start, 1 at the end) is showing.</summary>
+        public static int FrameAt(float progress)
+        {
+            int n = SweepFrameCount;
+            if (n <= 1) return 0;
+            return Mathf.Clamp(Mathf.RoundToInt(Mathf.Clamp01(progress) * (n - 1)), 0, n - 1);
+        }
+
+        /// <summary>Sweep progress of a drawn frame: 0 is the first side, 1 is the last.</summary>
+        public static float FrameProgress(int frame)
+        {
+            int n = SweepFrameCount;
+            if (n <= 1) return 1f;
+            return Mathf.Clamp(frame, 0, n - 1) / (float)(n - 1);
+        }
+
+        /// <summary>Angle of the unflipped blade, in degrees. 0 is to his right, 90 is straight up.</summary>
+        public static float SpriteDegrees(float progress)
+        {
+            float arc = Tuning.I.bladeArc;
+            return 90f + arc * 0.5f - arc * Mathf.Clamp01(progress);
+        }
+
         /// <summary>
-        /// One swing from the hand: hits everything inside the arc that no solid tile hides, once each.
-        /// Things born from this swing (children of a pop) only appear after the hit-stop, so they are never hit by it.
+        /// Angle of the blade in the world. direction -1 mirrors the sweep (right to left); down turns it over,
+        /// the same two flips the picture uses.
+        /// </summary>
+        public static float HeadDegrees(float progress, int direction, bool down)
+        {
+            float a = SpriteDegrees(progress);
+            if (direction < 0) a = 180f - a;
+            if (down) a = -a;
+            return a;
+        }
+
+        /// <summary>
+        /// The whole swing, resolved at once: everything the blade reaches between the start of the arc and the end.
+        /// Play spreads the same sweep over bladeSwingTime; tests that only care what a finished swing hits use this.
         /// </summary>
         public static SwingResult Swing(WeaponWorld world, Vector2 hand, bool down, List<WeaponTarget> scratch = null)
         {
-            var t = Tuning.I;
             var result = new SwingResult();
-            float reach = t.bladeReach;
-            Vector2 facing = down ? Vector2.down : Vector2.up;
-            var found = world.InSector(hand, reach, facing, t.bladeArc, scratch);
-            var map = world.Map;
+            ResolveSwing(world, hand, hand, down, 1, 0f, 1f, scratch, null, new HashSet<EntityId>(), new HashSet<Vector2Int>(), ref result);
+            return result;
+        }
+
+        /// <summary>
+        /// Hits whatever the blade sweeps between two progresses. The hand may move; the blade is in his hand, so the
+        /// hit follows it. eligible, when set, is the things that existed when the swing started (a child born from a
+        /// pop is not among them). Each thing and each tile is hit once.
+        /// </summary>
+        static void ResolveSwing(WeaponWorld world, Vector2 fromHand, Vector2 toHand, bool down, int direction,
+            float fromProgress, float toProgress, List<WeaponTarget> scratch, HashSet<EntityId> eligible, HashSet<EntityId> struck,
+            HashSet<Vector2Int> cutTiles, ref SwingResult result)
+        {
+            if (world == null) return;
+            int f0 = FrameAt(fromProgress);
+            int f1 = FrameAt(toProgress);
+            int steps = Mathf.Max(1, f1 - f0);
+            for (int i = 0; i < steps; i++)
+            {
+                // The last sample of a step sits on the hand where the picture is, so the pop matches the blade.
+                Vector2 hand = Vector2.Lerp(fromHand, toHand, (i + 1f) / steps);
+                int frame1 = Mathf.Min(f1, f0 + i + 1);
+                float a0 = HeadDegrees(FrameProgress(f0 + i), direction, down);
+                float a1 = HeadDegrees(FrameProgress(frame1), direction, down);
+                HitSlice(world, hand, a0, a1, scratch, eligible, struck, cutTiles, ref result);
+            }
+        }
+
+        /// <summary>One slice of the sweep, from angle a0 to a1, bladeReach long. A zero-width slice is the blade itself.</summary>
+        static void HitSlice(WeaponWorld world, Vector2 hand, float a0, float a1, List<WeaponTarget> scratch,
+            HashSet<EntityId> eligible, HashSet<EntityId> struck, HashSet<Vector2Int> cutTiles, ref SwingResult result)
+        {
+            float delta = Mathf.DeltaAngle(a0, a1);
+            float mid = a0 + delta * 0.5f;
+            float rad = mid * Mathf.Deg2Rad;
+            var facing = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+            float arc = Mathf.Abs(delta) + BladeHalfWidthDegrees * 2f;
+            var t = Tuning.I;
             // Hit from a copy: hitting can change the lists the query read from.
-            var targets = found.ToArray();
+            var targets = world.InSector(hand, t.bladeReach, facing, arc, scratch).ToArray();
+            var map = world.Map;
             foreach (var target in targets)
             {
-                if (!Reaches(map, hand, NearPoint(target, hand), -1, -1)) continue;
+                EntityId id = TargetId(target);
+                if (id == EntityId.None || (struck != null && struck.Contains(id))) continue;
+                if (eligible != null && !eligible.Contains(id)) continue;
+                if (!Reaches(map, hand, NearPoint(target, hand), -1, -1, cutTiles)) continue;
+                struck?.Add(id);
                 switch (target.kind)
                 {
                     case TargetKind.Bubble:
@@ -118,8 +202,19 @@ namespace Bubblewright
                         break;
                 }
             }
-            result.tiles = HitTiles(world, map, hand, reach, facing, t.bladeArc);
-            return result;
+            HitTiles(world, map, hand, t.bladeReach, facing, arc, cutTiles, ref result);
+        }
+
+        static EntityId TargetId(WeaponTarget target)
+        {
+            switch (target.kind)
+            {
+                case TargetKind.Bubble: return target.bubble != null ? target.bubble.GetEntityId() : EntityId.None;
+                case TargetKind.Roller: return target.roller != null ? target.roller.GetEntityId() : EntityId.None;
+                case TargetKind.Bullet: return target.bullet != null ? target.bullet.GetEntityId() : EntityId.None;
+                case TargetKind.Boss: return target.boss != null ? target.boss.GetEntityId() : EntityId.None;
+                default: return EntityId.None;
+            }
         }
 
         /// <summary>The point of a target nearest the hand: where the blade meets it.</summary>
@@ -140,9 +235,10 @@ namespace Bubblewright
 
         /// <summary>
         /// True when no solid tile lies between the hand and a point, other than the cell (skipCol, skipRow) itself.
-        /// A hand that is inside a tile reaches nothing.
+        /// A hand that is inside a tile reaches nothing. Tiles this swing has already cut still shield what is behind
+        /// them, even after the hit destroys them.
         /// </summary>
-        public static bool Reaches(StageMap map, Vector2 hand, Vector2 point, int skipCol, int skipRow)
+        public static bool Reaches(StageMap map, Vector2 hand, Vector2 point, int skipCol, int skipRow, HashSet<Vector2Int> stillThere = null)
         {
             if (map == null) return true;
             Vector2 d = point - hand;
@@ -156,15 +252,17 @@ namespace Bubblewright
                 Vector2 p = len > 1e-5f ? hand + d * (along / len) : hand;
                 int c = StageMap.Col(p.x), r = StageMap.Row(p.y);
                 if (c == skipCol && r == skipRow) continue;
+                if (stillThere != null && stillThere.Contains(new Vector2Int(c, r))) return false;
                 if (map.IsSolid(c, r)) return false;
             }
             return true;
         }
 
-        /// <summary>Every breakable block inside the arc, with nothing solid in front of it, takes one hit.</summary>
-        static int HitTiles(WeaponWorld world, StageMap map, Vector2 hand, float reach, Vector2 facing, float arc)
+        /// <summary>Every breakable block the blade reaches in this slice, with nothing solid in front of it, takes one hit.</summary>
+        static void HitTiles(WeaponWorld world, StageMap map, Vector2 hand, float reach, Vector2 facing, float arc,
+            HashSet<Vector2Int> cutTiles, ref SwingResult result)
         {
-            if (map == null) return 0;
+            if (map == null) return;
             float half = arc * 0.5f;
             int c0 = StageMap.Col(hand.x - reach), c1 = StageMap.Col(hand.x + reach);
             int r0 = StageMap.Row(hand.y - reach), r1 = StageMap.Row(hand.y + reach);
@@ -173,6 +271,8 @@ namespace Bubblewright
             for (int c = c0; c <= c1; c++)
             {
                 if (c < 0 || c >= StageMap.Cols || r < 0 || r >= StageMap.Rows) continue;
+                var cellId = new Vector2Int(c, r);
+                if (cutTiles != null && cutTiles.Contains(cellId)) continue;
                 if (map.Get(c, r).kind != TileKind.Breakable) continue;
                 var cell = StageMap.CellRect(c, r);
                 Vector2 q = new Vector2(Mathf.Clamp(hand.x, cell.xMin, cell.xMax), Mathf.Clamp(hand.y, cell.yMin, cell.yMax));
@@ -184,12 +284,17 @@ namespace Bubblewright
                     foreach (var corner in new[] { new Vector2(cell.xMin, cell.yMin), new Vector2(cell.xMax, cell.yMin), new Vector2(cell.xMin, cell.yMax), new Vector2(cell.xMax, cell.yMax) })
                         if (Vector2.Distance(corner, hand) <= reach && Vector2.Angle(facing, corner - hand) <= half) { inArc = true; q = corner; break; }
                 }
-                if (!inArc || !Reaches(map, hand, q, c, r)) continue;
-                hits.Add(new Vector2Int(c, r));
+                if (!inArc || !Reaches(map, hand, q, c, r, cutTiles)) continue;
+                hits.Add(cellId);
             }
-            // Hit after the search, so a block that breaks does not open a line to the one behind it in the same swing.
-            foreach (var h in hits) world.OnHitTile?.Invoke(h.x, h.y);
-            return hits.Count;
+            // Hit after the search, so a block that breaks does not open a line to the one behind it in the same slice.
+            // It keeps shielding for the rest of the swing too.
+            foreach (var h in hits)
+            {
+                cutTiles?.Add(h);
+                world.OnHitTile?.Invoke(h.x, h.y);
+                result.tiles++;
+            }
         }
 
         public sealed class Behaviour : WeaponBehaviour
@@ -200,10 +305,23 @@ namespace Bubblewright
             bool queued;
             /// <summary>Which way the next swing is drawn: +1 left to right, -1 right to left.</summary>
             int direction = 1;
-            /// <summary>What the last swing did.</summary>
-            public SwingResult Last { get; private set; }
+            /// <summary>What the swing in progress (or the last one) has hit so far.</summary>
+            public SwingResult Last => last;
+            SwingResult last;
             /// <summary>Swings so far.</summary>
             public int Swings { get; private set; }
+
+            /// <summary>A swing is sweeping. Hits land as the blade arrives, and another swing waits until this one is done.</summary>
+            bool swinging;
+            float swingTime;
+            float sweptProgress;
+            Vector2 swingHand;
+            int swingDirection = 1;
+            bool swingDown;
+            /// <summary>Things that existed when the swing started. A child born from a pop is not one of them.</summary>
+            readonly HashSet<EntityId> eligible = new HashSet<EntityId>();
+            readonly HashSet<EntityId> struck = new HashSet<EntityId>();
+            readonly HashSet<Vector2Int> cutTiles = new HashSet<Vector2Int>();
 
             readonly List<WeaponTarget> scratch = new List<WeaponTarget>();
             BladeArcView view;
@@ -211,8 +329,24 @@ namespace Bubblewright
             public override void Tick(WeaponContext ctx, float dt)
             {
                 sinceSwing += dt;
-                view?.Tick(dt, ctx.Wick != null ? HandPoint(ctx.Wick.LauncherTip) : (Vector2?)null);
                 if (ctx.Pressed) queued = true;
+                Vector2 hand = ctx.Wick != null ? HandPoint(ctx.Wick.LauncherTip) : ctx.Muzzle;
+
+                if (swinging)
+                {
+                    swingTime += dt;
+                    float dur = Mathf.Max(0.01f, Tuning.I.bladeSwingTime);
+                    float progress = Mathf.Clamp01(swingTime / dur);
+                    view?.Place(hand, swingTime);
+                    ResolveSwing(ctx.World, swingHand, hand, swingDown, swingDirection, sweptProgress, progress,
+                        scratch, eligible, struck, cutTiles, ref last);
+                    swingHand = hand;
+                    sweptProgress = progress;
+                    if (progress >= 1f) swinging = false;
+                    return;
+                }
+
+                view?.Tick(dt, ctx.Wick != null ? hand : (Vector2?)null);
                 if (!ctx.CanFire) return;
                 if (!queued && !ctx.Held) return;
                 if (sinceSwing < Tuning.I.bladeCooldown) return;
@@ -222,8 +356,16 @@ namespace Bubblewright
                 sinceSwing = 0f;
                 Swings++;
 
-                Vector2 hand = ctx.Wick != null ? HandPoint(ctx.Wick.LauncherTip) : ctx.Muzzle;
-                Last = Swing(ctx.World, hand, ctx.ShootDown, scratch);
+                swinging = true;
+                swingTime = 0f;
+                sweptProgress = 0f;
+                swingHand = hand;
+                swingDown = ctx.ShootDown;
+                swingDirection = direction;
+                last = default;
+                struck.Clear();
+                cutTiles.Clear();
+                RememberTargets(ctx.World);
 
                 if (ctx.Wick != null)
                 {
@@ -231,8 +373,25 @@ namespace Bubblewright
                     view ??= BladeArcView.Create(ctx.Wick.transform.parent);
                     view.Play(hand, direction, ctx.ShootDown);
                 }
+                // The blade is already on the first side. Anything it is touching there is hit now, with the picture.
+                ResolveSwing(ctx.World, hand, hand, swingDown, swingDirection, 0f, 0f, scratch, eligible, struck, cutTiles, ref last);
                 Sfx.Play(Sound.Turn, 1.7f, 0.8f); // placeholder swish
                 direction = -direction;
+            }
+
+            /// <summary>Bubbles, rollers, bullets and the boss that are already in the world. Later arrivals wait for the next swing.</summary>
+            void RememberTargets(WeaponWorld world)
+            {
+                eligible.Clear();
+                if (world == null) return;
+                for (int i = 0; i < world.Bubbles.Count; i++)
+                    if (world.Bubbles[i] != null) eligible.Add(world.Bubbles[i].GetEntityId());
+                for (int i = 0; i < world.Rollers.Count; i++)
+                    if (world.Rollers[i] != null) eligible.Add(world.Rollers[i].GetEntityId());
+                for (int i = 0; i < world.Bullets.Count; i++)
+                    if (world.Bullets[i] != null) eligible.Add(world.Bullets[i].GetEntityId());
+                var boss = world.LiveBoss;
+                if (boss != null) eligible.Add(boss.GetEntityId());
             }
 
             public override void Dispose()
@@ -246,7 +405,7 @@ namespace Bubblewright
     /// <summary>The swing's trail: a cream arc that sweeps over his head, then fades through lilac.</summary>
     sealed class BladeArcView
     {
-        const int SweepFrames = 3, FadeFrames = 3;
+        const int FadeFrames = 3;
         const float FadeFrameTime = 0.05f;
 
         static Sprite[] frames;
@@ -276,6 +435,17 @@ namespace Bubblewright
             Show();
         }
 
+        /// <summary>Puts the picture on the same sweep the hits are using. swingTime is seconds since the swing started.</summary>
+        public void Place(Vector2 hand, float swingTime)
+        {
+            if (go == null) return;
+            go.transform.position = hand;
+            float sweep = Mathf.Max(0.01f, Tuning.I.bladeSwingTime);
+            // Stay on the last sweep frame until the next tick, which fades it out.
+            time = swingTime >= sweep ? sweep - 0.0001f : Mathf.Max(0f, swingTime);
+            Show();
+        }
+
         public void Tick(float dt, Vector2? hand)
         {
             if (time < 0f || go == null) return;
@@ -287,11 +457,12 @@ namespace Bubblewright
         void Show()
         {
             var f = Frames();
+            int sweepCount = TrimmerBlade.SweepFrameCount;
             float sweep = Mathf.Max(0.01f, Tuning.I.bladeSwingTime);
             int i = time < sweep
-                ? Mathf.Clamp(Mathf.FloorToInt(time / sweep * SweepFrames), 0, SweepFrames - 1)
-                : SweepFrames + Mathf.FloorToInt((time - sweep) / FadeFrameTime);
-            if (i >= f.Length)
+                ? TrimmerBlade.FrameAt(time / sweep)
+                : sweepCount + Mathf.FloorToInt((time - sweep) / FadeFrameTime);
+            if (i < 0 || i >= f.Length)
             {
                 sr.enabled = false;
                 time = -1f;
@@ -313,21 +484,23 @@ namespace Bubblewright
         static Sprite[] Frames()
         {
             var t = Tuning.I;
-            if (frames != null && framesReach == t.bladeReach && framesArc == t.bladeArc) return frames;
+            int sweepCount = TrimmerBlade.SweepFrameCount;
+            if (frames != null && framesReach == t.bladeReach && framesArc == t.bladeArc && frames.Length == sweepCount + FadeFrames)
+                return frames;
             framesReach = t.bladeReach;
             framesArc = t.bladeArc;
             int radius = Mathf.Max(4, Mathf.RoundToInt(t.bladeReach * t.pixelsPerUnit));
             int size = radius * 2 + 5;
-            float start = 90f + t.bladeArc * 0.5f, span = t.bladeArc; // from low on his left, over the top, to low on his right
+            float start = TrimmerBlade.SpriteDegrees(0f), span = t.bladeArc; // from low on his left, over the top, to low on his right
             var list = new List<Sprite>();
-            for (int k = 1; k <= SweepFrames; k++)
+            for (int k = 0; k < sweepCount; k++)
             {
                 var c = new PixelCanvas(size, size);
-                float progress = (float)k / SweepFrames;
-                float head = start - span * progress;
-                for (float a = start; a >= head; a -= 0.5f)
+                float progress = TrimmerBlade.FrameProgress(k);
+                float head = TrimmerBlade.SpriteDegrees(progress);
+                for (float a = start; a >= head - 0.01f; a -= 0.5f)
                 {
-                    float behind = (a - head) / Mathf.Max(1f, span * progress); // 0 at the head, 1 at the tail
+                    float behind = span * progress < 0.01f ? 0f : (a - head) / (span * progress); // 0 at the head, 1 at the tail
                     Color32 col = behind < 0.3f ? Palette.Cream : behind < 0.65f ? Palette.Lilac : Palette.Dusk;
                     int thick = behind < 0.3f ? 3 : behind < 0.65f ? 2 : 1;
                     ArcPixels(c, radius, a, thick, col);
@@ -374,10 +547,10 @@ namespace Bubblewright
         public float bladeReach = 2.2f;
         [Tooltip("Degrees the swing covers, centred on straight up (straight down when falling with Down held).")]
         public float bladeArc = 270f;
-        [Tooltip("Seconds the swing takes to draw. The hit test happens at the start; this is only the animation.")]
-        public float bladeSwingTime = 0.14f;
-        [Tooltip("Seconds between swings, tapped or held.")]
-        public float bladeCooldown = 0.3f;
+        [Tooltip("Seconds the blade takes to sweep from one side to the other. A thing is hit when the blade reaches it.")]
+        public float bladeSwingTime = 0.24f;
+        [Tooltip("Seconds between swings, tapped or held. Longer than the sweep, so one swing finishes before the next.")]
+        public float bladeCooldown = 0.45f;
         [Tooltip("Boss health one swing takes when the boss is inside it.")]
         public float bladeBossDamage = 1f;
         [Tooltip("Pixels below the launcher tip where his hand is: the centre of the swing.")]
