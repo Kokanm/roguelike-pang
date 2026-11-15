@@ -344,7 +344,7 @@ namespace Bubblewright.Tests
         [Test]
         public void WithOnlyTheTestWeaponNothingDrops()
         {
-            var d = new WeaponDropper(4, FirstStageOfWorld(3));
+            var d = new WeaponDropper(4, FirstStageOfWorld(3), new[] { WeaponSpec.ById("test") });
             for (int i = 0; i < 200; i++) Assert.IsNull(d.Roll(1f, false));
         }
 

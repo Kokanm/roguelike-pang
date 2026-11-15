@@ -112,6 +112,8 @@ No real weapon is in yet, so nothing drops in normal play. The debug panel's **G
 
 **Adding a weapon** touches no shared list: add a sealed `[Preserve]` subclass of `WeaponSpec` in its own file under `Scripts/Weapons/` (copy `TestWeapon.cs`), with its pixel maps, a behaviour inside it, and its numbers in a `partial class Tuning` under a "Weapon: Name" header. `WeaponSpec.All` finds it by itself, and its icon, crate, button and in-hand sprite are painted from its pixel maps.
 
+**Twin Carbine** (W01, common, weapon slot, 30 bullets): one spark bullet per press from two barrels in turn, with no limit on bullets in the air. Tapping fires up to 8 a second, holding fires 4 a second. Three bullets take 1 boss health. Numbers in Tuning > Weapon: Twin Carbine; code in `Scripts/Weapons/TwinCarbine.cs`.
+
 ### Tuning
 
 Every number lives in `Assets/Bubblewright/Resources/Tuning.asset`. Select it and edit in the Inspector, even while playing. Bubble gravity is derived per tier from its peak height and a bounce time, so it always reaches the sheet's peak height.
