@@ -114,6 +114,8 @@ No real weapon is in yet, so nothing drops in normal play. The debug panel's **G
 
 **Trimmer Blade** (W05, common, weapon slot, 30 swings): a round melee swing from his left side, over his head and down his right side, 2.2 units from his hand, so it reaches the floor on both sides. Tap or hold (one swing every 0.3 s). Solid tiles shield what is behind them, steel clangs and a steel rolling ball is turned away, boss bullets in the arc are cut, and a boss in reach takes 1 health per swing. Falling with Down held, the arc covers both sides and below him. Numbers in Tuning > Weapon: Trimmer Blade; code in `Scripts/Weapons/TrimmerBlade.cs`.
 
+**Twin Carbine** (W01, common, weapon slot, 30 bullets): one spark bullet per press from two barrels in turn, with no limit on bullets in the air. Tapping fires up to 8 a second, holding fires 4 a second. Three bullets take 1 boss health. Numbers in Tuning > Weapon: Twin Carbine; code in `Scripts/Weapons/TwinCarbine.cs`.
+
 ### Tuning
 
 Every number lives in `Assets/Bubblewright/Resources/Tuning.asset`. Select it and edit in the Inspector, even while playing. Bubble gravity is derived per tier from its peak height and a bounce time, so it always reaches the sheet's peak height.
