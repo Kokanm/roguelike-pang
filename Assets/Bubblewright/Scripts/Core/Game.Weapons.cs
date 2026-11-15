@@ -53,6 +53,7 @@ namespace Bubblewright
         void ResetWeaponsForStage()
         {
             Weapons.ClearShots();
+            ClearGas();
             ClearCrates();
             ClearMines();
             DisposeWeaponBehaviours();
@@ -184,6 +185,7 @@ namespace Bubblewright
             }
             SyncHeldWeapons(); // the last shot may have emptied the slot
             Weapons.TickShots(dt);
+            TickGas(dt);
             TickMines(dt);
             TickCrates(dt);
             if (weaponBannerTime > 0f) weaponBannerTime -= dt;
@@ -193,6 +195,7 @@ namespace Bubblewright
         void ClearWeaponShots()
         {
             Weapons.ClearShots();
+            ClearGas();
             PopMinesHarmlessly();
         }
 
