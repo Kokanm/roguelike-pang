@@ -4,7 +4,7 @@ namespace Bubblewright
 {
     /// <summary>
     /// The debug panel's BALANCE page: the numbers of the current stage, LOG RUN (every stage of the seed to the Console
-    /// as tab-separated text), WIN STAGE and NEXT LAYOUT to move through stages quickly. The numbers to change are in
+    /// as tab-separated text), SUMMARY (every stage slot averaged over 100 seeds), WIN STAGE and NEXT LAYOUT to move through stages quickly. The numbers to change are in
     /// the Tuning asset.
     /// </summary>
     public partial class Game
@@ -23,6 +23,7 @@ namespace Bubblewright
             AddDebugButton("NEXT RECIPE", k, false, DebugNextRecipe, minUnits: 100);
             AddDebugButton("NEXT WAVE", k, false, DebugNextWave, minUnits: 90);
             AddDebugButton("LOG RUN", k, false, DebugLogRun, minUnits: 70);
+            AddDebugButton("SUMMARY", k, false, DebugLogSummary, minUnits: 70);
 
             var r = stageReport;
             if (r == null)
@@ -94,6 +95,13 @@ namespace Bubblewright
             if (run == null) return;
             Debug.Log(StageReport.LogRun(run));
             balanceNote = $"Logged {T.RunLength} stages of seed {run.Seed} to the Console. Copy the message into a spreadsheet.";
+        }
+
+        /// <summary>Every normal stage slot averaged over 100 calm seeds, to the Console (same as the editor menu item).</summary>
+        void DebugLogSummary()
+        {
+            Debug.Log(StageReport.Summary(100));
+            balanceNote = "Logged the 100-seed balance summary to the Console. Copy the message into a spreadsheet.";
         }
     }
 }
