@@ -86,7 +86,9 @@ namespace Bubblewright
                 headBehaviourSpec = run.Head;
                 headBehaviour = run.Head?.CreateBehaviour();
             }
-            wick.SetHeld(WeaponArt.Held(run.Weapon), WeaponArt.Held(run.Weapon, true));
+            // A gun in hand wins; otherwise a harpoon head may have its own in-hand art (Skewer Harpoon).
+            var inHand = run.Weapon?.HeldRows != null ? run.Weapon : run.Head;
+            wick.SetHeld(WeaponArt.Held(inHand), WeaponArt.Held(inHand, true));
             touchView.ShowWeapon(run.Weapon, run.WeaponAmmo, weaponBehaviour != null && weaponBehaviour.Dimmed);
         }
 
