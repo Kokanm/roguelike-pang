@@ -126,6 +126,8 @@ namespace Bubblewright
         public class CharacterSprites
         {
             public Sprite Back, Front, BackFlash, FrontFlash, Hand, Launcher, LauncherFlash;
+            /// <summary>Back view pressed against a wall on his right (flip for the left): one hand and one boot on the wall.</summary>
+            public Sprite Cling, ClingFlash;
             /// <summary>Flat Palette.Dusk shape of the front view, for locked cards.</summary>
             public Sprite FrontLocked;
         }
@@ -149,6 +151,8 @@ namespace Bubblewright
             set.Launcher = BuildLauncher(c.body, out Sprite launcherFlash);
             set.LauncherFlash = launcherFlash;
             set.Hand = BuildHand(c.body);
+            set.Cling = BuildWickCling(c.body, c.bodyDark, c.bodyLine, out Sprite clingFlash);
+            set.ClingFlash = clingFlash;
             characterSprites[c.id] = set;
             return set;
         }
@@ -193,6 +197,45 @@ namespace Bubblewright
             flash = c.Silhouette(Palette.Cream).ToSprite(name + "_Flash", pivot, ppu);
             locked = c.Silhouette(Palette.Dusk).ToSprite(name + "_Locked", pivot, ppu);
             return c.ToSprite(name, pivot, ppu);
+        }
+
+        /// <summary>Column of the cling sprite's outline on the wall side: the wall surface sits just right of it.</summary>
+        public const int ClingWallPixel = 22;
+
+        /// <summary>
+        /// Wall slide and wall jump pose, back view, wall on his right. The near hand reaches up and presses flat on the
+        /// wall and the near boot is planted sole-first on it; the far boot hangs. Hand, boot and nothing else reach the
+        /// wall column (ClingWallPixel). Same 23 x 30 canvas and feet pivot as the other views; flip x for a wall on the left.
+        /// </summary>
+        Sprite BuildWickCling(Color32 body, Color32 bodyDark, Color32 bodyLine, out Sprite flash)
+        {
+            var c = new PixelCanvas(23, 30);
+            // Cloak, tucked a pixel away from the wall so only the hand and boot touch it.
+            c.Ellipse(10.5f, 11f, 8f, 8f, body);
+            c.EllipseOnFilled(10.5f, 2.5f, 9.5f, 3.5f, bodyDark);
+            c.RectOnFilled(3, 8, 15, 1, bodyLine);
+            // Hood, head turned a touch toward the wall.
+            c.Ellipse(11.5f, 19.5f, 6.5f, 5.5f, body);
+            c.Ellipse(11.5f, 24f, 2f, 2.2f, body);
+            c.RectOnFilled(6, 14, 12, 1, bodyDark);
+            c.RectOnFilled(12, 15, 1, 9, bodyLine); // hood seam, off-centre: he looks at the wall
+            c.Rect(11, 26, 1, 2, Palette.Ink);
+            // Near arm: a dark sleeve reaching up from the shoulder to the wall, the hand flat on it above his head.
+            c.Rect(16, 14, 2, 3, bodyDark);
+            c.Rect(17, 16, 2, 3, bodyDark);
+            c.Rect(18, 18, 2, 3, bodyDark);
+            c.Rect(19, 21, 3, 4, body);
+            c.Rect(21, 21, 1, 4, bodyLine); // palm pressed on the wall
+            // Near leg bent out to the wall, the boot planted sole-first on it; the far boot hangs.
+            c.Rect(16, 5, 3, 3, bodyDark);
+            c.Rect(19, 4, 3, 6, Palette.Ink);
+            c.Rect(19, 6, 1, 2, Palette.Deep);
+            c.Rect(6, 1, 5, 3, Palette.Ink);
+            c.Rect(7, 3, 3, 1, Palette.Deep);
+            c.Outline(Palette.Ink);
+            var pivot = new Vector2(11.5f, 0f);
+            flash = c.Silhouette(Palette.Cream).ToSprite("Wick_Cling_Flash", pivot, ppu);
+            return c.ToSprite("Wick_Cling", pivot, ppu);
         }
 
         /// <summary>Steel launcher and the hand gripping it. Pivot at the bottom-left; see LauncherOffsetPixels.</summary>

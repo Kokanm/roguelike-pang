@@ -287,6 +287,8 @@ namespace Bubblewright
         public float wallJumpPush = 1f;
         [Tooltip("Seconds after a wall jump during which he keeps moving away from the wall whatever the stick says.")]
         public float wallJumpLockTime = 0.14f;
+        [Tooltip("Seconds the wall pose (hand and boot on the wall) holds as he pushes off in a wall jump.")]
+        public float wallKickPoseTime = 0.08f;
         [Tooltip("Height of a double jump (the Updraft upgrade) from where he presses it, in units.")]
         public float airJumpHeight = 1.9f;
         [Tooltip("Crouching (Down on the ground, no ladder below): his hitbox keeps this fraction of its height.")]

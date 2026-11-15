@@ -71,6 +71,14 @@ namespace Bubblewright.Tests
             for (int i = 0; i < 120 && wick.VelocityY > 0f; i++) Tick(move);
         }
 
+        /// <summary>Stages start with him facing the camera; play is with his back to it, where the wall pose shows.</summary>
+        void FaceAway()
+        {
+            wick.Turn(false);
+            Step(T.turnTime + 0.05f);
+            Assert.IsFalse(wick.FacingFront);
+        }
+
         float RightWallX => T.HalfWidth - 11.5f / T.pixelsPerUnit;
 
         // ---------------------------------------------------------------- Crouch
@@ -187,6 +195,79 @@ namespace Bubblewright.Tests
                 if (wick.Mode == Mode.Ground && wick.FeetY < 0.01f) Tick(dir, jump: true);
             }
             Assert.Greater(wick.FeetY, 4.5f, "wall jumps let him climb higher than a jump alone");
+        }
+
+        // ---------------------------------------------------------------- Wall pose
+
+        [Test]
+        public void TheWallPoseTouchesTheWallOnlyWithAHandAndABoot()
+        {
+            var sprite = PlaceholderArt.I.SpritesFor(Character.Wick).Cling;
+            var tex = sprite.texture;
+            var rect = sprite.textureRect;
+            int col = (int)rect.x + PlaceholderArt.ClingWallPixel;
+            bool hand = false, boot = false;
+            for (int y = 0; y < (int)rect.height; y++)
+            {
+                if (tex.GetPixel(col, (int)rect.y + y).a <= 0f) continue;
+                if (y >= 18) hand = true;
+                else if (y <= 11) boot = true;
+                else Assert.Fail($"something other than the hand or boot reaches the wall at row {y}");
+            }
+            Assert.IsTrue(hand, "a hand on the wall");
+            Assert.IsTrue(boot, "a boot on the wall");
+            Assert.AreEqual(PlaceholderArt.ClingWallPixel + 1, (int)rect.width, "the wall column is the sprite's last column");
+        }
+
+        [Test]
+        public void SlidingDownTheArenaWallShowsTheWallPoseAgainstIt()
+        {
+            wick.ResetForStage(RightWallX, 0f, 3);
+            FaceAway();
+            Step(0.1f, move: 1f);
+            Tick(1f, jump: true);
+            StepToApex(1f);
+            Step(0.15f, move: 1f);
+            Assert.IsTrue(wick.Clinging);
+            Assert.IsTrue(wick.InWallPose);
+            Assert.AreEqual(T.HalfWidth, wick.WallPoseContactX, 1.01f / T.pixelsPerUnit, "hand and boot meet the wall");
+
+            Step(0.1f); // let go of the stick
+            Assert.IsFalse(wick.InWallPose);
+        }
+
+        [Test]
+        public void SlidingDownABlockShowsTheWallPoseAgainstIt()
+        {
+            var rows = new string[14];
+            for (int r = 0; r < 14; r++) rows[r] = "............................#...";
+            SetMap(StageLayout.Parse(rows));
+            float blockRight = StageMap.CellRect(28, 0).xMax;
+            wick.ResetForStage(blockRight + 1.5f, 0f, 3);
+            FaceAway();
+            Step(0.1f);
+            Tick(-1f, jump: true);
+            StepToApex(-1f);
+            Step(0.15f, move: -1f);
+            Assert.AreEqual(-1, wick.WallSide);
+            Assert.IsTrue(wick.InWallPose);
+            Assert.AreEqual(blockRight, wick.WallPoseContactX, 1.01f / T.pixelsPerUnit, "hand and boot meet the block's side");
+        }
+
+        [Test]
+        public void AWallJumpPushesOffInTheWallPoseThenLetsGo()
+        {
+            wick.ResetForStage(RightWallX, 0f, 3);
+            FaceAway();
+            Step(0.1f, move: 1f);
+            Tick(1f, jump: true);
+            StepToApex(1f);
+            Step(0.1f, move: 1f);
+            Tick(1f, jump: true);
+            Assert.IsTrue(wick.InWallPose, "the push-off starts from the wall");
+            Assert.AreEqual(T.HalfWidth, wick.WallPoseContactX, 1.01f / T.pixelsPerUnit);
+            Step(0.2f, move: 1f);
+            Assert.IsFalse(wick.InWallPose, "then he flies off in the normal pose");
         }
 
         [Test]

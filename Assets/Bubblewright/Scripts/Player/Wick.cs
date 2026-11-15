@@ -37,6 +37,12 @@ namespace Bubblewright
         public int WallSide { get; private set; }
         /// <summary>Falling while pushing into a wall: his fall is capped at wallSlideSpeed.</summary>
         public bool WallSliding { get; private set; }
+        /// <summary>Falling (or sliding) against a wall while pushing into it: drawn in the wall pose, hand and boot on the wall.</summary>
+        public bool Clinging { get; private set; }
+        /// <summary>True while the wall pose shows: clinging, or the first moment of a wall jump's push-off.</summary>
+        public bool InWallPose => clingSide != 0;
+        /// <summary>World x where the wall pose's hand and boot meet the wall (only meaningful while InWallPose).</summary>
+        public float WallPoseContactX => transform.position.x + rigOffsetX + clingSide * 11.5f * Px;
         /// <summary>Run upgrade (Updraft): extra jumps he can make in the air before he lands again.</summary>
         public int AirJumps { get; set; }
         public int AirJumpsLeft => airJumpsLeft;
@@ -77,8 +83,9 @@ namespace Bubblewright
         Transform rig, hand;
         Effects fx;
         GameObject backSet, frontSet;
-        SpriteRenderer bodyBack, bodyFront, flameBack, flameFront, launcherBack, launcherFront, handFront;
-        Vector3 launcherBackHome, launcherFrontHome;
+        SpriteRenderer bodyBack, bodyFront, flameBack, flameFront, launcherBack, launcherFront, handFront, clingBack;
+        Vector3 launcherBackHome, launcherFrontHome, launcherBackMirrored;
+        const int WallPoseReachPixels = 8;
 
         float fallSpeed;
         int ladderCol, ladderBottomRow, ladderTopRow, ladderMapVersion;
@@ -91,6 +98,9 @@ namespace Bubblewright
         float wallLockClock;
         int wallLockDir;
         float crouchAmount, wallDustClock;
+        float wallSurfaceX, kickWallX, kickPoseClock;
+        int kickSide, clingSide;
+        float rigOffsetX;
         float jumpRise = -1f, jumpLand = -1f;
         Vector3 safeSpot;
         float safeStandClock;
@@ -135,6 +145,8 @@ namespace Bubblewright
 
             var flamePos = new Vector2(0f, 27f * Px);
             bodyBack = MakePart(backSet.transform, "Body", sprites.Back, Vector2.zero, 0);
+            clingBack = MakePart(backSet.transform, "Cling", sprites.Cling, Vector2.zero, 0);
+            clingBack.enabled = false;
             launcherBack = MakePart(backSet.transform, "Launcher", sprites.Launcher, PlaceholderArt.LauncherOffsetPixels(false) * Px, 2);
             flameBack = MakePart(backSet.transform, "Flame", art.Flame, flamePos, 1);
             bodyFront = MakePart(frontSet.transform, "Body", sprites.Front, Vector2.zero, 0);
@@ -143,6 +155,9 @@ namespace Bubblewright
             handFront = MakePart(frontSet.transform, "Hand", sprites.Hand, Vector2.zero, 2);
             hand = handFront.transform;
             launcherBackHome = launcherBack.transform.localPosition;
+            // The launcher sprite's pivot is its bottom-left, so flipped it hangs to the left of its pivot: put the pivot
+            // where the mirrored right edge goes (23 px body, pivot at 11.5).
+            launcherBackMirrored = new Vector3((23f - (PlaceholderArt.LauncherBackX - 2) - 11.5f) * Px, launcherBackHome.y, 0f);
             launcherFrontHome = launcherFront.transform.localPosition;
 
             ResetForStage(0f, 0f, T.hearts);
@@ -190,12 +205,23 @@ namespace Bubblewright
             lastWantDir = 0;
             lean = 0f;
             Waving = false;
+            rigOffsetX = 0f;
+            SetWallPose(0);
             SetFacing(true);
             rig.localScale = Vector3.one;
             rig.localRotation = Quaternion.identity;
             flameBack.transform.localScale = flameFront.transform.localScale = Vector3.one;
             ApplyFlash(false);
             SetVisible(true);
+        }
+
+        /// <summary>side -1 or +1 shows the wall pose against a wall on that side; 0 the normal back view.</summary>
+        void SetWallPose(int side)
+        {
+            if (side == clingSide) return;
+            clingSide = side;
+            clingBack.flipX = side < 0;
+            launcherBack.flipX = side > 0;
         }
 
         void SetFacing(bool front)
@@ -207,7 +233,9 @@ namespace Bubblewright
 
         void SetVisible(bool v)
         {
-            bodyBack.enabled = bodyFront.enabled = launcherBack.enabled = launcherFront.enabled = v;
+            bodyFront.enabled = launcherBack.enabled = launcherFront.enabled = v;
+            bodyBack.enabled = v && clingSide == 0;
+            clingBack.enabled = v && clingSide != 0;
             flameBack.enabled = flameFront.enabled = v && !Dead;
         }
 
@@ -215,6 +243,7 @@ namespace Bubblewright
         {
             var sprites = PlaceholderArt.I.SpritesFor(Character);
             bodyBack.sprite = on ? sprites.BackFlash : sprites.Back;
+            clingBack.sprite = on ? sprites.ClingFlash : sprites.Cling;
             bodyFront.sprite = on ? sprites.FrontFlash : sprites.Front;
             launcherBack.sprite = launcherFront.sprite = on ? sprites.LauncherFlash : sprites.Launcher;
         }
@@ -240,7 +269,7 @@ namespace Bubblewright
 
         /// <summary>Where an upward cable leaves the launcher. Lower while crouched.</summary>
         public Vector2 LauncherTip => (Vector2)transform.position +
-            new Vector2(T.launcherTip.x, T.launcherTip.y * (Crouching ? T.crouchSquash.y : 1f));
+            new Vector2(rigOffsetX + (clingSide > 0 ? -T.launcherTip.x : T.launcherTip.x), T.launcherTip.y * (Crouching ? T.crouchSquash.y : 1f));
 
         /// <summary>Where a downward cable (fire + Down in the air) leaves: under the launcher, at his feet.</summary>
         public Vector2 DownShotStart => new Vector2(transform.position.x + T.launcherTip.x, FeetY + T.Pixel * 2f);
@@ -263,6 +292,8 @@ namespace Bubblewright
             wallLockDir = 0;
             WallSide = 0;
             WallSliding = false;
+            Clinging = false;
+            kickPoseClock = 0f;
         }
 
         public void OnFire() => fireKick = 0f;
@@ -518,6 +549,8 @@ namespace Bubblewright
                 WallSide = 0;
                 WallSliding = false;
             }
+            // Wall pose: falling against a wall while pushing into it (not in the push-off of a wall jump).
+            Clinging = Mode == Mode.Fall && WallSide != 0 && wantMove * WallSide > 0f && fallSpeed >= 0f && wallLockClock <= 0f;
             TickWallDust(dt);
             TrackSafeSpot(map, dt);
 
@@ -533,6 +566,9 @@ namespace Bubblewright
             VelocityX = -wallSide * RunSpeed * T.wallJumpPush;
             wallLockDir = -wallSide;
             wallLockClock = T.wallJumpLockTime;
+            kickSide = wallSide;
+            kickWallX = wallSurfaceX;
+            kickPoseClock = T.wallKickPoseTime;
             airJumpsLeft = AirJumps; // touching a wall gives the double jump back
             WallSliding = false;
             if (fx != null) fx.Dust(new Vector2(transform.position.x + wallSide * T.hitbox.x * 0.5f, FeetY + T.hitbox.y * 0.3f), -wallSide);
@@ -564,24 +600,30 @@ namespace Bubblewright
             if (pos.y < 0f) return 0;
             float reach = T.wallGrabDistance;
             float wallX = T.HalfWidth - 11.5f * Px;
-            if (pos.x <= -wallX + reach) return -1;
-            if (pos.x >= wallX - reach) return 1;
+            if (pos.x <= -wallX + reach) { wallSurfaceX = -T.HalfWidth; return -1; }
+            if (pos.x >= wallX - reach) { wallSurfaceX = T.HalfWidth; return 1; }
             var box = BodyBox(pos.x, pos.y);
             // Only the middle of his body counts, so a corner brushing a block's top or bottom is not a wall.
             float yMin = box.yMin + box.height * 0.25f, yMax = box.yMax - box.height * 0.25f;
-            if (SolidBlockBetween(map, box.xMin - reach, box.xMin - 1e-4f, yMin, yMax)) return -1;
-            if (SolidBlockBetween(map, box.xMax + 1e-4f, box.xMax + reach, yMin, yMax)) return 1;
+            int left = SolidColumnBetween(map, box.xMin - reach, box.xMin - 1e-4f, yMin, yMax, -1);
+            if (left >= 0) { wallSurfaceX = StageMap.CellRect(left, 0).xMax; return -1; }
+            int right = SolidColumnBetween(map, box.xMax + 1e-4f, box.xMax + reach, yMin, yMax, 1);
+            if (right >= 0) { wallSurfaceX = StageMap.CellRect(right, 0).xMin; return 1; }
             return 0;
         }
 
-        static bool SolidBlockBetween(StageMap map, float xMin, float xMax, float yMin, float yMax)
+        /// <summary>The column nearest to him (searching in direction dir) holding a solid, non-ladder tile in the box, or -1.</summary>
+        static int SolidColumnBetween(StageMap map, float xMin, float xMax, float yMin, float yMax, int dir)
         {
             int cMin = Mathf.Max(0, StageMap.Col(xMin)), cMax = Mathf.Min(StageMap.Cols - 1, StageMap.Col(xMax));
             int rMin = Mathf.Max(0, StageMap.Row(yMin)), rMax = Mathf.Min(StageMap.Rows - 1, StageMap.Row(yMax));
-            for (int c = cMin; c <= cMax; c++)
+            for (int i = 0; i <= cMax - cMin; i++)
+            {
+                int c = dir > 0 ? cMin + i : cMax - i;
                 for (int r = rMin; r <= rMax; r++)
-                    if (map.IsSolid(c, r) && !map.Get(c, r).ladder) return true;
-            return false;
+                    if (map.IsSolid(c, r) && !map.Get(c, r).ladder) return c;
+            }
+            return -1;
         }
 
         /// <summary>A puff off the wall every so often while he slides down it.</summary>
@@ -1121,6 +1163,26 @@ namespace Bubblewright
                 }
             }
 
+            // Wall pose: hand and boot flat on the wall. Pinned to the wall while clinging, and for the first moment of
+            // a wall jump's push-off (up to wallPoseReach pixels as he leaves), then back to the normal back view.
+            if (kickPoseClock > 0f) kickPoseClock -= dt;
+            int side = 0;
+            float wallX = 0f;
+            if (!FacingFront && !Dead && celebrateTimer < 0f)
+            {
+                if (Clinging) { side = WallSide; wallX = wallSurfaceX; }
+                else if (kickPoseClock > 0f && Mode == Mode.Fall) { side = kickSide; wallX = kickWallX; }
+            }
+            rigOffsetX = 0f;
+            if (side != 0)
+            {
+                float offset = wallX - transform.position.x - side * 11.5f * Px;
+                rigOffsetX = Mathf.Clamp(Mathf.Round(offset * T.pixelsPerUnit), -WallPoseReachPixels, WallPoseReachPixels) * Px;
+                scale = Vector3.one; // any squash would pull the hand and boot off the wall
+                lean = 0f;
+            }
+            SetWallPose(side);
+
             if (Dead)
             {
                 scale = new Vector3(1.08f, 0.85f, 1f); // slump, stays turned away
@@ -1128,9 +1190,10 @@ namespace Bubblewright
             }
 
             rig.localScale = scale;
-            rig.localPosition = new Vector3(0f, Mathf.Round(offsetY * T.pixelsPerUnit) * Px, 0f);
+            rig.localPosition = new Vector3(rigOffsetX, Mathf.Round(offsetY * T.pixelsPerUnit) * Px, 0f);
             rig.localRotation = Quaternion.Euler(0f, 0f, lean);
-            launcherBack.transform.localPosition = launcherBackHome + new Vector3(0f, kick, 0f);
+            // In the wall pose against a wall on his right the launcher moves to his other (left) hand, mirrored.
+            launcherBack.transform.localPosition = (clingSide > 0 ? launcherBackMirrored : launcherBackHome) + new Vector3(0f, kick, 0f);
             launcherFront.transform.localPosition = launcherFrontHome + new Vector3(0f, kick + launcherLift, 0f);
             handFront.enabled = handUp && bodyFront.enabled;
             hand.localPosition = new Vector3((handPixels.x - 11.5f) * Px, handPixels.y * Px, 0f);
