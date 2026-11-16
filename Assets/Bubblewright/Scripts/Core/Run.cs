@@ -317,7 +317,16 @@ namespace Bubblewright
         public StageMap map;
         public List<SpawnSpec> spawns;
         public List<RollerSpec> rollers = new List<RollerSpec>();
-        public float wickX;
+        /// <summary>Where Wick stands at the start. y is 0 on a one-storey stage.</summary>
+        public Vector2 wickPosition;
+        /// <summary>Horizontal start. Stages still assign this until they set wickPosition themselves.</summary>
+        public float wickX
+        {
+            get => wickPosition.x;
+            set => wickPosition.x = value;
+        }
+        /// <summary>Which storey the reinforcement waves belong to. Negative means the top storey.</summary>
+        public int waveStorey = -1;
         /// <summary>The layout's name, for the balance page.</summary>
         public string layoutName;
         /// <summary>The recipe that shaped this stage. Null on a boss stage and when no recipe was used.</summary>

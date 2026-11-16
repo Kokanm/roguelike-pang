@@ -39,7 +39,11 @@ namespace Bubblewright
         void TickRollers(float dt)
         {
             float rdt = BubbleDt(dt);
-            for (int i = 0; i < rollers.Count; i++) rollers[i].Tick(rdt, rollers);
+            for (int i = 0; i < rollers.Count; i++)
+            {
+                var roller = rollers[i];
+                if (roller != null && IsStoreyAwake(roller.HomeStorey)) roller.Tick(rdt, rollers);
+            }
         }
 
         /// <summary>A harpoon that touches a roller (cable or tip) hits it, like a bubble.</summary>
@@ -106,7 +110,7 @@ namespace Bubblewright
             var box = wick.Hitbox;
             foreach (var r in rollers)
             {
-                if (r.Popped || !r.Overlaps(box)) continue;
+                if (r == null || r.Popped || !IsStoreyAwake(r.HomeStorey) || !r.Overlaps(box)) continue;
                 HurtWick(r.Position.x, storm ? T.stormDamage : 1);
                 return true;
             }

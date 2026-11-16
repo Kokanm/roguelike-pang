@@ -26,6 +26,8 @@ namespace Bubblewright
             CurrentTheme = theme;
             if (background != null) background.sprite = PlaceholderArt.I.BackgroundFor(theme);
             if (cam != null) cam.backgroundColor = theme.strip;
+            RebuildFloorStrip();
+            PlaceFloorStrip();
         }
 
         // Debug: -1 = the world's own theme, then 0..5 = that theme's look on the current stage.
@@ -46,6 +48,7 @@ namespace Bubblewright
 
         void ToggleTestLayout()
         {
+            debugStoreyStage = false;
             testLayoutIndex = (testLayoutIndex + 1) % StageLayouts.All.Length;
             run.Hearts = wick.Hearts;
             StartStage();

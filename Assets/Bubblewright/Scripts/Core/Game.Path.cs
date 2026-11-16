@@ -54,6 +54,7 @@ namespace Bubblewright
             wick.ResetForStage(0f, 0f, run.Hearts); // stands in the middle, facing the camera
             ShowPathScene(next);
             SetState(State.Path);
+            ResetStoreyView();
         }
 
         void ShowPathScene(Theme next)
@@ -155,7 +156,7 @@ namespace Bubblewright
 
         void DrawPath(int k, bool touchUi)
         {
-            Vector2 topLeft = WorldToGui(new Vector2(-T.HalfWidth, T.arenaHeight));
+            Vector2 topLeft = WorldToGui(HudAnchorWorld(camPanY));
             int nextWorld = Mathf.Min(run.World + 1, T.worlds);
             DrawRoadStrip(k, nextWorld);
 
@@ -252,7 +253,7 @@ namespace Bubblewright
         /// </summary>
         void DrawRoadStrip(int k, int bracketWorld)
         {
-            float y = WorldToGui(new Vector2(0f, T.arenaHeight)).y + 5 * k;
+            float y = WorldToGui(new Vector2(0f, HudAnchorWorld(camPanY).y)).y + 5 * k;
             int n = T.worlds;
             float size = 6 * k, gap = 5 * k;
             float x0 = (Screen.width - (n * size + (n - 1) * gap)) * 0.5f;

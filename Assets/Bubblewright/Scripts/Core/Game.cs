@@ -198,51 +198,12 @@ namespace Bubblewright
             RecipeDef forced = null;
             if (forcedRecipeIndex >= 0 && T.recipes != null && forcedRecipeIndex < T.recipes.Length)
                 forced = T.recipes[forcedRecipeIndex];
-            StagePlan plan = testLayout
-                ? StageGenerator.Generate(run, CurrentTestLayout)
-                : StageGenerator.GenerateFor(run, run.Stage, layoutReroll, forced);
-            stageReport = StageReport.From(run.Stage, plan, run.IsHard);
-            Map = plan.map;
-            ResetFrost();
-            debugSurface = -1;
-            debugTheme = -1;
-            ApplyTheme(Themes.ForWorld(run.World));
-            HidePathScene();
-            SetupSpikes();
-            EnsureFlames();
-            ClearFlames();
-            foreach (var b in bubbles) if (b) Destroy(b.gameObject);
-            bubbles.Clear();
-            hitBubbles.Clear();
-            ClearRollers();
-            ClearPickups();
-            ClearBoss();
-            fx.Clear();
-            ApplyRunUpgrades();
-            HideHarpoons();
-            wick.ResetForStage(plan.wickX, 0f, run.Hearts);
-            ResetWeaponsForStage();
-            WickFeet = wick.transform.position;
-            WickBox = wick.Hitbox;
-            wick.Waving = true;
-            freeze = slowMo = shake = 0f;
-            tileShakeFrames = 0;
-            shotTimer = 0f;
-            turnedForCelebration = celebrating = false;
-            stormClock = stormBanner = 0f;
-            storm = false;
-
-            foreach (var s in plan.spawns)
-            {
-                int tier = Mathf.Clamp(s.tier, 0, T.tiers.Length - 1);
-                SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false, s.ceramic, s.pogo, s.steel, s.mount, s.patient);
-            }
-            foreach (var s in plan.steelPogos)
-                SpawnBubble(s.kind, Mathf.Clamp(s.tier, 0, T.tiers.Length - 1), s.position, 1, 0f, false, false, true, true);
-            SpawnRollers(plan);
-            SetupWaves(plan);
-            SetupBoss();
-            SetState(State.Intro);
+            StagePlan plan = debugStoreyStage
+                ? StoreyDebugPlan()
+                : testLayout
+                    ? StageGenerator.Generate(run, CurrentTestLayout)
+                    : StageGenerator.GenerateFor(run, run.Stage, layoutReroll, forced);
+            LoadStage(plan);
             SaveGame.Save(run);
         }
 
@@ -314,13 +275,13 @@ namespace Bubblewright
             // Phones are locked to landscape; if we still end up in portrait, pause behind a prompt.
             if (Screen.height > Screen.width)
             {
-                touchView.Refresh(input, T);
+                touchView.Refresh(input, T, false, camPanY);
                 return;
             }
 
             if (UpdatePause())
             {
-                touchView.Refresh(input, T, state == State.Play && wick.NearLadder);
+                touchView.Refresh(input, T, state == State.Play && wick.NearLadder, camPanY);
                 return;
             }
 
@@ -330,7 +291,7 @@ namespace Bubblewright
             {
                 freeze -= dt;
                 UpdateCamera(dt);
-                touchView.Refresh(input, T, state == State.Play && wick.NearLadder);
+                touchView.Refresh(input, T, state == State.Play && wick.NearLadder, camPanY);
                 return;
             }
             PopHitBubbles();
@@ -356,7 +317,7 @@ namespace Bubblewright
 
             fx.Tick(dt);
             UpdateCamera(dt);
-            if (state != State.Title && state != State.Select) touchView.Refresh(input, T, state == State.Play && wick.NearLadder);
+            if (state != State.Title && state != State.Select) touchView.Refresh(input, T, state == State.Play && wick.NearLadder, camPanY);
         }
 
         void TickIntro(float dt)
@@ -375,11 +336,17 @@ namespace Bubblewright
         void TickPlay(float dt)
         {
             wick.GapDamageEnabled = !debug.god;
+            if (Map != null) SyncStoreys(wick.FeetY);
             wick.Tick(input.Move, input.Climb, input.JumpPressed, dt, true);
             WickFeet = wick.transform.position;
             WickBox = wick.Hitbox;
             if (wick.ConsumeGapFall()) AfterWickHurt(); // a gap took a heart: same freeze, sound and game over as any hit
             if (state != State.Play) return;
+            if (Map != null)
+            {
+                SyncStoreys(wick.FeetY);
+                Map.IncludeHatches = false;
+            }
 
             // Up to run.Shots cables at once. Holding fire spaces extra cables out so they do not stack on one spot.
             shotTimer += dt;
@@ -419,7 +386,11 @@ namespace Bubblewright
             if (!storm && stormClock >= StageTimeLimit) StartStorm();
             if (stormBanner > 0f) stormBanner -= dt;
 
-            for (int i = 0; i < bubbles.Count; i++) bubbles[i].Tick(BubbleDt(dt));
+            for (int i = 0; i < bubbles.Count; i++)
+            {
+                var b = bubbles[i];
+                if (b != null && IsStoreyAwake(b.HomeStorey)) b.Tick(BubbleDt(dt));
+            }
             TickRollers(dt);
             TickWaves(dt);
 
@@ -454,7 +425,7 @@ namespace Bubblewright
                 var box = wick.Hitbox;
                 foreach (var b in bubbles)
                 {
-                    if (!b.CanHurt || !b.Overlaps(box)) continue;
+                    if (b == null || !b.CanHurt || !IsStoreyAwake(b.HomeStorey) || !b.Overlaps(box)) continue;
                     HurtWick(b.Position.x, storm ? T.stormDamage : 1);
                     break;
                 }
@@ -504,7 +475,8 @@ namespace Bubblewright
             stormBanner = 1.8f;
             shake = T.shakeTime * 2f;
             Sfx.Play(Sound.Hurt, 0.6f, 0.9f);
-            for (int i = 0; i < bubbles.Count; i++) bubbles[i].OnStorm();
+            for (int i = 0; i < bubbles.Count; i++)
+                if (bubbles[i] != null && IsStoreyAwake(bubbles[i].HomeStorey)) bubbles[i].OnStorm();
         }
 
         void TickClear(float dt)
@@ -533,7 +505,12 @@ namespace Bubblewright
         void TickOver(float dt)
         {
             wick.Tick(0f, 0f, dt, false);
-            for (int i = 0; i < bubbles.Count; i++) bubbles[i].Tick(BubbleDt(dt));
+            if (Map != null) Map.IncludeHatches = false;
+            for (int i = 0; i < bubbles.Count; i++)
+            {
+                var b = bubbles[i];
+                if (b != null && IsStoreyAwake(b.HomeStorey)) b.Tick(BubbleDt(dt));
+            }
             TickRollers(dt);
             if (stateTime > 0.8f && input.ConfirmPressed) OpenTitle();
         }
@@ -686,7 +663,9 @@ namespace Bubblewright
 
         void UpdateCamera(float dt)
         {
+            if (freeze <= 0f) TickStoreyPan(dt);
             var pos = cameraHome;
+            pos.y += camPanY;
             bool shaking = false;
             if (shake > 0f)
             {
@@ -705,6 +684,9 @@ namespace Bubblewright
                 pos.y += Random.Range(-T.shakePixels, T.shakePixels + 1) * px;
             }
             cam.transform.position = pos;
+            if (background != null)
+                background.transform.localPosition = new Vector3(0f, camPanY, 0f);
+            PlaceFloorStrip();
         }
 
         void HandleDebugKeys()
@@ -775,9 +757,10 @@ namespace Bubblewright
                 return;
             }
 
-            // Arena corners in screen space (the arena may not fill wide screens).
-            Vector2 topLeft = WorldToGui(new Vector2(-T.HalfWidth, T.arenaHeight));
-            Vector2 topRight = WorldToGui(new Vector2(T.HalfWidth, T.arenaHeight));
+            // Arena corners in screen space (the arena may not fill wide screens). The pan keeps them on this screen.
+            Vector2 anchor = HudAnchorWorld(camPanY);
+            Vector2 topLeft = WorldToGui(anchor);
+            Vector2 topRight = WorldToGui(new Vector2(-anchor.x, anchor.y));
             float pad = 6 * k;
 
             // On a boss stage the health bar takes the top of the screen and the rest of the HUD moves down under it.
@@ -812,7 +795,7 @@ namespace Bubblewright
             bool touchUi = Application.isMobilePlatform || input.TouchUsed;
             if (!touchUi)
             {
-                Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, -T.groundStrip * 0.5f));
+                Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, camPanY - T.groundStrip * 0.5f));
                 Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   I/U: weapon   Pad: stick/d-pad + A, B/Y jump, RT/RB weapon   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   9: weapon crate   F1: hitboxes   F3: next layout",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
@@ -893,7 +876,12 @@ namespace Bubblewright
         }
 
         /// <summary>"WORLD 2-3 FOREST", or "WORLD 2 BOSS" on the last stage of a world.</summary>
-        string StageLabel() => run.IsBossStage ? $"WORLD {run.World} BOSS" : $"WORLD {run.World}-{run.StageInWorld} {run.WorldName.ToUpperInvariant()}";
+        string StageLabel()
+        {
+            string label = run.IsBossStage ? $"WORLD {run.World} BOSS" : $"WORLD {run.World}-{run.StageInWorld} {run.WorldName.ToUpperInvariant()}";
+            if (Map != null && Map.Storeys > 1) label += $"   FLOOR {activeStorey + 1}/{Map.Storeys}";
+            return label;
+        }
 
         string NextStageLabel()
         {
