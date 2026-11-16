@@ -11,6 +11,9 @@ namespace Bubblewright
     /// A Clinger Pogo never moves sideways, so it only holds floors, ceilings and platform faces above and below: it
     /// hangs point-down, drops when Wick walks under it, stands point-up on what it lands on, and when Wick comes within
     /// reach sideways it leaps straight up to whatever is above and hangs there again.
+    /// A placed Clinger starts on the ceiling above it by default; a stage can mount it on the floor or a wall instead
+    /// (Bubble.Mount). A patient one (Bubble.Patient) skips the max stick time on that first surface, so it waits for
+    /// Wick, its tile breaking or the storm; after it lets go once the normal rules apply.
     /// </summary>
     public class ClingerBehavior : BubbleBehavior
     {
@@ -28,6 +31,7 @@ namespace Bubblewright
         Vector2 anchor;   // the point of the surface it holds
         bool onTile;
         bool climbing;    // a Pogo leaping up from a floor to the surface above
+        bool waitForever; // a patient Clinger on its first surface: no max stick time
         int tileCol, tileRow;
         GameObject pad;
 
@@ -43,6 +47,14 @@ namespace Bubblewright
         {
             if (b.Velocity.x != 0f) dir = b.Velocity.x < 0f ? -1 : 1;
             if (child) return; // children fly out of the pop and stick to the first surface they touch
+
+            waitForever = b.Patient;
+            switch (b.Mount)
+            {
+                case ClingerMount.Floor: MountOnFloor(b); return;
+                case ClingerMount.LeftWall: MountOnWall(b, -1); return;
+                case ClingerMount.RightWall: MountOnWall(b, 1); return;
+            }
 
             // A placed Clinger starts on the surface above its spawn point, or the arena ceiling.
             var p = b.Position;
@@ -62,6 +74,43 @@ namespace Bubblewright
             }
             b.transform.position = new Vector3(p.x, surface - b.Radius, b.transform.position.z);
             Stick(b, new Vector2(0f, -1f), tile, col, row);
+        }
+
+        /// <summary>Starts standing on the surface below its spawn point: a tile top or the arena floor.</summary>
+        void MountOnFloor(Bubble b)
+        {
+            var p = b.Position;
+            float floor = Game.Map != null ? Mathf.Max(0f, Game.Map.FloorBelow(p.x, p.y + b.Radius)) : 0f;
+            bool tile = floor > 0f;
+            int col = tile ? StageMap.Col(p.x) : 0, row = tile ? StageMap.Row(floor - 0.5f) : 0;
+            normal = Vector2.up;
+            b.transform.position = new Vector3(p.x, floor + SeatDistance(b), b.transform.position.z);
+            Stick(b, Vector2.up, tile, col, row);
+        }
+
+        /// <summary>
+        /// Starts flush against the nearest solid tile face in its row on one side (side -1 left, +1 right), or the arena wall.
+        /// </summary>
+        void MountOnWall(Bubble b, int side)
+        {
+            var p = b.Position;
+            float wallX = side * T.HalfWidth;
+            bool tile = false;
+            int row = StageMap.Row(p.y), col = 0;
+            if (Game.Map != null)
+            {
+                for (int c = Mathf.Clamp(StageMap.Col(p.x), 0, StageMap.Cols - 1); c >= 0 && c < StageMap.Cols; c += side)
+                {
+                    if (!Game.Map.IsSolid(c, row)) continue;
+                    tile = true;
+                    col = c;
+                    wallX = side < 0 ? c + 1f - T.HalfWidth : c - T.HalfWidth;
+                    break;
+                }
+            }
+            var n = new Vector2(-side, 0f);
+            b.transform.position = new Vector3(wallX - side * b.Radius, p.y, b.transform.position.z);
+            Stick(b, n, tile, col, tile ? row : 0);
         }
 
         public override bool Tick(Bubble b, float dt)
@@ -85,7 +134,7 @@ namespace Bubblewright
                         return true;
                     }
                     stuckTime += dt;
-                    if (WickInLane(b) || stuckTime >= T.clingerMaxStickTime)
+                    if (WickInLane(b) || (!waitForever && stuckTime >= T.clingerMaxStickTime))
                     {
                         state = State.Wobbling;
                         timer = 0f;
@@ -134,6 +183,7 @@ namespace Bubblewright
         void LetGo(Bubble b)
         {
             state = State.Free;
+            waitForever = false; // only the first surface is held patiently
             restick = T.clingerRestickDelay;
             if (dir == 0) dir = 1;
             b.VisualScale = Vector2.one;

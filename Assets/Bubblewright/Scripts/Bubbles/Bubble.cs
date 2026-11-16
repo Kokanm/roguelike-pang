@@ -26,6 +26,10 @@ namespace Bubblewright
         public bool Pogo { get; private set; }
         /// <summary>A steel Pogo: harpoons glance off it and it is not needed to clear the stage.</summary>
         public bool Steel { get; private set; }
+        /// <summary>A placed Clinger's starting surface (read by ClingerBehavior.OnSpawn).</summary>
+        public ClingerMount Mount { get; private set; }
+        /// <summary>A placed Clinger that waits on its first surface for Wick instead of timing out.</summary>
+        public bool Patient { get; private set; }
         /// <summary>A Pogo's shape: 0 points up (on the floor), 1 points down (at the top of its bounce).</summary>
         public float Morph { get; private set; }
         /// <summary>True while a Pogo born from a pop is still on its one sideways hop.</summary>
@@ -60,7 +64,7 @@ namespace Bubblewright
         public Vector2 Position => transform.position;
 
         public static Bubble Create(Transform parent, BubbleKind kind, int tier, Vector2 position, Vector2 velocity, bool child, bool ceramic = false,
-            bool pogo = false, bool steel = false)
+            bool pogo = false, bool steel = false, ClingerMount mount = ClingerMount.Ceiling, bool patient = false)
         {
             steel = steel && pogo;
             var go = new GameObject($"{(steel ? "Steel " : "")}{(pogo ? "Pogo" : "Bubble")} {kind} {Tuning.I.tiers[tier].name}");
@@ -73,6 +77,8 @@ namespace Bubblewright
             b.sr = go.AddComponent<SpriteRenderer>();
             b.Pogo = pogo;
             b.Steel = steel;
+            b.Mount = mount;
+            b.Patient = patient;
             if (steel) ceramic = false;
             b.Ceramic = ceramic;
             b.Armor = ceramic ? Mathf.Max(2, Tuning.I.ceramicHits) : 1;
