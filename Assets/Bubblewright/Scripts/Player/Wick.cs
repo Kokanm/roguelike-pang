@@ -669,7 +669,7 @@ namespace Bubblewright
         static int SolidColumnBetween(StageMap map, float xMin, float xMax, float yMin, float yMax, int dir)
         {
             int cMin = Mathf.Max(0, StageMap.Col(xMin)), cMax = Mathf.Min(StageMap.Cols - 1, StageMap.Col(xMax));
-            int rMin = Mathf.Max(0, StageMap.Row(yMin)), rMax = Mathf.Min(StageMap.Rows - 1, StageMap.Row(yMax));
+            int rMin = Mathf.Max(0, StageMap.Row(yMin)), rMax = Mathf.Min(map.Rows - 1, StageMap.Row(yMax));
             for (int i = 0; i <= cMax - cMin; i++)
             {
                 int c = dir > 0 ? cMin + i : cMax - i;
@@ -824,7 +824,7 @@ namespace Bubblewright
             int cMin = Mathf.Max(0, StageMap.Col(box.xMin));
             int cMax = Mathf.Min(StageMap.Cols - 1, StageMap.Col(box.xMax));
             int rMin = Mathf.Max(0, StageMap.Row(box.yMin));
-            int rMax = Mathf.Min(StageMap.Rows - 1, StageMap.Row(box.yMax));
+            int rMax = Mathf.Min(map.Rows - 1, StageMap.Row(box.yMax));
             for (int c = cMin; c <= cMax; c++)
             {
                 for (int r = rMin; r <= rMax; r++)
@@ -917,7 +917,7 @@ namespace Bubblewright
             bottomRow = seedRow;
             while (bottomRow > 0 && map.Get(c, bottomRow - 1).ladder) bottomRow--;
             topRow = seedRow;
-            while (topRow + 1 < StageMap.Rows && map.Get(c, topRow + 1).ladder) topRow++;
+            while (topRow + 1 < map.Rows && map.Get(c, topRow + 1).ladder) topRow++;
         }
 
         float LadderTopStop(StageMap map, int c, int topRow)
@@ -1022,7 +1022,7 @@ namespace Bubblewright
             int cMin = Mathf.Max(0, StageMap.Col(box.xMin));
             int cMax = Mathf.Min(StageMap.Cols - 1, StageMap.Col(box.xMax));
             int rMin = Mathf.Max(0, StageMap.Row(box.yMin));
-            int rMax = Mathf.Min(StageMap.Rows - 1, StageMap.Row(box.yMax));
+            int rMax = Mathf.Min(map.Rows - 1, StageMap.Row(box.yMax));
             for (int c = cMin; c <= cMax; c++)
             {
                 if (c == ladderCol) continue;

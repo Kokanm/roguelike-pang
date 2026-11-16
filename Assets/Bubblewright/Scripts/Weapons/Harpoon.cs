@@ -200,14 +200,14 @@ namespace Bubblewright
                 TickDown(map, dt);
                 return;
             }
-            int hitRow = StageMap.Rows;
+            int hitRow = map != null ? map.Rows : StageMap.StoreyRows;
             topY = map != null ? map.CeilingAbove(x, baseY, out hitRow) : T.arenaHeight;
             tipY += BaseSpeed * SpeedMultiplier * dt;
             ChipPassedRows(map);
             if (tipY + TipHeight >= topY)
             {
                 tipY = topY - TipHeight; // never past the underside
-                if (map != null && hitRow < StageMap.Rows && map.Get(StageMap.Col(x), hitRow).kind == TileKind.Breakable)
+                if (map != null && hitRow < map.Rows && map.Get(StageMap.Col(x), hitRow).kind == TileKind.Breakable)
                 {
                     UpdateVisual();
                     hitTile?.Invoke(StageMap.Col(x), hitRow);
@@ -254,7 +254,7 @@ namespace Bubblewright
         void ChipPassedRows(StageMap map)
         {
             if (map == null || chipColumn < 0 || chipColumn >= StageMap.Cols) return;
-            int last = Mathf.Min(StageMap.Rows - 1, StageMap.Row(tipY + TipHeight));
+            int last = Mathf.Min(map.Rows - 1, StageMap.Row(tipY + TipHeight));
             while (chipNextRow <= last)
             {
                 int row = chipNextRow++;
@@ -347,7 +347,7 @@ namespace Bubblewright
             if (p.x <= -T.HalfWidth || p.x >= T.HalfWidth || p.y <= 0f || p.y >= T.arenaHeight) return true;
             if (map == null) return false;
             int r = StageMap.Row(p.y);
-            if (col < 0 || col >= StageMap.Cols || r < 0 || r >= StageMap.Rows || !map.IsSolid(col, r)) return false;
+            if (col < 0 || col >= StageMap.Cols || r < 0 || r >= map.Rows || !map.IsSolid(col, r)) return false;
             row = r;
             return true;
         }

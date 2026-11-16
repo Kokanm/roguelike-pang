@@ -13,7 +13,7 @@ namespace Bubblewright
         public string[] rows;
 
         /// <summary>A 15th string describes the ground, with gaps.</summary>
-        public bool HasGaps => rows != null && rows.Length > StageMap.Rows;
+        public bool HasGaps => rows != null && rows.Length > StageMap.StoreyRows;
     }
 
     /// <summary>Hand-made stage layouts. Rows are stored top first, matching StageLayout.Parse.</summary>

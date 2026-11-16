@@ -151,7 +151,7 @@ namespace Bubblewright
             var map = world.Map;
             if (map == null) return 0;
             int destroyed = 0;
-            Cells(beam, out int c0, out int c1, out int r0, out int r1);
+            Cells(map, beam, out int c0, out int c1, out int r0, out int r1);
             for (int c = c0; c <= c1; c++)
             for (int r = r0; r <= r1; r++)
             {
@@ -167,18 +167,18 @@ namespace Bubblewright
         static int MeltIce(StageMap map, Rect beam)
         {
             if (Game.Ice == null || Game.Ice.Count == 0) return 0;
-            Cells(beam, out int c0, out int c1, out int r0, out int r1);
+            Cells(map, beam, out int c0, out int c1, out int r0, out int r1);
             return Game.Ice.Melt(map, c0, c1, r0, r1, beam.yMin <= 0.01f);
         }
 
         /// <summary>The tile cells the beam overlaps, clamped to the map.</summary>
-        static void Cells(Rect beam, out int c0, out int c1, out int r0, out int r1)
+        static void Cells(StageMap map, Rect beam, out int c0, out int c1, out int r0, out int r1)
         {
             const float inset = 0.001f;
             c0 = Mathf.Max(0, StageMap.Col(beam.xMin + inset));
             c1 = Mathf.Min(StageMap.Cols - 1, StageMap.Col(beam.xMax - inset));
             r0 = Mathf.Max(0, StageMap.Row(beam.yMin + inset));
-            r1 = Mathf.Min(StageMap.Rows - 1, StageMap.Row(beam.yMax - inset));
+            r1 = Mathf.Min((map != null ? map.Rows : StageMap.StoreyRows) - 1, StageMap.Row(beam.yMax - inset));
         }
 
         public enum Phase { Ready, WindUp, Beam, Fade, Done }

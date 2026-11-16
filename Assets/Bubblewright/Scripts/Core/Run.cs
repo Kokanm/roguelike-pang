@@ -767,7 +767,7 @@ namespace Bubblewright
             if (map != null)
             {
                 if (map.IsGap(col)) return false;
-                for (int r = 0; r < StageMap.Rows; r++)
+                for (int r = 0; r < map.Rows; r++)
                     if (map.Get(col, r).ladder) return false;
             }
             foreach (float other in otherPogoXs)
@@ -1124,10 +1124,10 @@ namespace Bubblewright
             var spots = new List<Vector2>();
             float diameter = Roller.RadiusOf(0) * 2f;
             // row -1 is the ground; any other row is a tile row whose top is a surface.
-            for (int row = -1; row < StageMap.Rows - 1; row++)
+            for (int row = -1; row < map.Rows - 1; row++)
             {
                 float surface = row + 1f;
-                if (surface + diameter > StageMap.Rows) break;
+                if (surface + diameter > map.Rows) break;
                 int start = -1;
                 for (int c = 0; c <= StageMap.Cols; c++)
                 {

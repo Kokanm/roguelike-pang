@@ -64,7 +64,7 @@ namespace Bubblewright
             if (Game.Map != null && b.Tier > 0)
             {
                 float s = Game.Map.CeilingAbove(p.x, p.y, out int hitRow);
-                if (hitRow < StageMap.Rows && ClearUnder(b, p.x, s))
+                if (hitRow < Game.Map.Rows && ClearUnder(b, p.x, s))
                 {
                     surface = s;
                     tile = true;
@@ -309,7 +309,7 @@ namespace Bubblewright
             for (int i = 0; i < offsets.Length; i++)
             {
                 var probe = p - n * (r + 0.05f) + side * (offsets[i] * r);
-                if (probe.x < -Tuning.I.HalfWidth || probe.x > Tuning.I.HalfWidth || probe.y < 0f || probe.y > StageMap.Rows)
+                if (probe.x < -Tuning.I.HalfWidth || probe.x > Tuning.I.HalfWidth || probe.y < 0f || probe.y > (Game.Map != null ? Game.Map.Height : StageMap.StoreyRows))
                     return i == 0; // the arena itself: floor, ceiling or a side wall
                 int c = StageMap.Col(probe.x), rr = StageMap.Row(probe.y);
                 if (Game.Map != null && Game.Map.IsSolid(c, rr))

@@ -97,7 +97,7 @@ namespace Bubblewright
                     inGap = g;
                 }
                 for (int c = 0; c < StageMap.Cols; c++)
-                    for (int row = 0; row < StageMap.Rows; row++)
+                    for (int row = 0; row < map.Rows; row++)
                         if (map.Get(c, row).kind == TileKind.Breakable) r.breakables++;
             }
             return r;

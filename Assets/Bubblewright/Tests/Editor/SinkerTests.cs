@@ -156,9 +156,9 @@ namespace Bubblewright.Tests
         public void ARollingSinkerOnAPlatformTurnsAtItsEnds()
         {
             var rows = new List<string>();
-            for (int i = 0; i < StageMap.Rows; i++)
+            for (int i = 0; i < StageMap.StoreyRows; i++)
             {
-                int r = StageMap.Rows - 1 - i;
+                int r = StageMap.StoreyRows - 1 - i;
                 rows.Add(r == 4 ? new string('.', 10) + new string('#', 12) + new string('.', 10) : new string('.', StageMap.Cols));
             }
             SetMap(StageLayout.Parse(rows.ToArray()));

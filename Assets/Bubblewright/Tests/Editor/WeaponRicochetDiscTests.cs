@@ -268,7 +268,7 @@ namespace Bubblewright.Tests
         {
             // A one-tile-wide shaft: it bounces between the walls quickly.
             var map = StageMap.Flat();
-            for (int r = 0; r < StageMap.Rows; r++)
+            for (int r = 0; r < map.Rows; r++)
             {
                 map.Set(15, r, new Cell { kind = TileKind.Solid });
                 map.Set(17, r, new Cell { kind = TileKind.Solid });

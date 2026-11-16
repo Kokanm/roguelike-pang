@@ -23,13 +23,26 @@ namespace Bubblewright
     }
 
     /// <summary>
-    /// The 32 x 14 arena tile grid (columns cover x from -16 to +16, rows cover y from 0 to 14)
+    /// The 32 x (14 * Storeys) arena tile grid (columns cover x from -16 to +16, rows cover y from 0 to Height)
     /// and plain-maths queries against it.
     /// </summary>
     public class StageMap
     {
-        public const int Cols = 32, Rows = 14;
+        public const int Cols = 32;
+
+        /// <summary>Rows in one storey: one screen of arena.</summary>
+        public const int StoreyRows = 14;
         const float HalfWidth = Cols * 0.5f;
+
+        /// <summary>How many storeys this map stacks (1 to 3).</summary>
+        public int Storeys { get; }
+
+        /// <summary>Rows in this map: StoreyRows for each storey.</summary>
+        public int Rows => StoreyRows * Storeys;
+
+        /// <summary>Height of this map in units (y of its top edge).</summary>
+        public float Height => Rows;
+
 
         /// <summary>A retracting spike strip. row is the tile it sits on, or -1 for the ground.</summary>
         public class SpikeStrip
@@ -40,7 +53,7 @@ namespace Bubblewright
             public float phase;
         }
 
-        readonly Cell[,] cells = new Cell[Cols, Rows];
+        readonly Cell[,] cells;
         readonly Surface[] ground = new Surface[Cols];
         readonly List<(int c, int r, float distSq)> hits = new List<(int, int, float)>(16);
 
@@ -49,7 +62,16 @@ namespace Bubblewright
 
         public int Version { get; private set; }
 
-        public static StageMap Flat() => new StageMap();
+        public StageMap(int storeys = 1)
+        {
+            Storeys = Mathf.Clamp(storeys, 1, 3);
+            cells = new Cell[Cols, Rows];
+        }
+
+        public static StageMap Flat(int storeys = 1) => new StageMap(storeys);
+
+        /// <summary>The storey a height sits in, clamped to this map's storeys.</summary>
+        public int StoreyOf(float y) => Mathf.Clamp(Mathf.FloorToInt(y / StoreyRows), 0, Storeys - 1);
 
         public Cell Get(int c, int r)
         {
@@ -361,7 +383,7 @@ namespace Bubblewright
             }
         }
 
-        static void ClampToArena(ref Vector2 position, float radius, ref Contact contact)
+        void ClampToArena(ref Vector2 position, float radius, ref Contact contact)
         {
             if (position.x < -HalfWidth + radius)
             {

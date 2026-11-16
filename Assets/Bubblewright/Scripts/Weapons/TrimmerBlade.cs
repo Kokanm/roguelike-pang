@@ -270,7 +270,7 @@ namespace Bubblewright
             for (int r = r0; r <= r1; r++)
             for (int c = c0; c <= c1; c++)
             {
-                if (c < 0 || c >= StageMap.Cols || r < 0 || r >= StageMap.Rows) continue;
+                if (c < 0 || c >= StageMap.Cols || r < 0 || r >= map.Rows) continue;
                 var cellId = new Vector2Int(c, r);
                 if (cutTiles != null && cutTiles.Contains(cellId)) continue;
                 if (map.Get(c, r).kind != TileKind.Breakable) continue;

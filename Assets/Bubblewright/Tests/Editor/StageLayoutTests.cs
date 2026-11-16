@@ -62,21 +62,21 @@ namespace Bubblewright.Tests
             StageMap map = null;
             Assert.DoesNotThrow(() => map = StageLayout.Parse(rows), $"{name}: parses");
 
-            Assert.IsTrue(rows.Length == StageMap.Rows || rows.Length == StageMap.Rows + 1, $"{name}: has 14 rows plus an optional ground row");
-            if (rows.Length > StageMap.Rows)
+            Assert.IsTrue(rows.Length == StageMap.StoreyRows || rows.Length == StageMap.StoreyRows + 1, $"{name}: has 14 rows plus an optional ground row");
+            if (rows.Length > StageMap.StoreyRows)
             {
-                Assert.AreEqual(StageMap.Cols, rows[StageMap.Rows].Length, $"{name}: ground row has 32 columns");
-                foreach (char ch in rows[StageMap.Rows])
+                Assert.AreEqual(StageMap.Cols, rows[StageMap.StoreyRows].Length, $"{name}: ground row has 32 columns");
+                foreach (char ch in rows[StageMap.StoreyRows])
                     Assert.Contains(ch, new[] { '=', '_' }, $"{name}: ground uses only = and _");
             }
-            for (int i = 0; i < StageMap.Rows; i++)
+            for (int i = 0; i < StageMap.StoreyRows; i++)
             {
                 Assert.AreEqual(StageMap.Cols, rows[i].Length, $"{name}: row {13 - i} has 32 columns");
                 foreach (char ch in rows[i])
                     Assert.Contains(ch, new[] { '.', '#', 'B', 'H', 'T' }, $"{name}: uses only ., #, B, H and T");
             }
 
-            for (int r = 0; r < StageMap.Rows; r++)
+            for (int r = 0; r < map.Rows; r++)
                 for (int c = 0; c < StageMap.Cols; c++)
                     if (map.IsSolid(c, r))
                         Assert.IsTrue(r == 4 || r == 9 || onlyWorld == 5 && map.Get(c, r).kind == TileKind.Breakable,
@@ -86,7 +86,7 @@ namespace Bubblewright.Tests
             Assert.AreEqual(expectedLevels, levels, $"{name}: levels matches rows used");
 
             for (int c = 0; c < StageMap.Cols; c++)
-                for (int r = 0; r < StageMap.Rows; r++)
+                for (int r = 0; r < map.Rows; r++)
                     if (map.Get(c, r).ladder)
                         Assert.IsTrue(IsCompleteLadder(map, c, r), $"{name}: ladder at ({c}, {r}) belongs to a complete ladder");
 
@@ -258,7 +258,7 @@ namespace Bubblewright.Tests
             {
                 var plan = StageGenerator.Generate(RunAt(19, 20), layout);
                 var expected = StageLayout.Parse(layout.rows);
-                for (int r = 0; r < StageMap.Rows; r++)
+                for (int r = 0; r < expected.Rows; r++)
                     for (int c = 0; c < StageMap.Cols; c++)
                     {
                         Assert.AreEqual(expected.Get(c, r).kind, plan.map.Get(c, r).kind, $"{layout.name}: tile ({c}, {r}) kind");

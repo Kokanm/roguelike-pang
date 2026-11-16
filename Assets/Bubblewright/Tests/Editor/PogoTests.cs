@@ -398,7 +398,7 @@ namespace Bubblewright.Tests
                         else specialPogos++;
                         int col = StageMap.Col(s.position.x);
                         Assert.IsFalse(plan.map.IsGap(col), $"{where}: Pogo over a gap");
-                        for (int r = 0; r < StageMap.Rows; r++) Assert.IsFalse(plan.map.Get(col, r).ladder, $"{where}: Pogo over a ladder");
+                        for (int r = 0; r < plan.map.Rows; r++) Assert.IsFalse(plan.map.Get(col, r).ladder, $"{where}: Pogo over a ladder");
                     }
                     for (int i = 0; i < xs.Count; i++)
                         for (int j = i + 1; j < xs.Count; j++)
