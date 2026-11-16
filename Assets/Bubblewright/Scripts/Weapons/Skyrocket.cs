@@ -74,6 +74,8 @@ namespace Bubblewright
         public sealed class Rocket
         {
             public Vector2 Nose;
+            /// <summary>Where it was fired from. The burst and the ceiling clamp stay in that storey.</summary>
+            public float OriginY;
             public int Direction = 1;
             public float Speed;
             public float Age;
@@ -92,7 +94,7 @@ namespace Bubblewright
         /// <summary>A new rocket at the muzzle, pointing along aim (up, or down for a down shot).</summary>
         public static Rocket Launch(Vector2 muzzle, Vector2 aim)
         {
-            return new Rocket { Nose = muzzle, Direction = aim.y < 0f ? -1 : 1, Speed = Tuning.I.rocketSpeed };
+            return new Rocket { Nose = muzzle, OriginY = muzzle.y, Direction = aim.y < 0f ? -1 : 1, Speed = Tuning.I.rocketSpeed };
         }
 
         /// <summary>The part of the rocket that touches things: the body behind the nose.</summary>
@@ -128,24 +130,26 @@ namespace Bubblewright
             for (int k = 0; k < steps; k++)
             {
                 Vector2 next = r.Nose + new Vector2(0f, step * r.Direction);
-                if (r.Direction > 0 && next.y >= t.arenaHeight)
+                float ceil = t.arenaHeight;
+                float floor = 0f;
+                int hitRow = -1;
+                if (map != null)
                 {
-                    burstAt = new Vector2(r.Nose.x, t.arenaHeight);
+                    ceil = map.ShotCeiling(next.x, r.OriginY, out hitRow);
+                    floor = map.ShotFloor(next.x, r.OriginY);
+                    if (floor < 0f) floor = 0f;
+                }
+                if (r.Direction > 0 && next.y >= ceil)
+                {
+                    bool tile = map != null && hitRow >= 0 && hitRow < map.Rows;
+                    burstAt = new Vector2(r.Nose.x, tile ? hitRow - 0.01f : ceil);
                     r.Nose = burstAt;
                     return true;
                 }
-                if (r.Direction < 0 && next.y <= 0f)
+                if (r.Direction < 0 && next.y <= floor)
                 {
-                    burstAt = new Vector2(r.Nose.x, 0f);
-                    r.Nose = burstAt;
-                    return true;
-                }
-                if (map != null && map.IsSolid(StageMap.Col(next.x), StageMap.Row(next.y)))
-                {
-                    // Stop at the tile's edge, so the burst is just outside the tile it hit.
-                    int row = StageMap.Row(next.y);
-                    float edge = r.Direction > 0 ? row : row + 1f;
-                    burstAt = new Vector2(r.Nose.x, edge - 0.01f * r.Direction);
+                    bool tile = map != null && floor > map.StoreyBase(r.OriginY) + 0.001f;
+                    burstAt = new Vector2(r.Nose.x, tile ? floor + 0.01f : floor);
                     r.Nose = burstAt;
                     return true;
                 }
@@ -165,13 +169,15 @@ namespace Bubblewright
         {
             if (world == null) return false;
             Rect box = BodyBox(r);
+            var map = world.Map;
             foreach (var b in world.Bubbles)
             {
                 if (b == null || b.Popped || !b.Overlaps(box)) continue;
+                if (map != null && !map.InStorey(b.Position.y, r.OriginY)) continue;
                 if (b.Steel || b.CanBeHit) return true;
             }
             foreach (var roller in world.Rollers)
-                if (roller != null && !roller.Popped && roller.Overlaps(box)) return true;
+                if (roller != null && !roller.Popped && roller.Overlaps(box) && (map == null || map.InStorey(roller.Position.y, r.OriginY))) return true;
             var boss = world.LiveBoss;
             return boss != null && boss.Body.Overlaps(box);
         }
@@ -181,14 +187,17 @@ namespace Bubblewright
         /// pops make are not hit. Steel sparkles and is unharmed. Boss bullets in it are destroyed. The boss takes
         /// rocketBossDamage. Each breakable block it reaches takes one hit.
         /// </summary>
-        public static Burst Explode(WeaponWorld world, Vector2 centre, List<WeaponTarget> scratch = null)
+        public static Burst Explode(WeaponWorld world, Vector2 centre, List<WeaponTarget> scratch = null, float fromY = float.NaN)
         {
             var t = Tuning.I;
             var result = new Burst { centre = centre };
             float radius = Mathf.Max(0f, t.rocketRadius);
+            float origin = float.IsNaN(fromY) ? centre.y - 0.001f : fromY;
+            var map = world.Map;
             var targets = world.InCircle(centre, radius, scratch).ToArray();
             foreach (var target in targets)
             {
+                if (map != null && target.kind != TargetKind.Boss && !map.InStorey(target.position.y, origin)) continue;
                 switch (target.kind)
                 {
                     case TargetKind.Bubble:
@@ -209,18 +218,20 @@ namespace Bubblewright
                         break;
                 }
             }
-            result.tiles = HitTiles(world, centre, radius);
+            result.tiles = HitTiles(world, centre, radius, origin);
             return result;
         }
 
         /// <summary>One hit on every breakable block the burst reaches. Returns how many were hit.</summary>
-        static int HitTiles(WeaponWorld world, Vector2 centre, float radius)
+        static int HitTiles(WeaponWorld world, Vector2 centre, float radius, float originY)
         {
             var map = world.Map;
             if (map == null) return 0;
             int hit = 0;
+            int lo = (int)map.StoreyBase(originY);
+            int hi = (int)map.StoreyCeiling(originY);
             int c0 = Mathf.Max(0, StageMap.Col(centre.x - radius)), c1 = Mathf.Min(StageMap.Cols - 1, StageMap.Col(centre.x + radius));
-            int r0 = Mathf.Max(0, StageMap.Row(centre.y - radius)), r1 = Mathf.Min(map.Rows - 1, StageMap.Row(centre.y + radius));
+            int r0 = Mathf.Max(lo, StageMap.Row(centre.y - radius)), r1 = Mathf.Min(hi - 1, StageMap.Row(centre.y + radius));
             for (int c = c0; c <= c1; c++)
             for (int r = r0; r <= r1; r++)
             {
@@ -269,7 +280,7 @@ namespace Bubblewright
                     UpdateView(r, dt);
                     return;
                 }
-                LastBurst = Explode(ctx.World, at, scratch);
+                LastBurst = Explode(ctx.World, at, scratch, r.OriginY);
                 Game.RocketBurstFx(at);
                 RemoveView(r);
                 Flight = null;

@@ -73,6 +73,26 @@ namespace Bubblewright
         /// <summary>The storey a height sits in, clamped to this map's storeys.</summary>
         public int StoreyOf(float y) => Mathf.Clamp(Mathf.FloorToInt(y / StoreyRows), 0, Storeys - 1);
 
+        /// <summary>Y of the ceiling of the storey that contains fromY. The next storey starts here.</summary>
+        public float StoreyCeiling(float fromY) => (StoreyOf(fromY) + 1) * (float)StoreyRows;
+
+        /// <summary>Y of the floor of the storey that contains fromY.</summary>
+        public float StoreyBase(float fromY) => StoreyOf(fromY) * (float)StoreyRows;
+
+        /// <summary>True when y is inside the storey that contains fromY, the ceiling line itself belonging to the storey above.</summary>
+        public bool InStorey(float y, float fromY)
+        {
+            float lo = StoreyBase(fromY);
+            return y >= lo && y < lo + StoreyRows;
+        }
+
+        /// <summary>True when the tile row sits in the storey that contains fromY.</summary>
+        public bool RowInStorey(int row, float fromY)
+        {
+            int lo = StoreyOf(fromY) * StoreyRows;
+            return row >= lo && row < lo + StoreyRows;
+        }
+
         public Cell Get(int c, int r)
         {
             if (c < 0 || c >= Cols || r < 0 || r >= Rows)
@@ -190,6 +210,48 @@ namespace Bubblewright
             }
             hitRow = Rows;
             return Rows;
+        }
+
+        /// <summary>
+        /// The first solid tile at or above fromY, searched only in that storey, or the storey ceiling when the shaft is
+        /// open. hitRow is that tile, or Rows when the stop is the storey edge, so a check of hitRow &lt; Rows leaves the
+        /// edge alone. A breakable on the top row of the storey (13, 27, 41) still counts.
+        /// </summary>
+        public float ShotCeiling(float x, float fromY, out int hitRow)
+        {
+            int top = (StoreyOf(fromY) + 1) * StoreyRows;
+            int c = Col(x);
+            if (c >= 0 && c < Cols)
+            {
+                int last = Mathf.Min(top, Rows);
+                for (int r = Mathf.Max(0, Row(fromY)); r < last; r++)
+                {
+                    if (r >= fromY && IsSolid(c, r))
+                    {
+                        hitRow = r;
+                        return r;
+                    }
+                }
+            }
+            hitRow = Rows;
+            return top;
+        }
+
+        /// <summary>
+        /// The surface at or below fromY inside its storey: the top of a solid tile, the storey base, or (on the ground
+        /// storey) the gap depth FloorBelow reports when the column has no floor.
+        /// </summary>
+        public float ShotFloor(float x, float fromY)
+        {
+            int storey = StoreyOf(fromY);
+            int bottom = storey * StoreyRows;
+            int c = Col(x);
+            if (c < 0 || c >= Cols) return bottom;
+            int start = Mathf.Min(Rows - 1, Mathf.Min(bottom + StoreyRows - 1, Mathf.Max(bottom, Row(fromY))));
+            for (int r = start; r >= bottom; r--)
+                if (r + 1f <= fromY && IsSolid(c, r)) return r + 1f;
+            if (storey == 0) return gap[c] ? -Tuning.I.gapFallDepth - 1f : 0f;
+            return bottom;
         }
 
         public bool OverlapsSolid(Rect r)

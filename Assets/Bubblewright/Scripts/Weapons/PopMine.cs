@@ -219,7 +219,7 @@ namespace Bubblewright
         /// <summary>The surface under p. False over a gap, where there is none.</summary>
         static bool Supported(StageMap map, Vector2 p, out float floor)
         {
-            floor = map != null ? map.FloorBelow(p.x, p.y + 0.001f) : 0f;
+            floor = map != null ? map.ShotFloor(p.x, p.y + 0.001f) : 0f;
             return floor >= 0f;
         }
 
@@ -256,8 +256,10 @@ namespace Bubblewright
             var result = new MineBlast { centre = centre };
             float radius = t.mineBlastRadius;
             var targets = world.InCircle(centre, radius, scratch).ToArray();
+            var map = world.Map;
             foreach (var target in targets)
             {
+                if (map != null && target.kind != TargetKind.Boss && !map.InStorey(target.position.y, centre.y)) continue;
                 switch (target.kind)
                 {
                     case TargetKind.Bubble:
@@ -293,8 +295,10 @@ namespace Bubblewright
             var map = world.Map;
             if (map == null) return 0;
             int destroyed = 0;
+            int lo = (int)map.StoreyBase(centre.y);
+            int hi = (int)map.StoreyCeiling(centre.y);
             int c0 = Mathf.Max(0, StageMap.Col(centre.x - radius)), c1 = Mathf.Min(StageMap.Cols - 1, StageMap.Col(centre.x + radius));
-            int r0 = Mathf.Max(0, StageMap.Row(centre.y - radius)), r1 = Mathf.Min(map.Rows - 1, StageMap.Row(centre.y + radius));
+            int r0 = Mathf.Max(lo, StageMap.Row(centre.y - radius)), r1 = Mathf.Min(hi - 1, StageMap.Row(centre.y + radius));
             for (int c = c0; c <= c1; c++)
             for (int r = r0; r <= r1; r++)
             {

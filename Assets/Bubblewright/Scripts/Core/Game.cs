@@ -660,6 +660,7 @@ namespace Bubblewright
                     pos.y = Mathf.Max(pos.y, childR);
                     Map.ResolveCircle(ref pos, childR);
                     var child = SpawnBubble(b.Kind, next, pos, dir, vy, true, false, b.Pogo);
+                    child.InheritHomeStorey(b);
                     if (b.Pogo && i < 2) child.StartHop(dir * PogoHopSpeed(b.Kind, next, pos, vy), PogoHopDistance(next));
                 }
             }

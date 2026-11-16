@@ -30,6 +30,8 @@ namespace Bubblewright
         public ClingerMount Mount { get; private set; }
         /// <summary>A placed Clinger that waits on its first surface for Wick instead of timing out.</summary>
         public bool Patient { get; private set; }
+        /// <summary>The storey it was born on. It never leaves the band from that storey's floor to its ceiling. Children copy the parent's.</summary>
+        public int HomeStorey { get; private set; }
         /// <summary>A Pogo's shape: 0 points up (on the floor), 1 points down (at the top of its bounce).</summary>
         public float Morph { get; private set; }
         /// <summary>True while a Pogo born from a pop is still on its one sideways hop.</summary>
@@ -90,6 +92,8 @@ namespace Bubblewright
                 b.grow = Tuning.I.childStartScale;
                 b.growTimer = 0f;
             }
+            var map = Game.Map;
+            b.HomeStorey = map != null ? map.StoreyOf(position.y) : 0;
             b.behavior = steel ? null : BubbleBehavior.For(kind);
             b.behavior?.OnSpawn(b, child);
             if (pogo)
@@ -112,7 +116,16 @@ namespace Bubblewright
                 UpdateMorph();
                 RefreshPogoSprite(false);
             }
+            float radiusBeforeGrow = Radius;
             TickGrowAndSquash(dt);
+            // A child grows after it has already bounced, so a body that was inside its storey is pulled back in.
+            // A Pogo seated closer to a surface than its circle is left where it is.
+            var held = (Vector2)transform.position;
+            if (held.y >= HomeFloor + radiusBeforeGrow - 1e-4f && held.y < HomeFloor + Radius)
+                held.y = HomeFloor + Radius;
+            if (held.y <= HomeCeiling - radiusBeforeGrow + 1e-4f && held.y > HomeCeiling - Radius)
+                held.y = HomeCeiling - Radius;
+            transform.position = held;
             ApplyVisual();
         }
 
@@ -130,6 +143,40 @@ namespace Bubblewright
 
         /// <summary>Sideways distance the hop may still cover. Behaviours without gravity (the Drifter) end the hop on it.</summary>
         public float HopLeft { get; set; }
+
+        /// <summary>A child takes its parent's storey, even when the pop shoved it through an open shaft.</summary>
+        public void InheritHomeStorey(Bubble parent)
+        {
+            if (parent == null) return;
+            HomeStorey = parent.HomeStorey;
+            var p = (Vector2)transform.position;
+            var contact = default(Contact);
+            SealHomeStorey(ref p, ref contact);
+            transform.position = p;
+        }
+
+        /// <summary>Keeps p between the floor and ceiling of HomeStorey and reports a landing or a bump when it was outside.</summary>
+        public void SealHomeStorey(ref Vector2 p, ref Contact contact)
+        {
+            float floor = HomeStorey * (float)StageMap.StoreyRows;
+            float ceil = floor + StageMap.StoreyRows;
+            float rad = Radius;
+            if (p.y < floor + rad)
+            {
+                p.y = floor + rad;
+                contact.landed = true;
+                contact.bumped = false;
+            }
+            else if (p.y > ceil - rad)
+            {
+                p.y = ceil - rad;
+                contact.bumped = true;
+                contact.landed = false;
+            }
+        }
+
+        float HomeFloor => HomeStorey * (float)StageMap.StoreyRows;
+        float HomeCeiling => HomeFloor + StageMap.StoreyRows;
 
         /// <summary>Ends the hop: from now on it never moves sideways.</summary>
         public void EndHop()
@@ -168,8 +215,9 @@ namespace Bubblewright
 
         float FloorUnder(float bottom)
         {
-            if (IgnoresTiles || Game.Map == null) return 0f;
-            return Mathf.Max(0f, Game.Map.FloorBelow(Position.x, bottom + 0.01f));
+            if (Game.Map == null || IgnoresTiles) return HomeFloor;
+            float probe = Mathf.Clamp(bottom + 0.01f, HomeFloor, HomeCeiling - 0.001f);
+            return Mathf.Max(HomeFloor, Game.Map.ShotFloor(Position.x, probe));
         }
 
         /// <summary>A Pogo's bounce leaves a surface: the morph measures this bounce from there. Behaviours that launch it call this too.</summary>
@@ -182,12 +230,13 @@ namespace Bubblewright
             // A ceiling or platform above cuts the bounce short: the Pogo points down when it touches it.
             if (Game.Map != null && !IgnoresTiles)
             {
-                float top = Game.Map.CeilingAbove(Position.x, Position.y + Radius, out _);
+                float probe = Mathf.Clamp(Position.y + Radius, HomeFloor, HomeCeiling - 0.001f);
+                float top = Mathf.Min(HomeCeiling, Game.Map.ShotCeiling(Position.x, probe, out _));
                 bounceRise = Mathf.Min(bounceRise, Mathf.Max(0.05f, top - floor - 2f * Radius));
             }
             else
             {
-                bounceRise = Mathf.Min(bounceRise, Mathf.Max(0.05f, T.arenaHeight - floor - 2f * Radius));
+                bounceRise = Mathf.Min(bounceRise, Mathf.Max(0.05f, HomeCeiling - floor - 2f * Radius));
             }
         }
 
@@ -256,6 +305,7 @@ namespace Bubblewright
                 Contact contact = IgnoresTiles
                     ? Game.Map.ResolveBounds(ref p, Radius)
                     : Game.Map.ResolveCircle(ref p, Radius);
+                SealHomeStorey(ref p, ref contact);
                 if (contact.landed)
                 {
                     Velocity.y = T.BounceSpeed(Kind, Tier);

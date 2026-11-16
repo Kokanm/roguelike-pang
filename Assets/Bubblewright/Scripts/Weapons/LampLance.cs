@@ -70,9 +70,12 @@ namespace Bubblewright
         public static Rect BeamRect(Vector2 tip, bool down)
         {
             var t = Tuning.I;
+            var map = Game.Map;
+            float ceil = map != null ? map.StoreyCeiling(tip.y) : t.arenaHeight;
+            float floor = map != null ? Mathf.Max(0f, map.StoreyBase(tip.y)) : 0f;
             float w = Mathf.Max(t.Pixel, t.lanceWidth);
-            float top = down ? tip.y : t.arenaHeight;
-            float bottom = down ? 0f : tip.y;
+            float top = down ? tip.y : ceil;
+            float bottom = down ? floor : tip.y;
             if (top < bottom) (top, bottom) = (bottom, top);
             return new Rect(tip.x - w * 0.5f, bottom, w, top - bottom);
         }

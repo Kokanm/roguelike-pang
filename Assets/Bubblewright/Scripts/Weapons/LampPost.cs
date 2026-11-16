@@ -347,7 +347,7 @@ namespace Bubblewright
         /// <summary>The surface under p. False over a gap, where there is none.</summary>
         static bool Supported(StageMap map, Vector2 p, out float floor)
         {
-            floor = map != null ? map.FloorBelow(p.x, p.y + 0.001f) : 0f;
+            floor = map != null ? map.ShotFloor(p.x, p.y + 0.001f) : 0f;
             return floor >= 0f;
         }
 

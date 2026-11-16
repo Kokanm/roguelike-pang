@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Bubblewright
 {
     /// <summary>
-    /// The Ghost ignores platform tiles (it still bounces on the ground and off the walls and ceiling) and alternates
+    /// The Ghost ignores platform tiles (it still bounces on the floor and ceiling of its home storey, and off the walls) and alternates
     /// between solid and faded. While faded the harpoon passes through it and it cannot hurt Wick. It flickers at the end
     /// of the fade, and it will not turn solid while it still overlaps Wick.
     /// </summary>

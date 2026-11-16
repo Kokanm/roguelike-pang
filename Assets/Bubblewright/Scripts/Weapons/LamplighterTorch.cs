@@ -67,11 +67,15 @@ namespace Bubblewright
             float max = Mathf.Max(0f, Tuning.I.torchLength);
             if (map == null) return max;
             aim = aim.sqrMagnitude > 1e-6f ? aim.normalized : Vector2.up;
+            float floor = map.StoreyBase(tip.y);
+            float ceil = map.StoreyCeiling(tip.y);
             const float step = 0.05f;
             for (float d = 0f; d <= max; d += step)
             {
                 Vector2 p = tip + aim * d;
-                if (map.IsSolid(StageMap.Col(p.x), StageMap.Row(p.y))) return Mathf.Max(0f, d - step);
+                if (p.y >= ceil || p.y < floor) return Mathf.Max(0f, d - step);
+                int row = StageMap.Row(p.y);
+                if (!map.RowInStorey(row, tip.y) || map.IsSolid(StageMap.Col(p.x), row)) return Mathf.Max(0f, d - step);
             }
             return max;
         }

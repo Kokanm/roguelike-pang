@@ -112,8 +112,10 @@ namespace Bubblewright
             x = Mathf.Round(from.x / px) * px;
             baseY = from.y;
             var map = Game.Map;
-            topY = map != null ? map.CeilingAbove(x, from.y, out _) : T.arenaHeight;
-            bottomY = (map != null ? Mathf.Max(0f, map.FloorBelow(x, from.y)) : 0f) + TailBottomPixels * px; // the cable never hangs into a gap
+            topY = map != null ? map.ShotCeiling(x, from.y, out _) : T.arenaHeight;
+            float tailFloor = map != null ? map.ShotFloor(x, from.y) : 0f;
+            if (tailFloor < 0f) tailFloor = 0f;
+            bottomY = tailFloor + TailBottomPixels * px; // the cable never hangs into a gap or the storey below
             // Fired in the air, the cable hangs only as far as his feet were, like a shot from the ground.
             bottomY = Mathf.Min(from.y, Mathf.Max(bottomY, from.y - T.launcherTip.y + TailBottomPixels * px));
             Down = false;
@@ -122,7 +124,7 @@ namespace Bubblewright
             ClearAngle();
             tip.transform.localRotation = Quaternion.identity;
             this.chipColumn = chipColumn;
-            chipNextRow = map != null ? Mathf.Max(0, StageMap.Row(map.FloorBelow(x, from.y))) : 0;
+            chipNextRow = map != null ? Mathf.Max(0, StageMap.Row(Mathf.Max(0f, map.ShotFloor(x, from.y)))) : 0;
             tipY = from.y;
             held = -1f;
             clock = 0f;
@@ -162,8 +164,9 @@ namespace Bubblewright
         {
             hitRow = -1;
             if (map == null) return 0f;
-            float floor = map.FloorBelow(x, baseY);
-            if (floor <= 0f) return 0f;
+            float floor = map.ShotFloor(x, baseY);
+            float baseLine = map.StoreyBase(baseY);
+            if (floor <= baseLine) return Mathf.Max(0f, floor);
             hitRow = Mathf.RoundToInt(floor) - 1;
             return floor;
         }
@@ -201,7 +204,7 @@ namespace Bubblewright
                 return;
             }
             int hitRow = map != null ? map.Rows : StageMap.StoreyRows;
-            topY = map != null ? map.CeilingAbove(x, baseY, out hitRow) : T.arenaHeight;
+            topY = map != null ? map.ShotCeiling(x, baseY, out hitRow) : T.arenaHeight;
             tipY += BaseSpeed * SpeedMultiplier * dt;
             ChipPassedRows(map);
             if (tipY + TipHeight >= topY)
@@ -254,7 +257,8 @@ namespace Bubblewright
         void ChipPassedRows(StageMap map)
         {
             if (map == null || chipColumn < 0 || chipColumn >= StageMap.Cols) return;
-            int last = Mathf.Min(map.Rows - 1, StageMap.Row(tipY + TipHeight));
+            int storeyTop = (map.StoreyOf(baseY) + 1) * StageMap.StoreyRows - 1;
+            int last = Mathf.Min(storeyTop, StageMap.Row(tipY + TipHeight));
             while (chipNextRow <= last)
             {
                 int row = chipNextRow++;
@@ -344,10 +348,12 @@ namespace Bubblewright
         {
             col = StageMap.Col(p.x);
             row = -1;
-            if (p.x <= -T.HalfWidth || p.x >= T.HalfWidth || p.y <= 0f || p.y >= T.arenaHeight) return true;
+            float ceil = map != null ? map.StoreyCeiling(baseY) : T.arenaHeight;
+            float floor = map != null ? Mathf.Max(0f, map.StoreyBase(baseY)) : 0f;
+            if (p.x <= -T.HalfWidth || p.x >= T.HalfWidth || p.y <= floor || p.y >= ceil) return true;
             if (map == null) return false;
             int r = StageMap.Row(p.y);
-            if (col < 0 || col >= StageMap.Cols || r < 0 || r >= map.Rows || !map.IsSolid(col, r)) return false;
+            if (col < 0 || col >= StageMap.Cols || !map.RowInStorey(r, baseY) || !map.IsSolid(col, r)) return false;
             row = r;
             return true;
         }

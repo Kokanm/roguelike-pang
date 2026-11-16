@@ -56,14 +56,14 @@ namespace Bubblewright
                 case ClingerMount.RightWall: MountOnWall(b, 1); return;
             }
 
-            // A placed Clinger starts on the surface above its spawn point, or the arena ceiling.
+            // A placed Clinger starts on the surface above its spawn point, or the ceiling of its home storey.
             var p = b.Position;
-            float surface = T.arenaHeight;
+            float surface = (b.HomeStorey + 1f) * StageMap.StoreyRows;
             bool tile = false;
             int col = 0, row = 0;
             if (Game.Map != null && b.Tier > 0)
             {
-                float s = Game.Map.CeilingAbove(p.x, p.y, out int hitRow);
+                float s = Game.Map.ShotCeiling(p.x, p.y, out int hitRow);
                 if (hitRow < Game.Map.Rows && ClearUnder(b, p.x, s))
                 {
                     surface = s;
@@ -80,8 +80,10 @@ namespace Bubblewright
         void MountOnFloor(Bubble b)
         {
             var p = b.Position;
-            float floor = Game.Map != null ? Mathf.Max(0f, Game.Map.FloorBelow(p.x, p.y + b.Radius)) : 0f;
-            bool tile = floor > 0f;
+            float baseLine = b.HomeStorey * (float)StageMap.StoreyRows;
+            float floor = Game.Map != null ? Game.Map.ShotFloor(p.x, p.y + b.Radius) : baseLine;
+            if (floor < baseLine) floor = baseLine;
+            bool tile = floor > baseLine + 0.01f;
             int col = tile ? StageMap.Col(p.x) : 0, row = tile ? StageMap.Row(floor - 0.5f) : 0;
             normal = Vector2.up;
             b.transform.position = new Vector3(p.x, floor + SeatDistance(b), b.transform.position.z);
@@ -204,7 +206,9 @@ namespace Bubblewright
                     if (!stormFree && Game.Map != null)
                     {
                         float top = b.Position.y + b.Radius;
-                        float gapAbove = Game.Map.CeilingAbove(b.Position.x, top - 0.01f, out _) - top;
+                        float homeCeil = (b.HomeStorey + 1f) * StageMap.StoreyRows;
+                        float probe = Mathf.Clamp(top - 0.01f, b.HomeStorey * (float)StageMap.StoreyRows, homeCeil - 0.001f);
+                        float gapAbove = Mathf.Min(homeCeil, Game.Map.ShotCeiling(b.Position.x, probe, out _)) - top;
                         vy = Mathf.Sqrt(2f * g * (Mathf.Max(0f, gapAbove) + 0.3f));
                         climbing = true;
                     }
@@ -239,6 +243,7 @@ namespace Bubblewright
                 if (v.x != 0f) dir = v.x < 0f ? -1 : 1;
 
                 Contact contact = Game.Map != null ? Game.Map.ResolveCircle(ref p, b.Radius) : default;
+                b.SealHomeStorey(ref p, ref contact);
                 if (!contact.landed && !contact.bumped && contact.side == 0) continue;
                 if (b.Pogo)
                 {
@@ -282,7 +287,7 @@ namespace Bubblewright
             Vector2 n = contact.landed ? Vector2.up
                       : contact.bumped ? Vector2.down
                       : new Vector2(contact.side, 0f);
-            if (!FindSupport(p, b.Radius, n, out bool tile, out int col, out int row)) return false;
+            if (!FindSupport(b, p, b.Radius, n, out bool tile, out int col, out int row)) return false;
             if (tile && n.y < 0f && (b.Tier == 0 || !ClearUnder(b, p.x, p.y + b.Radius))) return false;
             Stick(b, n, tile, col, row);
             return true;
@@ -292,26 +297,31 @@ namespace Bubblewright
         bool ClearUnder(Bubble b, float x, float surface)
         {
             float bottom = surface - 2f * b.Radius;
-            float floor = Game.Map != null ? Game.Map.FloorBelow(x, bottom) : 0f;
-            return bottom - Mathf.Max(0f, floor) >= T.clingerMinClearance;
+            float homeFloor = b.HomeStorey * (float)StageMap.StoreyRows;
+            float floor = Game.Map != null ? Game.Map.ShotFloor(x, Mathf.Clamp(bottom, homeFloor, homeFloor + StageMap.StoreyRows - 0.001f)) : homeFloor;
+            return bottom - Mathf.Max(homeFloor, floor) >= T.clingerMinClearance;
         }
 
         /// <summary>
         /// Finds what it touches on the far side of normal: a solid tile (to watch, in case it is shot away) or the arena edge.
         /// False when the contact was only a glancing corner it cannot hold on to.
         /// </summary>
-        static bool FindSupport(Vector2 p, float r, Vector2 n, out bool tile, out int col, out int row)
+        static bool FindSupport(Bubble b, Vector2 p, float r, Vector2 n, out bool tile, out int col, out int row)
         {
             tile = false;
             col = row = 0;
             var side = new Vector2(-n.y, n.x);
             float[] offsets = { 0f, -0.7f, 0.7f };
+            float floorY = b.HomeStorey * (float)StageMap.StoreyRows;
+            float ceilY = floorY + StageMap.StoreyRows;
             for (int i = 0; i < offsets.Length; i++)
             {
                 var probe = p - n * (r + 0.05f) + side * (offsets[i] * r);
-                if (probe.x < -Tuning.I.HalfWidth || probe.x > Tuning.I.HalfWidth || probe.y < 0f || probe.y > (Game.Map != null ? Game.Map.Height : StageMap.StoreyRows))
-                    return i == 0; // the arena itself: floor, ceiling or a side wall
+                if (probe.x < -Tuning.I.HalfWidth || probe.x > Tuning.I.HalfWidth || probe.y < floorY || probe.y > ceilY)
+                    return i == 0; // the storey itself: its floor, its ceiling or a side wall
                 int c = StageMap.Col(probe.x), rr = StageMap.Row(probe.y);
+                if (Game.Map != null && rr >= 0 && rr < Game.Map.Rows && (rr < b.HomeStorey * StageMap.StoreyRows || rr >= (b.HomeStorey + 1) * StageMap.StoreyRows))
+                    return i == 0; // the next storey's tile is the ceiling of this one, not something to hang from
                 if (Game.Map != null && Game.Map.IsSolid(c, rr))
                 {
                     tile = true;

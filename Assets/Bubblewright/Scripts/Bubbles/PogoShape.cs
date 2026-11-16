@@ -42,8 +42,17 @@ namespace Bubblewright
         {
             var map = Game.Map;
             float bottom = b.Position.y - b.Radius, top = b.Position.y + b.Radius;
-            float floor = map != null ? Mathf.Max(0f, map.FloorBelow(b.Position.x, bottom + 0.01f)) : 0f;
-            float ceiling = map != null ? map.CeilingAbove(b.Position.x, top - 0.01f, out _) : Tuning.I.arenaHeight;
+            float homeFloor = b.HomeStorey * (float)StageMap.StoreyRows;
+            float homeCeil = homeFloor + StageMap.StoreyRows;
+            float floor = homeFloor;
+            float ceiling = homeCeil;
+            if (map != null)
+            {
+                float floorProbe = Mathf.Clamp(bottom + 0.01f, homeFloor, homeCeil - 0.001f);
+                float ceilProbe = Mathf.Clamp(top - 0.01f, homeFloor, homeCeil - 0.001f);
+                floor = Mathf.Max(homeFloor, map.ShotFloor(b.Position.x, floorProbe));
+                ceiling = Mathf.Min(homeCeil, map.ShotCeiling(b.Position.x, ceilProbe, out _));
+            }
             float span = ceiling - floor - 2f * b.Radius;
             return span > 0.05f ? Mathf.Clamp01((bottom - floor) / span) : 0f;
         }
