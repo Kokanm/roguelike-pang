@@ -235,7 +235,7 @@ namespace Bubblewright
             foreach (var s in plan.spawns)
             {
                 int tier = Mathf.Clamp(s.tier, 0, T.tiers.Length - 1);
-                SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false, s.ceramic, s.pogo, s.steel);
+                SpawnBubble(s.kind, tier, s.position, s.direction >= 0 ? 1 : -1, 0f, false, s.ceramic, s.pogo, s.steel, s.mount, s.patient);
             }
             foreach (var s in plan.steelPogos)
                 SpawnBubble(s.kind, Mathf.Clamp(s.tier, 0, T.tiers.Length - 1), s.position, 1, 0f, false, false, true, true);
@@ -284,11 +284,11 @@ namespace Bubblewright
         }
 
         Bubble SpawnBubble(BubbleKind kind, int tier, Vector2 pos, int dir, float vy, bool child, bool ceramic = false,
-            bool pogo = false, bool steel = false)
+            bool pogo = false, bool steel = false, ClingerMount mount = ClingerMount.Ceiling, bool patient = false)
         {
             // The velocity is given at creation so a kind's OnSpawn can read the direction.
             var v = new Vector2(dir * T.bubbleSpeedX * T.Kind(kind).speedScale, vy);
-            var b = Bubble.Create(bubbleRoot, kind, tier, pos, v, child, ceramic, pogo, steel);
+            var b = Bubble.Create(bubbleRoot, kind, tier, pos, v, child, ceramic, pogo, steel, mount, patient);
             bubbles.Add(b);
             return b;
         }

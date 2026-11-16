@@ -544,6 +544,9 @@ namespace Bubblewright
         }
     }
 
+    /// <summary>The surface a placed Clinger starts stuck to.</summary>
+    public enum ClingerMount { Ceiling = 0, Floor = 1, LeftWall = 2, RightWall = 3 }
+
     public enum BubbleKind { Gloop, Trigloop, Lead, Lucky, Clinger, Sinker, Frost, Ghost, Scorch, Drifter }
 
     [Serializable]
@@ -580,5 +583,7 @@ namespace Bubblewright
         [Tooltip("Takes Tuning.ceramicHits hits to break.")] public bool ceramic;
         [Tooltip("A triangle that bounces in place and never moves sideways.")] public bool pogo;
         [Tooltip("A steel Pogo: unbreakable and not needed to clear the stage. Only with pogo.")] public bool steel;
+        [Tooltip("Clinger only: the surface it starts stuck to. Ceiling is the first surface above its position.")] public ClingerMount mount;
+        [Tooltip("Clinger only: it ignores clingerMaxStickTime on its first surface and waits for Wick, its tile breaking or the storm.")] public bool patient;
     }
 }

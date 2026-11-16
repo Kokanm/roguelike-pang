@@ -263,5 +263,104 @@ namespace Bubblewright.Tests
             b.Tick(Dt);
             Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
         }
+
+        Bubble Mounted(int tier, Vector2 at, ClingerMount mount, bool patient, bool pogo = false)
+        {
+            return Bubble.Create(root.transform, BubbleKind.Clinger, tier, at, new Vector2(1f, 0f), child: false, pogo: pogo,
+                mount: mount, patient: patient);
+        }
+
+        [Test]
+        public void PatientFloorClingerPogoWaitsPastMaxStickTimeThenLeapsWhenWickApproaches()
+        {
+            var b = Mounted(2, new Vector2(5f, 1f), ClingerMount.Floor, patient: true, pogo: true);
+            Assert.AreEqual(b.Radius, b.Position.y, 0.001f);
+            Assert.AreEqual(Vector2.up, Of(b).Normal);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+
+            Game.WickFeet = new Vector2(-10f, 0f);
+            Run(b, Tuning.I.clingerMaxStickTime + 3f);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current, "a patient Clinger ignores the max stick time");
+
+            Game.WickFeet = new Vector2(5f - 1.5f, 0f);
+            b.Tick(Dt);
+            Assert.AreEqual(ClingerBehavior.State.Wobbling, Of(b).Current);
+            Run(b, Tuning.I.clingerWobbleTime + 0.05f);
+            Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
+            Assert.Greater(b.Velocity.y, 0f, "it leaps up");
+
+            // After it lets go once, every later stick uses the normal rule.
+            Game.WickFeet = new Vector2(-10f, 0f);
+            for (int i = 0; i < 5 * 60 && Of(b).Current != ClingerBehavior.State.Stuck; i++) b.Tick(Dt);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+            Run(b, Tuning.I.clingerMaxStickTime + 0.1f);
+            Assert.AreNotEqual(ClingerBehavior.State.Stuck, Of(b).Current, "the second stick times out as usual");
+        }
+
+        [Test]
+        public void WallMountedClingersAttachToLeftAndRightSurfacesAndWaitWhenPatient()
+        {
+            var map = StageMap.Flat();
+            for (int r = 5; r <= 7; r++) map.Set(25, r, new Cell { kind = TileKind.Solid }); // a pillar whose left face is x = 9
+            SetMap(map);
+
+            var left = Mounted(2, new Vector2(-10f, 6f), ClingerMount.LeftWall, patient: true);
+            Assert.AreEqual(-16f + left.Radius, left.Position.x, 0.001f, "flush against the arena's left wall");
+            Assert.AreEqual(6f, left.Position.y, 0.001f);
+            Assert.AreEqual(Vector2.right, Of(left).Normal);
+
+            var right = Mounted(2, new Vector2(5f, 6f), ClingerMount.RightWall, patient: true);
+            Assert.AreEqual(9f - right.Radius, right.Position.x, 0.001f, "flush against the pillar's left face");
+            Assert.AreEqual(Vector2.left, Of(right).Normal);
+            Assert.IsTrue(Of(right).OnTile);
+
+            var arenaRight = Mounted(2, new Vector2(5f, 10f), ClingerMount.RightWall, patient: false);
+            Assert.AreEqual(16f - arenaRight.Radius, arenaRight.Position.x, 0.001f, "no tile in its row: the arena wall");
+
+            var tileLeft = Mounted(2, new Vector2(12f, 6f), ClingerMount.LeftWall, patient: false);
+            Assert.AreEqual(10f + tileLeft.Radius, tileLeft.Position.x, 0.001f, "flush against the pillar's right face");
+            Assert.AreEqual(Vector2.right, Of(tileLeft).Normal);
+
+            Game.WickFeet = new Vector2(0f, 0f); // far below their lanes
+            for (int i = 0; i < Mathf.RoundToInt((Tuning.I.clingerMaxStickTime + 1f) / Dt); i++)
+            {
+                left.Tick(Dt);
+                right.Tick(Dt);
+            }
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(left).Current);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(right).Current);
+
+            left.OnStorm();
+            right.OnStorm();
+            Assert.AreEqual(ClingerBehavior.State.Free, Of(left).Current);
+            Assert.AreEqual(ClingerBehavior.State.Free, Of(right).Current);
+        }
+
+        [Test]
+        public void ANonPatientMountedClingerStillLetsGoAfterTheMaxStickTime()
+        {
+            var floor = Mounted(2, new Vector2(5f, 1f), ClingerMount.Floor, patient: false);
+            var wall = Mounted(2, new Vector2(-10f, 6f), ClingerMount.LeftWall, patient: false);
+            Game.WickFeet = new Vector2(-10f, 0f);
+            Run(floor, Tuning.I.clingerMaxStickTime + 0.1f);
+            Run(wall, Tuning.I.clingerMaxStickTime + 0.1f);
+            Assert.AreEqual(ClingerBehavior.State.Wobbling, Of(floor).Current);
+            Assert.AreEqual(ClingerBehavior.State.Wobbling, Of(wall).Current);
+        }
+
+        [Test]
+        public void APatientFloorClingerOnABreakableTileDropsWhenTheTileIsShotAway()
+        {
+            var map = PlatformMap(TileKind.Breakable);
+            SetMap(map);
+            var b = Mounted(2, new Vector2(5.5f, 11f), ClingerMount.Floor, patient: true);
+            Assert.AreEqual(10f + b.Radius, b.Position.y, 0.001f);
+            Assert.IsTrue(Of(b).OnTile);
+            Run(b, Tuning.I.clingerMaxStickTime + 1f);
+            Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
+            map.Set(21, 9, new Cell { kind = TileKind.Empty });
+            b.Tick(Dt);
+            Assert.AreEqual(ClingerBehavior.State.Free, Of(b).Current);
+        }
     }
 }
