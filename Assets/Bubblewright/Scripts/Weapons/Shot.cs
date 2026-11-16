@@ -13,6 +13,8 @@ namespace Bubblewright
 
         public Vector2 Position;
         public Vector2 Velocity;
+        /// <summary>Where it was fired from. The storey clamp uses this, so a shot that crosses y = 14 still belongs to the storey below.</summary>
+        public float OriginY;
         /// <summary>Boss health this shot takes when it hits. Fractions add up in WeaponWorld.</summary>
         public float BossDamage;
         /// <summary>Units it may travel before it fades (pellets). Infinity for a normal bullet.</summary>

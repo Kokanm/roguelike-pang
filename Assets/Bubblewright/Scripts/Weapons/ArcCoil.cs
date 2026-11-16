@@ -92,8 +92,10 @@ namespace Bubblewright
         public static bool FindFirst(WeaponWorld world, Vector2 from, out WeaponTarget target, List<WeaponTarget> scratch = null)
         {
             var found = world.InCircle(from, Tuning.I.arcReach, scratch);
+            var map = world.Map;
             foreach (var t in found)
             {
+                if (map != null && t.kind != TargetKind.Boss && !map.InStorey(t.position.y, from.y)) continue;
                 if (!Hittable(world, t)) continue;
                 target = t;
                 return true;
@@ -190,8 +192,10 @@ namespace Bubblewright
             bool Next(out WeaponTarget target)
             {
                 var found = world.InCircle(at, Tuning.I.arcJumpReach, scratch);
+                var map = world.Map;
                 foreach (var t in found)
                 {
+                    if (map != null && t.kind != TargetKind.Boss && !map.InStorey(t.position.y, at.y)) continue;
                     var key = Key(t);
                     if (key == null || visited.Contains(key)) continue;
                     if (t.kind != TargetKind.Boss && !eligible.Contains(key)) continue;

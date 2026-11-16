@@ -169,6 +169,7 @@ namespace Bubblewright
             var map = world.Map;
             foreach (var target in targets)
             {
+                if (map != null && target.kind != TargetKind.Boss && !map.InStorey(target.position.y, hand.y)) continue;
                 EntityId id = TargetId(target);
                 if (id == EntityId.None || (struck != null && struck.Contains(id))) continue;
                 if (eligible != null && !eligible.Contains(id)) continue;
@@ -270,7 +271,7 @@ namespace Bubblewright
             for (int r = r0; r <= r1; r++)
             for (int c = c0; c <= c1; c++)
             {
-                if (c < 0 || c >= StageMap.Cols || r < 0 || r >= map.Rows) continue;
+                if (c < 0 || c >= StageMap.Cols || r < 0 || r >= map.Rows || !map.RowInStorey(r, hand.y)) continue;
                 var cellId = new Vector2Int(c, r);
                 if (cutTiles != null && cutTiles.Contains(cellId)) continue;
                 if (map.Get(c, r).kind != TileKind.Breakable) continue;

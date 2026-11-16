@@ -51,6 +51,7 @@ namespace Bubblewright
             {
                 p += vel * stepDt;
                 Contact c = Game.Map.ResolveCircle(ref p, b.Radius);
+                b.SealHomeStorey(ref p, ref c);
                 if (c.landed) { vel.y = Mathf.Abs(vel.y); reflected = true; }
                 if (c.bumped) { vel.y = -Mathf.Abs(vel.y); reflected = true; }
                 if (c.side != 0)

@@ -300,6 +300,7 @@ namespace Bubblewright
         {
             var s = pool.Count > 0 ? pool.Pop() : NewShot();
             s.Position = from;
+            s.OriginY = from.y;
             s.Velocity = velocity;
             s.BossDamage = bossDamage;
             s.Range = range;
@@ -337,9 +338,14 @@ namespace Bubblewright
                 {
                     s.Position += step;
                     s.Travelled += step.magnitude;
+                    var map = Map;
+                    float ceil = map != null ? map.StoreyCeiling(s.OriginY) : t.arenaHeight;
+                    float floor = map != null ? map.StoreyBase(s.OriginY) : 0f;
                     if (s.Travelled > s.Range || s.Position.x < -t.HalfWidth || s.Position.x > t.HalfWidth ||
-                        s.Position.y > t.arenaHeight || s.Position.y < 0f)
+                        s.Position.y >= ceil || s.Position.y < floor)
                     {
+                        if (s.Position.y >= ceil) s.Position.y = ceil;
+                        else if (s.Position.y < floor) s.Position.y = Mathf.Max(0f, floor);
                         s.Alive = false;
                         break;
                     }
@@ -360,7 +366,7 @@ namespace Bubblewright
             var map = Map;
             if (map == null) return false;
             int c = StageMap.Col(s.Position.x), r = StageMap.Row(s.Position.y);
-            if (!map.IsSolid(c, r)) return false;
+            if (!map.RowInStorey(r, s.OriginY) || !map.IsSolid(c, r)) return false;
             if (map.Get(c, r).kind == TileKind.Breakable) OnHitTile?.Invoke(c, r);
             return true;
         }

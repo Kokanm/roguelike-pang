@@ -4,21 +4,39 @@ using UnityEngine;
 namespace Bubblewright
 {
     /// <summary>
-    /// Reads a 32 x 14 ASCII stage diagram (top row first, row 13 down to row 0) into a StageMap.
-    /// An optional 15th string describes the ground under row 0: '=' floor, '_' gap.
+    /// Reads an ASCII stage diagram (top row first) into a StageMap. A stage is 1, 2 or 3 storeys of 14 rows.
+    /// Tile characters: '.' empty, '#' solid (the default surface), 'N' solid normal, 'I' solid ice, 'S' solid sand,
+    /// 'B' breakable, 'H' empty ladder, 'T' solid ladder. An optional ground string, or one extra row on the end, is
+    /// the floor under row 0: '=' solid (the default surface), 'N', 'I', 'S', '_' a gap.
     /// </summary>
     public static class StageLayout
     {
-        public static StageMap Parse(string[] rows)
+        public static StageMap Parse(string[] rows, string ground = null, Surface defaultSurface = Surface.Normal)
         {
-            if (rows == null || (rows.Length != StageMap.StoreyRows && rows.Length != StageMap.StoreyRows + 1))
-                throw new ArgumentException($"Stage layout must have {StageMap.StoreyRows} rows (plus an optional ground row), got {(rows == null ? 0 : rows.Length)}.", nameof(rows));
+            if (rows == null)
+                throw new ArgumentException("Stage row 0 is missing.", nameof(rows));
 
-            var map = StageMap.Flat();
-            for (int i = 0; i < map.Rows; i++)
+            string groundLine = ground;
+            int tileRows;
+            int inlineIndex = -1;
+            if (ground == null && IsInlineGround(rows.Length))
+            {
+                tileRows = rows.Length - 1;
+                inlineIndex = tileRows;
+                groundLine = rows[inlineIndex];
+            }
+            else if (rows.Length == StageMap.StoreyRows || rows.Length == StageMap.StoreyRows * 2 || rows.Length == StageMap.StoreyRows * 3)
+                tileRows = rows.Length;
+            else
+                throw new ArgumentException(
+                    $"Stage row {Mathf.Max(0, rows.Length - 1)} does not fit a map of 1 to 3 storeys ({StageMap.StoreyRows} rows each, plus an optional ground row), got {rows.Length}.",
+                    nameof(rows));
+
+            var map = StageMap.Flat(tileRows / StageMap.StoreyRows);
+            for (int i = 0; i < tileRows; i++)
             {
                 string line = rows[i];
-                int r = map.Rows - 1 - i;
+                int r = tileRows - 1 - i;
                 if (line == null || line.Length != StageMap.Cols)
                     throw new ArgumentException($"Stage row {r} must have {StageMap.Cols} characters, got {(line == null ? 0 : line.Length)}.", nameof(rows));
 
@@ -30,7 +48,12 @@ namespace Bubblewright
                         case '.':
                             break;
                         case '#':
-                            map.Set(c, r, new Cell { kind = TileKind.Solid });
+                            map.Set(c, r, new Cell { kind = TileKind.Solid, surface = defaultSurface });
+                            break;
+                        case 'N':
+                        case 'I':
+                        case 'S':
+                            map.Set(c, r, new Cell { kind = TileKind.Solid, surface = SurfaceOf(ch) });
                             break;
                         case 'B':
                             map.Set(c, r, new Cell
@@ -43,27 +66,56 @@ namespace Bubblewright
                             map.Set(c, r, new Cell { kind = TileKind.Empty, ladder = true });
                             break;
                         case 'T':
-                            map.Set(c, r, new Cell { kind = TileKind.Solid, ladder = true });
+                            map.Set(c, r, new Cell { kind = TileKind.Solid, ladder = true, surface = defaultSurface });
                             break;
                         default:
                             throw new ArgumentException($"Unknown stage character '{ch}' at column {c}, row {r}.", nameof(rows));
                     }
                 }
             }
-            if (rows.Length > map.Rows) ParseGround(map, rows[map.Rows]);
+
+            if (groundLine != null) ParseGround(map, groundLine, inlineIndex >= 0 ? inlineIndex : rows.Length, defaultSurface);
+            else if (defaultSurface != Surface.Normal)
+            {
+                for (int c = 0; c < StageMap.Cols; c++) map.SetGround(c, defaultSurface);
+            }
             return map;
         }
 
-        /// <summary>The optional 15th string is the ground: '=' is normal floor, '_' is a gap.</summary>
-        static void ParseGround(StageMap map, string line)
+        static bool IsInlineGround(int length) =>
+            length == StageMap.StoreyRows + 1 || length == StageMap.StoreyRows * 2 + 1 || length == StageMap.StoreyRows * 3 + 1;
+
+        static Surface SurfaceOf(char ch) => ch switch
+        {
+            'I' => Surface.Ice,
+            'S' => Surface.Sand,
+            _ => Surface.Normal,
+        };
+
+        /// <summary>The ground under row 0. rowIndex is named in the error when the string is the wrong width.</summary>
+        static void ParseGround(StageMap map, string line, int rowIndex, Surface defaultSurface)
         {
             if (line == null || line.Length != StageMap.Cols)
-                throw new ArgumentException($"Ground row must have {StageMap.Cols} characters, got {(line == null ? 0 : line.Length)}.", "rows");
+                throw new ArgumentException($"Stage row {rowIndex} must have {StageMap.Cols} characters, got {(line == null ? 0 : line.Length)}.", nameof(line));
             for (int c = 0; c < StageMap.Cols; c++)
             {
                 char ch = line[c];
-                if (ch == '_') map.SetGap(c, true);
-                else if (ch != '=') throw new ArgumentException($"Unknown ground character '{ch}' at column {c}.", "rows");
+                switch (ch)
+                {
+                    case '=':
+                        map.SetGround(c, defaultSurface);
+                        break;
+                    case 'N':
+                    case 'I':
+                    case 'S':
+                        map.SetGround(c, SurfaceOf(ch));
+                        break;
+                    case '_':
+                        map.SetGap(c, true);
+                        break;
+                    default:
+                        throw new ArgumentException($"Unknown ground character '{ch}' at column {c}, row {rowIndex}.", nameof(line));
+                }
             }
         }
     }

@@ -93,6 +93,8 @@ namespace Bubblewright
     {
         public Vector2 Position;
         public Vector2 Velocity;
+        /// <summary>Where it was fired from. Bounces stay inside that storey.</summary>
+        public float OriginY;
         public int Bounces;
         public int Pops;
         public float Age;
@@ -144,7 +146,7 @@ namespace Bubblewright
 
         public Disc Launch(Vector2 from, Vector2 velocity)
         {
-            var d = new Disc { Position = from, Velocity = velocity };
+            var d = new Disc { Position = from, Velocity = velocity, OriginY = from.y };
             foreach (var b in world.Bubbles) if (b != null && !b.Popped) d.known.Add(b);
             foreach (var r in world.Rollers) if (r != null && !r.Popped) d.known.Add(r);
             DiscArt.Build(d, world.Root);
@@ -240,24 +242,26 @@ namespace Bubblewright
             }
             else
             {
-                if (p.y + r > t.arenaHeight) { p.y = t.arenaHeight - r; Turn(d, 1, -1f, p); return; }
-                if (p.y - r < 0f)
+                var map = world.Map;
+                float ceil = map != null ? map.StoreyCeiling(d.OriginY) : t.arenaHeight;
+                float baseLine = map != null ? map.StoreyBase(d.OriginY) : 0f;
+                if (p.y + r > ceil) { p.y = ceil - r; Turn(d, 1, -1f, p); return; }
+                if (p.y - r < baseLine)
                 {
-                    var map = world.Map;
-                    if (p.y < 0f || (map != null && map.IsGap(StageMap.Col(p.x))))
+                    if (baseLine <= 0.01f && (p.y < 0f || (map != null && map.IsGap(StageMap.Col(p.x)))))
                     {
                         // Over a gap it drops through, and once its middle is below the floor it is lost.
                         d.Position = p;
                         if (p.y < 0f) d.Alive = false;
                         return;
                     }
-                    p.y = r;
+                    p.y = baseLine + r;
                     Turn(d, 1, 1f, p);
                     return;
                 }
             }
 
-            if (SolidCellIn(p, r, out int col, out int row))
+            if (SolidCellIn(p, r, d.OriginY, out int col, out int row))
             {
                 Rect cell = StageMap.CellRect(col, row);
                 float sign = delta > 0f ? -1f : 1f;
@@ -271,13 +275,15 @@ namespace Bubblewright
         }
 
         /// <summary>The first solid cell inside the arena that the disc's box overlaps.</summary>
-        bool SolidCellIn(Vector2 p, float r, out int col, out int row)
+        bool SolidCellIn(Vector2 p, float r, float originY, out int col, out int row)
         {
             col = row = -1;
             var map = world.Map;
             if (map == null) return false;
+            int lo = (int)map.StoreyBase(originY);
+            int hi = (int)map.StoreyCeiling(originY);
             int c0 = Mathf.Max(0, StageMap.Col(p.x - r + 1e-4f)), c1 = Mathf.Min(StageMap.Cols - 1, StageMap.Col(p.x + r - 1e-4f));
-            int r0 = Mathf.Max(0, StageMap.Row(p.y - r + 1e-4f)), r1 = Mathf.Min(map.Rows - 1, StageMap.Row(p.y + r - 1e-4f));
+            int r0 = Mathf.Max(lo, StageMap.Row(p.y - r + 1e-4f)), r1 = Mathf.Min(hi - 1, StageMap.Row(p.y + r - 1e-4f));
             for (int c = c0; c <= c1; c++)
                 for (int rr = r0; rr <= r1; rr++)
                     if (map.IsSolid(c, rr)) { col = c; row = rr; return true; }

@@ -178,7 +178,9 @@ namespace Bubblewright
             for (float d = 0f; d < maxDistance; d += TileStep)
             {
                 Vector2 p = a + dir * d;
-                if (map.IsSolid(StageMap.Col(p.x), StageMap.Row(p.y))) return d;
+                int row = StageMap.Row(p.y);
+                if (!map.RowInStorey(row, a.y)) return maxDistance;
+                if (map.IsSolid(StageMap.Col(p.x), row)) return d;
             }
             return maxDistance;
         }
@@ -290,11 +292,14 @@ namespace Bubblewright
         static float EdgeDistance(Vector2 p, Vector2 dir)
         {
             var t = Tuning.I;
+            var map = Game.Map;
+            float ceil = map != null ? map.StoreyCeiling(p.y) : t.arenaHeight;
+            float floor = map != null ? Mathf.Max(0f, map.StoreyBase(p.y)) : 0f;
             float best = 100f;
             if (dir.x > 1e-6f) best = Mathf.Min(best, (t.HalfWidth - p.x) / dir.x);
             if (dir.x < -1e-6f) best = Mathf.Min(best, (-t.HalfWidth - p.x) / dir.x);
-            if (dir.y > 1e-6f) best = Mathf.Min(best, (t.arenaHeight - p.y) / dir.y);
-            if (dir.y < -1e-6f) best = Mathf.Min(best, (0f - p.y) / dir.y);
+            if (dir.y > 1e-6f) best = Mathf.Min(best, (ceil - p.y) / dir.y);
+            if (dir.y < -1e-6f) best = Mathf.Min(best, (floor - p.y) / dir.y);
             return Mathf.Max(0f, best);
         }
 

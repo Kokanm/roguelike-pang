@@ -94,6 +94,8 @@ namespace Bubblewright
             public float Age;
             /// <summary>A cloud from a down throw sits on the floor and does not rise.</summary>
             public bool Grounded;
+            /// <summary>The height the flask was thrown from. The cloud stays in that storey.</summary>
+            public float HomeY;
             /// <summary>Boss health this cloud has taken so far (at most gasBossMax).</summary>
             public float BossTaken;
             public SpriteRenderer sr;
@@ -131,13 +133,16 @@ namespace Bubblewright
         public bool IsSick(Bubble b) => b != null && sickBubbles.ContainsKey(b);
         public bool IsSick(Roller r) => r != null && sickRollers.ContainsKey(r);
         public int SickCount => sickBubbles.Count + sickRollers.Count;
+        float burstFromY = float.NaN;
 
         /// <summary>A flask leaves from the weapon tip. Thrown down, it breaks at once and the cloud sits on the floor below.</summary>
         public void Throw(Vector2 from, bool down)
         {
             if (down)
             {
-                float floor = Game.Map != null ? Mathf.Max(0f, Game.Map.FloorBelow(from.x, from.y)) : 0f;
+                float floor = Game.Map != null ? Game.Map.ShotFloor(from.x, from.y) : 0f;
+                if (floor < 0f) floor = 0f;
+                burstFromY = from.y;
                 Burst(new Vector2(from.x, floor), true);
                 return;
             }
@@ -169,17 +174,19 @@ namespace Bubblewright
                 for (int k = 0; k < steps && !burst; k++)
                 {
                     f.Position.y += dist / steps;
-                    if (f.Position.y - f.StartY >= t.gasLobHeight || f.Position.y >= t.arenaHeight)
+                    float cap = Game.Map != null ? Game.Map.StoreyCeiling(f.StartY) : t.arenaHeight;
+                    if (f.Position.y - f.StartY >= t.gasLobHeight || f.Position.y >= cap)
                     {
-                        f.Position.y = Mathf.Min(f.Position.y, Mathf.Min(f.StartY + t.gasLobHeight, t.arenaHeight));
+                        f.Position.y = Mathf.Min(f.Position.y, Mathf.Min(f.StartY + t.gasLobHeight, cap));
                         burst = true;
                     }
-                    else burst = Touches(f.Position);
+                    else burst = Touches(f);
                 }
                 if (burst)
                 {
                     Kill(f.sr);
                     flasks.RemoveAt(i);
+                    burstFromY = f.StartY;
                     Burst(f.Position, false);
                 }
                 else Show(f);
@@ -187,14 +194,21 @@ namespace Bubblewright
         }
 
         /// <summary>The flask breaks on the first bubble (any kind), rolling balloon, boss or solid tile it touches.</summary>
-        bool Touches(Vector2 p)
+        bool Touches(Flask f)
         {
+            Vector2 p = f.Position;
             var map = Game.Map;
-            if (map != null && map.IsSolid(StageMap.Col(p.x), StageMap.Row(p.y))) return true;
+            if (map != null)
+            {
+                int row = StageMap.Row(p.y);
+                if (map.RowInStorey(row, f.StartY) && map.IsSolid(StageMap.Col(p.x), row)) return true;
+            }
             float half = 2f * Tuning.I.Pixel;
             var box = new Rect(p.x - half, p.y - half, 2f * half, 2f * half);
-            foreach (var b in World.Bubbles) if (b != null && !b.Popped && b.Overlaps(box)) return true;
-            foreach (var r in World.Rollers) if (r != null && !r.Popped && r.Overlaps(box)) return true;
+            foreach (var b in World.Bubbles)
+                if (b != null && !b.Popped && b.Overlaps(box) && (map == null || map.InStorey(b.Position.y, f.StartY))) return true;
+            foreach (var r in World.Rollers)
+                if (r != null && !r.Popped && r.Overlaps(box) && (map == null || map.InStorey(r.Position.y, f.StartY))) return true;
             var boss = World.LiveBoss;
             return boss != null && boss.Body.Overlaps(box);
         }
@@ -209,7 +223,9 @@ namespace Bubblewright
 
         void Burst(Vector2 at, bool grounded)
         {
-            var c = new Cloud { Centre = at, Grounded = grounded };
+            float home = float.IsNaN(burstFromY) ? at.y : burstFromY;
+            burstFromY = float.NaN;
+            var c = new Cloud { Centre = at, Grounded = grounded, HomeY = home };
             c.sr = Renderer("GasCloud", Layer.Bubbles, -1, GasArt.Cloud);
             clouds.Add(c);
             ShowCloud(c);
@@ -225,7 +241,11 @@ namespace Bubblewright
             {
                 var c = clouds[i];
                 c.Age += dt;
-                if (!c.Grounded) c.Centre.y = Mathf.Min(t.arenaHeight, c.Centre.y + t.gasRise * dt);
+                if (!c.Grounded)
+                {
+                    float cap = Game.Map != null ? Game.Map.StoreyCeiling(c.HomeY) : t.arenaHeight;
+                    c.Centre.y = Mathf.Min(cap, c.Centre.y + t.gasRise * dt);
+                }
                 if (c.Age >= t.gasCloudTime)
                 {
                     RemoveCloud(i);
@@ -258,12 +278,14 @@ namespace Bubblewright
             foreach (var b in World.Bubbles)
             {
                 if (b == null || b.Popped || b.Steel || sickBubbles.ContainsKey(b) || !Inside(c, b.Position, b.Radius)) continue;
+                if (Game.Map != null && !Game.Map.InStorey(b.Position.y, c.HomeY)) continue;
                 sickBubbles[b] = t.gasSickTime;
                 Tint(b, true);
             }
             foreach (var r in World.Rollers)
             {
                 if (r == null || r.Popped || r.Steel || sickRollers.ContainsKey(r) || !Inside(c, r.Position, r.Radius)) continue;
+                if (Game.Map != null && !Game.Map.InStorey(r.Position.y, c.HomeY)) continue;
                 sickRollers[r] = t.gasSickTime;
                 Tint(r, true);
             }

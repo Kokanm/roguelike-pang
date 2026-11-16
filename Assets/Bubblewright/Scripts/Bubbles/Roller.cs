@@ -38,6 +38,8 @@ namespace Bubblewright
         public bool Ceramic { get; private set; }
         /// <summary>Hits left before it breaks (1 for an ordinary ball).</summary>
         public int Armor { get; private set; } = 1;
+        /// <summary>The storey it was born on. It never rolls or falls through that storey's floor or ceiling. Split copies it.</summary>
+        public int HomeStorey { get; private set; }
         public bool Falling { get; private set; }
         /// <summary>The frame of the rolling bands, 0 to 3.</summary>
         public int Frame { get; private set; }
@@ -83,7 +85,11 @@ namespace Bubblewright
             r.Ceramic = ceramic;
             r.Armor = ceramic ? Mathf.Max(2, Tuning.I.ceramicHits) : 1;
             r.Direction = direction >= 0 ? 1 : -1;
-            r.OnGround = surfaceY <= 0.01f;
+            float probe = surfaceY + 0.01f;
+            r.HomeStorey = Game.Map != null
+                ? Game.Map.StoreyOf(probe)
+                : Mathf.Clamp(Mathf.FloorToInt(probe / StageMap.StoreyRows), 0, 2);
+            r.OnGround = surfaceY <= r.HomeStorey * (float)StageMap.StoreyRows + 0.01f;
             r.sr = go.AddComponent<SpriteRenderer>();
             Sorting.Apply(r.sr, Layer.Bubbles, 6 + tier);
             Game.ApplySpriteMaterial(r.sr);
@@ -105,6 +111,7 @@ namespace Bubblewright
             if (Falling) TickFall(map, dt);
             else if (OnGround) TickGround(map, dt, others);
             else TickCrawl(map, dt, others);
+            KeepInStorey();
             ApplyVisual();
         }
 
@@ -167,12 +174,14 @@ namespace Bubblewright
         // ------------------------------------------------------------------ around a platform
 
         /// <summary>Distance from q to the nearest solid tile within range (infinity when none), and that tile's nearest point.</summary>
-        static float Nearest(StageMap map, Vector2 q, float range, out Vector2 point)
+        float Nearest(StageMap map, Vector2 q, float range, out Vector2 point)
         {
             float best = float.PositiveInfinity;
             point = q;
+            int rowMin = HomeStorey * StageMap.StoreyRows;
+            int rowMax = rowMin + StageMap.StoreyRows - 1;
             int c0 = Mathf.Max(0, StageMap.Col(q.x - range)), c1 = Mathf.Min(StageMap.Cols - 1, StageMap.Col(q.x + range));
-            int r0 = Mathf.Max(0, StageMap.Row(q.y - range)), r1 = Mathf.Min(map.Rows - 1, StageMap.Row(q.y + range));
+            int r0 = Mathf.Max(rowMin, StageMap.Row(q.y - range)), r1 = Mathf.Min(rowMax, StageMap.Row(q.y + range));
             for (int c = c0; c <= c1; c++)
                 for (int row = r0; row <= r1; row++)
                 {
@@ -220,7 +229,8 @@ namespace Bubblewright
                 }
 
                 Vector2 q = p + Tangent * sub;
-                if (q.x - r < -half || q.x + r > half || q.y + r > map.Rows)
+                float ceil = (HomeStorey + 1) * (float)StageMap.StoreyRows;
+                if (q.x - r < -half || q.x + r > half || q.y + r > ceil)
                 {
                     Direction = -Direction; // the arena wall or ceiling is in the way
                     continue;
@@ -261,10 +271,11 @@ namespace Bubblewright
                 Normal = n2;
                 travel += Direction * sub;
 
-                if (p.y - r <= 0.01f)
+                float storeyFloor = HomeStorey * (float)StageMap.StoreyRows;
+                if (p.y - r <= storeyFloor + 0.01f)
                 {
-                    // Down the side of something onto the ground: roll on along the ground, away from it.
-                    p.y = r;
+                    // Down the side of something onto the storey floor: roll on along it, away from it.
+                    p.y = storeyFloor + r;
                     OnGround = true;
                     Normal = Vector2.up;
                     if (Mathf.Abs(n2.x) > 0.3f) Direction = n2.x > 0f ? 1 : -1;
@@ -305,9 +316,10 @@ namespace Bubblewright
             for (int i = 0; i < n; i++)
             {
                 p.y -= sub;
-                if (p.y - r <= 0f)
+                float storeyFloor = HomeStorey * (float)StageMap.StoreyRows;
+                if (p.y - r <= storeyFloor)
                 {
-                    p.y = r;
+                    p.y = storeyFloor + r;
                     Land(true, Vector2.up);
                     break;
                 }
@@ -332,12 +344,24 @@ namespace Bubblewright
             Normal = normal;
         }
 
-        /// <summary>Whether column c has something to roll on at height bottom: ground that is not a gap, or a solid tile top.</summary>
-        static bool HasFloor(StageMap map, int c, float bottom)
+        /// <summary>Whether column c has something to roll on at height bottom: the storey floor (not a gap, on the ground storey), or a solid tile top.</summary>
+        bool HasFloor(StageMap map, int c, float bottom)
         {
             if (c < 0 || c >= StageMap.Cols) return false;
-            if (bottom <= 0.01f) return !map.IsGap(c);
+            float storeyFloor = HomeStorey * (float)StageMap.StoreyRows;
+            if (bottom <= storeyFloor + 0.01f) return HomeStorey > 0 || !map.IsGap(c);
             return map.IsSolid(c, StageMap.Row(bottom - 0.01f));
+        }
+
+        void KeepInStorey()
+        {
+            float r = Radius;
+            float lo = HomeStorey * (float)StageMap.StoreyRows + r;
+            float hi = (HomeStorey + 1) * (float)StageMap.StoreyRows - r;
+            var p = (Vector2)transform.position;
+            if (p.y < lo) p.y = lo;
+            if (p.y > hi) p.y = hi;
+            transform.position = p;
         }
 
         void ApplyVisual()
@@ -385,6 +409,7 @@ namespace Bubblewright
             {
                 var kid = Create(parent, next, centre.x, 0f, i == 0 ? -1 : 1);
                 kid.transform.position = centre;
+                kid.HomeStorey = popped.HomeStorey;
                 kid.OnGround = popped.OnGround;
                 kid.Normal = popped.Normal;
                 kid.Falling = popped.Falling;
