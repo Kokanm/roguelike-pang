@@ -296,16 +296,16 @@ namespace Bubblewright
         static List<DebugControl> SampleMainPage(int k, SampleStyles styles)
         {
             float U(float units) => units * k;
-            string layout = Widest(styles.button, Names(StageLayouts.All, item => item.name)).ToUpperInvariant();
+            string stage = Widest(styles.button, Names(StageSpec.All, item => item.Name)).ToUpperInvariant();
             string theme = Widest(styles.button, Names(Themes.All, item => item.name)).ToUpperInvariant();
             string debuff = Widest(styles.button, Names(Debuff.All, item => item.Name)).ToUpperInvariant();
             var page = new List<DebugControl>
             {
-                DebugControl.Line("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, F1 hitboxes, F3 test layout", true),
+                DebugControl.Line("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, F1 hitboxes, F3 next stage", true),
                 DebugControl.Button("GOD MODE: OFF", U(100), true),
                 DebugControl.Button("FREEZE TIMER: OFF", U(100)),
                 DebugControl.Button("HITBOXES: OFF", U(100)),
-                DebugControl.Button("LAYOUT: " + layout, U(100)),
+                DebugControl.Button("TEST STAGE: " + stage, U(100)),
                 DebugControl.Button("STORM NOW", U(80), true),
                 DebugControl.Button("CLEAR STAGE", U(80)),
                 DebugControl.Button("FULL HEARTS", U(80)),
@@ -350,16 +350,9 @@ namespace Bubblewright
         static List<DebugControl> SampleBalancePage(int k, SampleStyles styles)
         {
             float U(float units) => units * k;
-            string layout = Widest(styles.title, Names(StageLayouts.All, item => item.name)).ToUpperInvariant();
+            string id = Widest(styles.title, Names(StageSpec.All, item => item.Id)).ToUpperInvariant();
+            string concept = Widest(styles.title, Names(StageSpec.All, item => item.Concept));
             string world = Widest(styles.title, Tuning.I.worldNames).ToUpperInvariant();
-            string recipe = Widest(styles.title, Names(Tuning.I.recipes, item => item.name)).ToUpperInvariant();
-            string pattern = "SCATTERED";
-            foreach (PlacementPattern value in System.Enum.GetValues(typeof(PlacementPattern)))
-            {
-                string name = PlacementPatterns.NameOf(value).ToUpperInvariant();
-                if (styles.title.CalcSize(new GUIContent(name)).x > styles.title.CalcSize(new GUIContent(pattern)).x)
-                    pattern = name;
-            }
             var bubbles = new System.Text.StringBuilder();
             foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
                 foreach (var tier in Tuning.I.tiers)
@@ -371,17 +364,17 @@ namespace Bubblewright
             {
                 DebugControl.Button("BACK", U(60), true),
                 DebugControl.Button("WIN STAGE", U(80)),
-                DebugControl.Button("NEXT LAYOUT", U(90)),
-                DebugControl.Button("NEXT RECIPE", U(100)),
+                DebugControl.Button("NEXT STAGE", U(90)),
                 DebugControl.Button("NEXT WAVE", U(90)),
                 DebugControl.Button("LOG RUN", U(70)),
-                DebugControl.Line($"WORLD 6-5 {world}  ·  HARD  ·  LAYOUT {layout}  ·  RECIPE {recipe}  ·  PATTERN {pattern} (re-rolled 12)", true),
-                DebugControl.Line("BUDGET 99.5  =  bubbles 40.5  +  rollers 20  +  unspent 39"),
+                DebugControl.Line($"WORLD 6-5 {world}  ·  HARD  ·  {id}  ·  D4", true),
+                DebugControl.Line(concept),
+                DebugControl.Line("POPS NEEDED 90"),
                 DebugControl.Line("BUBBLES  " + bubbles),
                 DebugControl.Line("BUBBLES CERAMIC 12  ·  ROLLERS 4 big (4 ceramic)  ·  STEEL 4"),
                 DebugControl.Line("WAVES 4 (20 bubbles)"),
                 DebugControl.Line("TIME LIMIT 99 s  ·  SPIKE STRIPS 5  ·  GAPS 4  ·  BREAKABLE TILES 20"),
-                DebugControl.Line($"Jump budget bonus x{Tuning.I.jumpBudgetBonus:0.##}  ·  hard budget x{Tuning.I.hardBudgetScale:0.##}  ·  seed 2147483647"),
+                DebugControl.Line("seed 2147483647"),
                 DebugControl.Line($"LOG RUN prints all {Tuning.I.RunLength} stages of this seed to the Console, tab-separated."),
             };
         }

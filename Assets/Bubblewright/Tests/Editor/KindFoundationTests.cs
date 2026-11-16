@@ -84,10 +84,8 @@ namespace Bubblewright.Tests
         [Test]
         public void SinkerAndDrifterNeverComeBiggerThanL()
         {
-            Assert.AreEqual(1, StageGenerator.LargestTier(BubbleKind.Sinker));
-            Assert.AreEqual(1, StageGenerator.LargestTier(BubbleKind.Drifter));
-            Assert.AreEqual(1, StageGenerator.BiggestAffordable(BubbleKind.Sinker, 1000f));
-            Assert.AreNotEqual(0, StageGenerator.BiggestAffordable(BubbleKind.Sinker, 1f));
+            Assert.AreEqual(1, Tuning.I.Kind(BubbleKind.Sinker).largestTier);
+            Assert.AreEqual(1, Tuning.I.Kind(BubbleKind.Drifter).largestTier);
         }
 
         [Test]

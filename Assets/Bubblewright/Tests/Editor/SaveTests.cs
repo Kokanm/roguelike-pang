@@ -84,7 +84,7 @@ namespace Bubblewright.Tests
             SaveGame.Save(original);
             var loaded = SaveGame.Load();
 
-            Assert.AreEqual(Describe(StageGenerator.Generate(original)), Describe(StageGenerator.Generate(loaded)));
+            Assert.AreEqual(Describe(StagePicker.Build(original, original.Stage)), Describe(StagePicker.Build(loaded, loaded.Stage)));
             CollectionAssert.AreEqual(
                 original.RollChoices().Select(u => u.Name).ToArray(),
                 loaded.RollChoices().Select(u => u.Name).ToArray());

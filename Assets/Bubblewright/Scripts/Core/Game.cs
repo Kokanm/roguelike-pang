@@ -186,23 +186,17 @@ namespace Bubblewright
             run = new Run(Random.Range(1, 1000000), character);
             newBest = false;
             newUnlocks = null;
-            forcedRecipeIndex = -1;
+            testStageIndex = -1;
             StartStage();
         }
 
-        /// <summary>layoutReroll above 0 re-rolls only the layout (debug NEXT LAYOUT).</summary>
-        void StartStage(int layoutReroll = 0)
+        /// <summary>Builds the stage for the current run. A debug override (F3 or NEXT STAGE) shows one authored stage with no mirror and no Lucky.</summary>
+        void StartStage()
         {
             touchView.gameObject.SetActive(true);
-            currentReroll = layoutReroll;
-            RecipeDef forced = null;
-            if (forcedRecipeIndex >= 0 && T.recipes != null && forcedRecipeIndex < T.recipes.Length)
-                forced = T.recipes[forcedRecipeIndex];
-            StagePlan plan = debugStoreyStage
-                ? StoreyDebugPlan()
-                : testLayout
-                    ? StageGenerator.Generate(run, CurrentTestLayout)
-                    : StageGenerator.GenerateFor(run, run.Stage, layoutReroll, forced);
+            StagePlan plan = testStageIndex >= 0
+                ? StagePicker.Build(run, run.Stage, testStageIndex)
+                : StagePicker.Build(run, run.Stage);
             LoadStage(plan);
             SaveGame.Save(run);
         }
@@ -462,7 +456,7 @@ namespace Bubblewright
 
         // ------------------------------------------------------------------ storm timer
 
-        float StageTimeLimit => run.IsBossStage ? StageGenerator.BossTime(run.IsHard) : StageGenerator.StageTime(run.Stage, run.IsHard) * stageTimeScale;
+        float StageTimeLimit => run.IsBossStage ? StagePicker.BossTime(run.IsHard) : StagePicker.StageTime(run.Stage, run.IsHard) * stageTimeScale;
 
         /// <summary>The storm speeds every bubble up by playing their motion faster; their arcs stay the same shape.</summary>
         float BubbleDt(float dt) => storm ? dt * T.stormSpeed : dt;
@@ -581,7 +575,7 @@ namespace Bubblewright
         void NextStage()
         {
             run.Stage++;
-            forcedRecipeIndex = -1;
+            testStageIndex = -1;
             StartStage();
         }
 
@@ -693,7 +687,7 @@ namespace Bubblewright
         {
             if (input.DebugToggleHitboxes) showHitboxes = !showHitboxes;
             if (input.DebugTestLayoutPressed && (state == State.Play || state == State.Intro))
-                ToggleTestLayout();
+                CycleTestStage();
             if (input.DebugSpawn > 0 && !paused && (state == State.Play || state == State.Intro))
             {
                 if (input.DebugSpawn == 5) DebugSpawnRoller();
@@ -708,13 +702,13 @@ namespace Bubblewright
         void DebugSpawn(BubbleKind kind, bool ceramic = false)
         {
             float x = Random.Range(-T.HalfWidth + 3f, T.HalfWidth - 3f);
-            SpawnBubble(kind, StageGenerator.LargestTier(kind), new Vector2(x, 9f), Random.value < 0.5f ? -1 : 1, 0f, false, ceramic);
+            SpawnBubble(kind, Tuning.I.Kind(kind).largestTier, new Vector2(x, 9f), Random.value < 0.5f ? -1 : 1, 0f, false, ceramic);
         }
 
         void DebugSpawnPogo(BubbleKind kind, bool steel = false)
         {
             float x = Random.Range(-T.HalfWidth + 3f, T.HalfWidth - 3f);
-            int tier = steel ? Mathf.Clamp(T.pogoSteelTier, 0, T.tiers.Length - 1) : StageGenerator.LargestTier(kind);
+            int tier = steel ? Mathf.Clamp(T.pogoSteelTier, 0, T.tiers.Length - 1) : Tuning.I.Kind(kind).largestTier;
             SpawnBubble(kind, tier, new Vector2(x, 9f), 1, 0f, false, false, true, steel);
         }
 
@@ -796,7 +790,7 @@ namespace Bubblewright
             if (!touchUi)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, camPanY - T.groundStrip * 0.5f));
-                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   I/U: weapon   Pad: stick/d-pad + A, B/Y jump, RT/RB weapon   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   9: weapon crate   F1: hitboxes   F3: next layout",
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   I/U: weapon   Pad: stick/d-pad + A, B/Y jump, RT/RB weapon   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   9: weapon crate   F1: hitboxes   F3: next stage",
                     strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
                 Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
             }

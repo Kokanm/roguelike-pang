@@ -12,6 +12,10 @@ namespace Bubblewright
     public class StageReport
     {
         public int stage;
+        public string id;
+        public int difficulty;
+        public string concept;
+        public int pops;
         public string layout;
         /// <summary>The recipe that shaped the stage, or null when it had none.</summary>
         public string recipe;
@@ -39,6 +43,10 @@ namespace Bubblewright
             var r = new StageReport
             {
                 stage = stage,
+                id = plan.stageId ?? "",
+                difficulty = plan.difficulty,
+                concept = (plan.concept ?? "").Replace('\t', ' ').Replace('\n', ' ').Replace('\r', ' '),
+                pops = PopsNeeded(plan),
                 layout = plan.layoutName ?? "?",
                 recipe = plan.recipeName,
                 pattern = plan.patternName,
@@ -59,7 +67,7 @@ namespace Bubblewright
                     }
                 }
             r.budget = r.boss ? 0f : plan.budget;
-            r.time = r.boss ? StageGenerator.BossTime(hard) : StageGenerator.StageTime(stage, hard) * plan.timeScale;
+            r.time = r.boss ? StagePicker.BossTime(hard) : StagePicker.StageTime(stage, hard) * plan.timeScale;
             if (plan.spawns != null)
             {
                 foreach (var s in plan.spawns)
@@ -68,7 +76,7 @@ namespace Bubblewright
                     r.bubbles[(int)s.kind, tier]++;
                     if (s.ceramic) r.ceramicBubbles++;
                     if (s.kind != BubbleKind.Lucky)
-                        r.bubbleSpend += StageGenerator.BubbleCost(s.kind, tier) * (s.ceramic ? t.ceramicCostScale : 1f);
+                        r.bubbleSpend += StagePicker.BubbleCost(s.kind, tier) * (s.ceramic ? t.ceramicCostScale : 1f);
                 }
             }
             if (plan.waves != null)
@@ -82,7 +90,7 @@ namespace Bubblewright
                         r.bubbles[(int)s.kind, tier]++;
                         r.waveBubbles++;
                         if (s.ceramic) r.ceramicBubbles++;
-                        r.bubbleSpend += StageGenerator.BubbleCost(s.kind, tier) * (s.ceramic ? t.ceramicCostScale : 1f);
+                        r.bubbleSpend += StagePicker.BubbleCost(s.kind, tier) * (s.ceramic ? t.ceramicCostScale : 1f);
                     }
                 }
             var map = plan.map;
@@ -118,7 +126,7 @@ namespace Bubblewright
         public static string Header()
         {
             var t = Tuning.I;
-            var sb = new StringBuilder("stage\tworld\tlayout\trecipe\tpattern\tguest\troad\tbudget\tbubble spend\troller spend\tleft");
+            var sb = new StringBuilder("stage\tworld\tid\tdifficulty\tconcept\tguest\troad\tbudget\tbubble spend\troller spend\tleft");
             foreach (BubbleKind kind in System.Enum.GetValues(typeof(BubbleKind)))
                 for (int tier = 0; tier < t.tiers.Length; tier++)
                     sb.Append('\t').Append(kind).Append(' ').Append(t.tiers[tier].name);
@@ -133,9 +141,9 @@ namespace Bubblewright
             var sb = new StringBuilder();
             sb.Append(boss ? $"{World}-BOSS" : $"{World}-{StageInWorld}").Append('\t');
             sb.Append(Run.WorldNameOf(World)).Append('\t');
-            sb.Append(layout).Append('\t');
-            sb.Append(recipe ?? "").Append('\t');
-            sb.Append(pattern ?? "").Append('\t');
+            sb.Append(id ?? "").Append('\t');
+            sb.Append(difficulty).Append('\t');
+            sb.Append(concept ?? "").Append('\t');
             sb.Append(guest ?? "").Append('\t');
             sb.Append(hard ? "hard" : "calm").Append('\t');
             sb.Append(budget.ToString("0.#", inv)).Append('\t');
@@ -197,82 +205,53 @@ namespace Bubblewright
         }
 
         /// <summary>
-        /// Every normal stage slot (world and stage in world) averaged over seeds 1 to seeds on a calm road, as a
-        /// tab-separated header and 30 lines: budget, spend, bubbles at the start and in waves, rolling balls, pops
-        /// needed, time limit, pops per second, how often each recipe is drawn, the share of spawns per kind and how
-        /// often the stage has a guest.
+        /// Every normal stage slot averaged over seeds 1 to seeds on a calm road: a header and 30 lines of the
+        /// authored id, difficulty, concept, pops needed, time limit and pops per second.
         /// </summary>
         public static string Summary(int seeds)
         {
             var t = Tuning.I;
             var inv = System.Globalization.CultureInfo.InvariantCulture;
             seeds = Mathf.Max(1, seeds);
-            var kinds = (BubbleKind[])System.Enum.GetValues(typeof(BubbleKind));
-
-            // Recipe columns: every row of Tuning.recipes, the Drifter's first visit, and anything else under "other".
-            var recipeNames = new List<string>();
-            if (t.recipes != null)
-                foreach (var row in t.recipes)
-                    if (row != null && !string.IsNullOrEmpty(row.name) && !recipeNames.Contains(row.name)) recipeNames.Add(row.name);
-            if (!recipeNames.Contains(StageGenerator.DebutRecipeName)) recipeNames.Add(StageGenerator.DebutRecipeName);
-            int otherRecipe = recipeNames.Count;
-
             var slots = new List<int>();
             for (int s = 1; s <= t.RunLength; s++)
                 if (!Run.IsBossStageNumber(s)) slots.Add(s);
             int n = slots.Count;
-            var budget = new double[n];
-            var spend = new double[n];
+            var difficulty = new double[n];
+            var pops = new double[n];
+            var time = new double[n];
             var start = new double[n];
             var waved = new double[n];
             var rollers = new double[n];
-            var pops = new double[n];
-            var time = new double[n];
             var guests = new double[n];
-            var recipes = new double[n, otherRecipe + 1];
-            var kindSpawns = new double[n, kinds.Length];
-            var allSpawns = new double[n];
+            var id = new string[n];
+            var concept = new string[n];
 
             for (int seed = 1; seed <= seeds; seed++)
             {
-                var run = new Run(seed); // a new run is calm in every world
+                var run = new Run(seed);
                 for (int i = 0; i < n; i++)
                 {
                     int stage = slots[i];
-                    var plan = StageGenerator.GenerateFor(run, stage);
+                    var plan = StagePicker.Build(run, stage);
                     var r = From(stage, plan, false);
-                    budget[i] += r.budget;
-                    spend[i] += r.bubbleSpend + r.rollerSpend;
-                    rollers[i] += r.rollers;
-                    pops[i] += PopsNeeded(plan);
+                    difficulty[i] += r.difficulty;
+                    pops[i] += r.pops;
                     time[i] += r.time;
+                    rollers[i] += r.rollers;
                     if (!string.IsNullOrEmpty(r.guest)) guests[i]++;
-                    int ri = r.recipe == null ? -1 : recipeNames.IndexOf(r.recipe);
-                    recipes[i, ri < 0 ? otherRecipe : ri]++;
+                    if (string.IsNullOrEmpty(id[i])) id[i] = r.id;
+                    if (string.IsNullOrEmpty(concept[i])) concept[i] = r.concept;
                     if (plan.spawns != null)
                         foreach (var s in plan.spawns)
-                        {
                             if (s.kind != BubbleKind.Lucky) start[i]++;
-                            kindSpawns[i, (int)s.kind]++;
-                            allSpawns[i]++;
-                        }
                     if (plan.waves != null)
                         foreach (var wave in plan.waves)
-                            foreach (var s in wave)
-                            {
-                                waved[i]++;
-                                kindSpawns[i, (int)s.kind]++;
-                                allSpawns[i]++;
-                            }
+                            waved[i] += wave.Count;
                 }
             }
 
-            var sb = new StringBuilder("stage\tworld\tbudget\tspend\tstart bubbles\twave bubbles\trolling balls\tpops needed\ttime\tpops per s");
-            foreach (var name in recipeNames) sb.Append("\trecipe ").Append(name);
-            sb.Append("\trecipe other");
-            foreach (var kind in kinds) sb.Append("\tkind ").Append(kind);
-            sb.Append("\tguest");
-
+            var sb = new StringBuilder("stage\tworld\tid\tdifficulty\tconcept\tpops needed\ttime\tpops per s\tstart bubbles\twave bubbles\trolling balls\tguest");
             string F(double v, string format = "0.##") => v.ToString(format, inv);
             for (int i = 0; i < n; i++)
             {
@@ -280,16 +259,15 @@ namespace Bubblewright
                 double avgPops = pops[i] / seeds, avgTime = time[i] / seeds;
                 sb.Append('\n').Append(Run.WorldOf(stage)).Append('-').Append(Run.StageInWorldOf(stage));
                 sb.Append('\t').Append(Run.WorldNameOf(Run.WorldOf(stage)));
-                sb.Append('\t').Append(F(budget[i] / seeds, "0.#"));
-                sb.Append('\t').Append(F(spend[i] / seeds, "0.#"));
+                sb.Append('\t').Append(id[i] ?? "");
+                sb.Append('\t').Append(F(difficulty[i] / seeds, "0.#"));
+                sb.Append('\t').Append(concept[i] ?? "");
+                sb.Append('\t').Append(F(avgPops, "0.#"));
+                sb.Append('\t').Append(F(avgTime, "0.#"));
+                sb.Append('\t').Append(F(avgTime > 0.0 ? avgPops / avgTime : 0.0, "0.###"));
                 sb.Append('\t').Append(F(start[i] / seeds));
                 sb.Append('\t').Append(F(waved[i] / seeds));
                 sb.Append('\t').Append(F(rollers[i] / seeds));
-                sb.Append('\t').Append(F(avgPops, "0.#"));
-                sb.Append('\t').Append(F(avgTime, "0.#"));
-                sb.Append('\t').Append(F(avgTime > 0 ? avgPops / avgTime : 0, "0.###"));
-                for (int c = 0; c <= otherRecipe; c++) sb.Append('\t').Append(F(recipes[i, c] / seeds));
-                for (int k = 0; k < kinds.Length; k++) sb.Append('\t').Append(F(allSpawns[i] > 0 ? kindSpawns[i, k] / allSpawns[i] : 0));
                 sb.Append('\t').Append(F(guests[i] / seeds));
             }
             return sb.ToString();
@@ -304,7 +282,7 @@ namespace Bubblewright
             for (int s = 1; s <= Tuning.I.RunLength; s++)
             {
                 bool hard = run.IsHardWorld(Run.WorldOf(s));
-                var plan = StageGenerator.GenerateFor(run, s);
+                var plan = StagePicker.Build(run, s);
                 sb.Append('\n').Append(From(s, plan, hard).Line());
             }
             return sb.ToString();

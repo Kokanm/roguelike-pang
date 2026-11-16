@@ -3,22 +3,20 @@ using NUnit.Framework;
 
 namespace Bubblewright.Tests
 {
-    /// <summary>Hard worlds: more bubbles, less time, one debuff for the whole world, double score, rarity and the richer pick.</summary>
+    /// <summary>Hard worlds: less time, one debuff for the whole world, double score, rarity and the richer pick.</summary>
     public class HardWorldTests
     {
         static Run RunAt(int stage, int seed = 1) => new Run(seed) { Stage = stage };
 
         [Test]
-        public void HardWorldScalesBudgetAndTime()
+        public void HardWorldScalesTime()
         {
             var run = RunAt(8); // world 2, stage 2
             run.SetHard(2, Debuff.All[0]);
             Assert.IsTrue(run.IsHard);
-            float calmBudget = StageGenerator.Budget(8), calmTime = StageGenerator.StageTime(8);
-            Assert.AreEqual(calmBudget * 1.3f, StageGenerator.Budget(8, run.IsHard), 0.001f);
-            Assert.AreEqual(calmTime * 0.75f, StageGenerator.StageTime(8, run.IsHard), 0.001f);
-            // the boss stage of a hard world gets the shorter clock too
-            Assert.AreEqual(StageGenerator.StageTime(12) * 0.75f, StageGenerator.StageTime(12, true), 0.001f);
+            float calmTime = StagePicker.StageTime(8);
+            Assert.AreEqual(calmTime * 0.75f, StagePicker.StageTime(8, run.IsHard), 0.001f);
+            Assert.AreEqual(StagePicker.StageTime(12) * 0.75f, StagePicker.StageTime(12, true), 0.001f);
         }
 
         [Test]

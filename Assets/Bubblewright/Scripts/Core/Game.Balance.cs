@@ -4,14 +4,12 @@ namespace Bubblewright
 {
     /// <summary>
     /// The debug panel's BALANCE page: the numbers of the current stage, LOG RUN (every stage of the seed to the Console
-    /// as tab-separated text), SUMMARY (every stage slot averaged over 100 seeds), WIN STAGE and NEXT LAYOUT to move through stages quickly. The numbers to change are in
+    /// as tab-separated text), SUMMARY (every stage slot averaged over 100 seeds), WIN STAGE and NEXT STAGE to move through this world's stages. The numbers to change are in
     /// the Tuning asset.
     /// </summary>
     public partial class Game
     {
         StageReport stageReport;
-        int currentReroll;     // how many times NEXT LAYOUT re-rolled this stage's layout
-        int forcedRecipeIndex = -1; // -1: the stage's own recipe. Otherwise an index into Tuning.recipes.
         bool balancePage;
         string balanceNote;
 
@@ -19,8 +17,7 @@ namespace Bubblewright
         {
             AddDebugButton("BACK", k, true, () => { balancePage = false; debugScroll = Vector2.zero; }, minUnits: 60);
             AddDebugButton("WIN STAGE", k, false, DebugClearStage, minUnits: 80);
-            AddDebugButton("NEXT LAYOUT", k, false, DebugNextLayout, minUnits: 90);
-            AddDebugButton("NEXT RECIPE", k, false, DebugNextRecipe, minUnits: 100);
+            AddDebugButton("NEXT STAGE", k, false, DebugNextStage, minUnits: 90);
             AddDebugButton("NEXT WAVE", k, false, DebugNextWave, minUnits: 90);
             AddDebugButton("LOG RUN", k, false, DebugLogRun, minUnits: 70);
             AddDebugButton("SUMMARY", k, false, DebugLogSummary, minUnits: 70);
@@ -32,19 +29,14 @@ namespace Bubblewright
                 return;
             }
             string where = r.boss ? $"WORLD {r.World} BOSS" : $"WORLD {r.World}-{r.StageInWorld}";
-            string recipe = string.IsNullOrEmpty(r.recipe) ? "" : $"  ·  RECIPE {r.recipe.ToUpperInvariant()}";
-            if (!string.IsNullOrEmpty(r.pattern)) recipe += $"  ·  PATTERN {r.pattern.ToUpperInvariant()}";
-            AddDebugLine($"{where} {Run.WorldNameOf(r.World).ToUpperInvariant()}  ·  {(r.hard ? "HARD" : "CALM")}  ·  LAYOUT {r.layout.ToUpperInvariant()}{recipe}" +
-                         (currentReroll > 0 ? $" (re-rolled {currentReroll})" : ""), true);
+            string id = string.IsNullOrEmpty(r.id) ? r.layout : r.id;
+            AddDebugLine($"{where} {Run.WorldNameOf(r.World).ToUpperInvariant()}  ·  {(r.hard ? "HARD" : "CALM")}  ·  {id}  ·  D{r.difficulty}", true);
+            if (!string.IsNullOrEmpty(r.concept)) AddDebugLine(r.concept);
             if (r.boss)
-            {
-                AddDebugLine("Boss stage: no generated bubbles and no rollers.");
-            }
+                AddDebugLine("Boss stage: no stage enemies.");
             else
             {
-                float left = Mathf.Max(0f, r.budget - r.bubbleSpend - r.rollerSpend);
-                AddDebugLine($"BUDGET {r.budget:0.#}  =  bubbles {r.bubbleSpend:0.#}  +  rollers {r.rollerSpend:0.#}  +  unspent {left:0.#}");
-                // With ten kinds the summary can be long: break it at a comma into lines of at most about 60 characters.
+                AddDebugLine($"POPS NEEDED {r.pops}");
                 string summary = "BUBBLES  " + r.BubbleSummary();
                 while (summary.Length > 60)
                 {
@@ -59,27 +51,25 @@ namespace Bubblewright
             if (!r.boss) AddDebugLine($"GUEST {(string.IsNullOrEmpty(r.guest) ? "none" : r.guest.ToUpperInvariant())}");
             if (r.waves > 0) AddDebugLine($"WAVES {r.waves} ({r.waveBubbles} bubbles)");
             AddDebugLine($"TIME LIMIT {r.time:0} s  ·  SPIKE STRIPS {r.spikeStrips}  ·  GAPS {r.gaps}  ·  BREAKABLE TILES {r.breakables}");
-            AddDebugLine($"Jump budget bonus x{T.jumpBudgetBonus:0.##}  ·  hard budget x{T.hardBudgetScale:0.##}  ·  seed {run.Seed}");
+            AddDebugLine($"seed {run.Seed}");
             AddDebugLine(balanceNote ?? $"LOG RUN prints all {T.RunLength} stages of this seed to the Console, tab-separated.");
         }
 
-        /// <summary>Same stage, same bubbles drawn from the stage's random numbers, a different layout.</summary>
-        void DebugNextLayout()
+        /// <summary>Shows the next authored stage of this world, with no mirror and no Lucky. Does not change the saved pick.</summary>
+        void DebugNextStage()
         {
-            if (run == null || run.IsBossStage) return;
-            run.Hearts = Mathf.Max(1, wick.Hearts);
-            Resume();
-            StartStage(currentReroll + 1);
-        }
-
-        /// <summary>Same stage, forced to the next row of Tuning.recipes. Does nothing on a boss stage.</summary>
-        void DebugNextRecipe()
-        {
-            if (run == null || run.IsBossStage || T.recipes == null || T.recipes.Length == 0) return;
-            forcedRecipeIndex = (forcedRecipeIndex + 1) % T.recipes.Length;
-            run.Hearts = Mathf.Max(1, wick.Hearts);
-            Resume();
-            StartStage(currentReroll);
+            if (run == null || StageSpec.All.Count == 0) return;
+            int start = testStageIndex;
+            for (int step = 1; step <= StageSpec.All.Count; step++)
+            {
+                int index = ((start + step) % StageSpec.All.Count + StageSpec.All.Count) % StageSpec.All.Count;
+                if (StageSpec.All[index].World != run.World) continue;
+                testStageIndex = index;
+                run.Hearts = Mathf.Max(1, wick.Hearts);
+                Resume();
+                StartStage();
+                return;
+            }
         }
 
         /// <summary>Calls the next wave at once and resumes the game. Does nothing on a stage without waves.</summary>

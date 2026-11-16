@@ -107,10 +107,10 @@ namespace Bubblewright
             if (debug.freezeTimer) summary = summary == null ? "TIMER FROZEN" : summary + " · TIMER FROZEN";
             if (debug.spikes) summary = summary == null ? "SPIKES" : summary + " · SPIKES";
             if (Unlocks.DebugAll) summary = summary == null ? "ALL CHARACTERS" : summary + " · ALL CHARACTERS";
-            if (testLayout)
+            if (testStageIndex >= 0)
             {
-                string layout = $"TEST LAYOUT: {CurrentTestLayout.name.ToUpperInvariant()}";
-                summary = summary == null ? layout : summary + " · " + layout;
+                string stage = TestStageLabel();
+                summary = summary == null ? stage : summary + " · " + stage;
             }
             return summary;
         }
@@ -261,7 +261,7 @@ namespace Bubblewright
             FillRect(Grow(panel, -k), WithAlpha(Palette.Ink, 0.95f));
 
             debugEntries.Clear();
-            AddDebugLine("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, 9 weapon crate, F1 hitboxes, F3 test layout", true);
+            AddDebugLine("DEBUG MODE  ·  cheats stay on across runs  ·  1-4 spawn XL, 5-8 rollers and ceramic, 9 weapon crate, F1 hitboxes, F3 next stage", true);
             if (balancePage) AddBalancePage(k);
             else AddDebugPage(k);
             DrawDebugEntries(DebugPanelLayout.Content(panel, k), k);
@@ -272,8 +272,7 @@ namespace Bubblewright
             AddDebugToggle("GOD MODE", k, true, debug.god, v => debug.god = v, 100);
             AddDebugToggle("FREEZE TIMER", k, false, debug.freezeTimer, v => debug.freezeTimer = v, 100);
             AddDebugToggle("HITBOXES", k, false, showHitboxes, v => showHitboxes = v, 100);
-            AddDebugButton(testLayout ? $"LAYOUT: {CurrentTestLayout.name.ToUpperInvariant()}" : "TEST LAYOUT", k, false, ToggleTestLayout, minUnits: 100);
-            AddDebugButton(debugStoreyStage ? "TEST STAGE: ON" : "TEST STAGE", k, false, ToggleDebugStoreyStage, debugStoreyStage, 100);
+            AddDebugButton(TestStageLabel(), k, false, CycleTestStage, testStageIndex >= 0, 100);
 
             AddDebugButton("STORM NOW", k, true, () => { if (!storm && (state == State.Play || state == State.Intro)) StartStorm(); }, minUnits: 80);
             AddDebugButton("CLEAR STAGE", k, false, DebugClearStage, minUnits: 80);
@@ -411,7 +410,7 @@ namespace Bubblewright
 
         void DebugGoToStage(int stage)
         {
-            debugStoreyStage = false;
+            testStageIndex = -1;
             run.Hearts = Mathf.Max(1, wick.Hearts);
             run.Stage = Mathf.Clamp(stage, 1, T.RunLength);
             Resume();

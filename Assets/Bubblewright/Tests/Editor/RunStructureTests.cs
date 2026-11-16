@@ -46,45 +46,24 @@ namespace Bubblewright.Tests
         }
 
         [Test]
-        public void BudgetAndTimeFollowTheFormulas()
+        public void TimeFollowsTheFormula()
         {
-            // budget = (8 + 6 * (world - 1) + 2 * (stage in world - 1)) * jump bonus; time = 60 + 8 * (world - 1) + 4 * (stage in world - 1)
-            float j = Tuning.I.jumpBudgetBonus;
-            Assert.AreEqual(1.1f, j, 0.0001f);
-            Assert.AreEqual(8f * j, StageGenerator.Budget(1), 0.001f);
-            Assert.AreEqual(60f, StageGenerator.StageTime(1), 0.001f);
-
-            // stage 9 = world 2, stage 3 in the world
-            Assert.AreEqual((8f + 6f + 4f) * j, StageGenerator.Budget(9), 0.001f);
-            Assert.AreEqual(60f + 8f + 8f, StageGenerator.StageTime(9), 0.001f);
-
-            // stage 31 = world 6, stage 1 in the world
-            Assert.AreEqual((8f + 30f) * j, StageGenerator.Budget(31), 0.001f);
-            Assert.AreEqual(60f + 40f, StageGenerator.StageTime(31), 0.001f);
-
-            // the boss stage follows the same budget and time rules (the boss stage itself spawns no bubbles)
-            Assert.AreEqual((8f + 10f) * j, StageGenerator.Budget(6), 0.001f);
-            Assert.AreEqual(60f + 20f, StageGenerator.StageTime(6), 0.001f);
+            // time = 60 + 8 * (world - 1) + 4 * (stage in world - 1). A boss stage number uses the same formula.
+            Assert.AreEqual(60f, StagePicker.StageTime(1), 0.001f);
+            Assert.AreEqual(60f + 8f + 8f, StagePicker.StageTime(9), 0.001f);
+            Assert.AreEqual(60f + 40f, StagePicker.StageTime(31), 0.001f);
+            Assert.AreEqual(60f + 20f, StagePicker.StageTime(6), 0.001f);
         }
 
         [Test]
-        public void BudgetAndTimeGrowWithinAndAcrossWorlds()
+        public void TimeGrowsWithinAndAcrossWorlds()
         {
             for (int s = 1; s < Tuning.I.RunLength; s++)
             {
-                if (Run.IsBossStageNumber(s) || Run.IsBossStageNumber(s + 1)) continue; // a world's last stage is followed by a new world, which starts lower
-                Assert.Greater(StageGenerator.Budget(s + 1), StageGenerator.Budget(s), $"budget {s} -> {s + 1}");
-                Assert.Greater(StageGenerator.StageTime(s + 1), StageGenerator.StageTime(s), $"time {s} -> {s + 1}");
+                if (Run.IsBossStageNumber(s) || Run.IsBossStageNumber(s + 1)) continue;
+                Assert.Greater(StagePicker.StageTime(s + 1), StagePicker.StageTime(s), $"time {s} -> {s + 1}");
             }
-            Assert.Greater(StageGenerator.Budget(31), StageGenerator.Budget(1));
-            Assert.Greater(StageGenerator.StageTime(31), StageGenerator.StageTime(1));
-        }
-
-        [Test]
-        public void StartBubbleCapIs4_4_5_5_6_6()
-        {
-            var caps = new[] { 1, 7, 13, 19, 25, 31 }.Select(StageGenerator.MaxStartBubbles).ToArray();
-            CollectionAssert.AreEqual(new[] { 4, 4, 5, 5, 6, 6 }, caps);
+            Assert.Greater(StagePicker.StageTime(31), StagePicker.StageTime(1));
         }
 
         static string Describe(StagePlan plan)
@@ -101,8 +80,8 @@ namespace Bubblewright.Tests
         [Test]
         public void SameSeedAndStageGiveTheSameStage()
         {
-            var a = StageGenerator.Generate(RunAt(1234, 9));
-            var b = StageGenerator.Generate(RunAt(1234, 9));
+            var a = StagePicker.Build(RunAt(1234, 9), 9);
+            var b = StagePicker.Build(RunAt(1234, 9), 9);
             Assert.AreEqual(Describe(a), Describe(b));
         }
 
@@ -111,10 +90,10 @@ namespace Bubblewright.Tests
         {
             // A run that was restored straight to stage 9 must build the same stage as one that played up to it.
             var played = RunAt(77, 1);
-            for (int s = 1; s < 9; s++) { played.Stage = s; StageGenerator.Generate(played); played.RollChoices(); }
+            for (int s = 1; s < 9; s++) { played.Stage = s; StagePicker.Build(played, s); played.RollChoices(); }
             played.Stage = 9;
             var restored = RunAt(77, 9);
-            Assert.AreEqual(Describe(StageGenerator.Generate(restored)), Describe(StageGenerator.Generate(played)));
+            Assert.AreEqual(Describe(StagePicker.Build(restored, 9)), Describe(StagePicker.Build(played, 9)));
         }
 
         [Test]
@@ -128,26 +107,29 @@ namespace Bubblewright.Tests
         [Test]
         public void DifferentSeedsUsuallyGiveDifferentStages()
         {
-            var baseline = Describe(StageGenerator.Generate(RunAt(1, 9)));
-            Assert.IsTrue(new[] { 2, 3, 4, 5, 6 }.Any(seed => Describe(StageGenerator.Generate(RunAt(seed, 9))) != baseline));
+            float plain = StageSpec.ById("w2_canopy_ambush").Build(false).spawns[0].position.x;
+            float mirrored = StageSpec.ById("w2_canopy_ambush").Build(true).spawns[0].position.x;
+            bool sawPlain = false, sawMirror = false;
+            for (int seed = 1; seed <= 40; seed++)
+            {
+                float x = StagePicker.Build(RunAt(seed, 7), 7).spawns[0].position.x;
+                if (Mathf.Approximately(x, plain)) sawPlain = true;
+                if (Mathf.Approximately(x, mirrored)) sawMirror = true;
+            }
+            Assert.IsTrue(sawPlain && sawMirror, "the forest stage is mirrored for some seeds and not for others");
         }
 
         [Test]
-        public void EveryStageHasBubblesWithinTheCap()
+        public void EveryStageHasBubblesAndBossesHaveNone()
         {
             for (int seed = 1; seed <= 5; seed++)
                 for (int s = 1; s <= Tuning.I.RunLength; s++)
                 {
-                    var plan = StageGenerator.Generate(RunAt(seed, s));
-                    var specs = plan.spawns;
+                    var plan = StagePicker.Build(RunAt(seed, s), s);
                     if (Run.IsBossStageNumber(s))
-                    {
-                        Assert.AreEqual(0, specs.Count, $"seed {seed} boss stage {s} has no generated bubbles");
-                        continue;
-                    }
-                    Assert.GreaterOrEqual(specs.Count, 1, $"seed {seed} stage {s}");
-                    // the free Lucky bubble sits on top of the recipe's cap (Swarm raises it, Giants and Rolling floor lower it)
-                    Assert.LessOrEqual(specs.Count, BubbleCap(plan, s) + 1, $"seed {seed} stage {s}");
+                        Assert.AreEqual(0, plan.spawns.Count, $"seed {seed} boss stage {s}");
+                    else
+                        Assert.GreaterOrEqual(plan.spawns.Count, 1, $"seed {seed} stage {s}");
                 }
         }
 
@@ -156,26 +138,11 @@ namespace Bubblewright.Tests
         {
             for (int seed = 1; seed <= 30; seed++)
             {
-                foreach (var spec in StageGenerator.Generate(RunAt(seed, 3)).spawns) // world 1
+                foreach (var spec in StagePicker.Build(RunAt(seed, 3), 3).spawns)
                     Assert.AreNotEqual(BubbleKind.Lead, spec.kind, $"seed {seed}");
-                foreach (var spec in StageGenerator.Generate(RunAt(seed, 2)).spawns) // before trigloops
+                foreach (var spec in StagePicker.Build(RunAt(seed, 2), 2).spawns)
                     Assert.AreNotEqual(BubbleKind.Trigloop, spec.kind, $"seed {seed}");
             }
-        }
-
-        /// <summary>Bubbles a recipe may place before the free Lucky one.</summary>
-        static int BubbleCap(StagePlan plan, int stage)
-        {
-            int cap = StageGenerator.MaxStartBubbles(stage);
-            if (plan.recipeName == null || Tuning.I.recipes == null) return cap;
-            RecipeDef recipe = null;
-            foreach (var row in Tuning.I.recipes)
-                if (row != null && row.name == plan.recipeName) { recipe = row; break; }
-            if (recipe == null) return cap;
-            if (recipe.id == RecipeId.Giants && Run.WorldOf(stage) >= Tuning.I.giantsLateFromWorld)
-                return Tuning.I.giantsMaxLate;
-            if (recipe.startCapMax > 0) return recipe.startCapMax;
-            return Mathf.RoundToInt(cap * recipe.startCapScale);
         }
     }
 }

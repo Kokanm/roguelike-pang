@@ -76,7 +76,9 @@ namespace Bubblewright.Tests
                 int expected = stageInWorld <= 2 ? 2 : stageInWorld <= 4 ? 3 : 4;
                 for (int seed = 0; seed < 10; seed++)
                 {
-                    StageMap map = StageGenerator.Generate(stage, new System.Random(seed)).map;
+                    var map = StageMap.Flat();
+                    for (int c = 0; c <= 19; c++) map.Set(c, 6, new Cell { kind = TileKind.Solid });
+                    WorldRules.PlaceSpikes(map, stageInWorld, new System.Random(seed));
                     Assert.AreEqual(expected, map.spikes.Count, $"world 6-{stageInWorld} seed {seed}");
                     for (int i = 0; i < map.spikes.Count; i++)
                     {
@@ -102,7 +104,7 @@ namespace Bubblewright.Tests
                 if (Run.WorldOf(stage) == WorldRules.LavaWorld && !Run.IsBossStageNumber(stage)) continue;
                 for (int seed = 0; seed < 3; seed++)
                 {
-                    StageMap map = StageGenerator.Generate(stage, new System.Random(seed)).map;
+                    var map = StagePicker.Build(new Run(seed + 1) { Stage = stage }, stage).map;
                     Assert.AreEqual(0, map.spikes.Count, $"stage {stage} seed {seed}");
                 }
             }
