@@ -6,7 +6,8 @@ namespace Bubblewright
 {
     /// <summary>
     /// W10 Double Harpoon, a harpoon head: for twelve volleys every fire press launches two normal harpoons at once,
-    /// twinGap apart and centred on Wick (Flint, who already has two cables, gets a third in the middle). The cables are
+    /// side by side with the barbed tips touching (twinGapPixels apart), centred on Wick (Flint, who already has two
+    /// cables, gets a third in the middle). The cables are
     /// the game's own harpoons, so steel, ceramic, Ghosts, rolling balloons, tiles and run upgrades work exactly as for
     /// the plain harpoon. The next volley waits until every cable of the last one is gone; Twin Cable picks allow one
     /// more volley in the air each. A volley hurts a boss once however many of its cables touch (Harpoon.Volley).
@@ -49,23 +50,22 @@ namespace Bubblewright
         }
 
         /// <summary>
-        /// Where the cables leave, left to right: twinGap apart and centred on centreX (a third in the middle for three),
-        /// snapped to the pixel grid and kept inside the walls.
+        /// Where the cables leave, left to right: side by side, twinGapPixels apart (whole pixels, so the barbed tips
+        /// touch with no gap), the group centred on centreX and kept inside the walls as a whole.
         /// </summary>
         public static List<float> CableXs(float centreX, int cables, List<float> into = null)
         {
             into ??= new List<float>();
             into.Clear();
+            if (cables <= 0) return into;
             var t = Tuning.I;
             float px = t.Pixel;
-            float half = t.twinGap * 0.5f;
+            int step = Mathf.Max(1, t.twinGapPixels);
+            int span = step * (cables - 1);
             float limit = t.HalfWidth - px;
-            for (int i = 0; i < cables; i++)
-            {
-                float offset = cables <= 1 ? 0f : Mathf.Lerp(-half, half, i / (float)(cables - 1));
-                float x = Mathf.Clamp(centreX + offset, -limit, limit);
-                into.Add(Mathf.Round(x / px) * px);
-            }
+            int left = Mathf.RoundToInt(centreX / px - span * 0.5f);
+            left = Mathf.Clamp(left, Mathf.CeilToInt(-limit / px), Mathf.FloorToInt(limit / px) - span);
+            for (int i = 0; i < cables; i++) into.Add((left + i * step) * px);
             return into;
         }
 
@@ -157,8 +157,8 @@ namespace Bubblewright
         [Header("Weapon: Double Harpoon")]
         [Tooltip("Volleys in a full Double Harpoon crate. Each fire press while it is held is one volley.")]
         public int twinAmmo = 12;
-        [Tooltip("Units between the Double Harpoon's two cables, centred on Wick. Flint gets a third cable in the middle.")]
-        public float twinGap = 1.6f;
+        [Tooltip("Pixels between the Double Harpoon's cables, centred on Wick. 7 = the barbed tips touch, no gap. Flint gets a third cable in the middle.")]
+        public int twinGapPixels = 7;
         [Tooltip("Boss health one Double Harpoon volley takes, however many of its cables touch the boss.")]
         public int twinBossDamage = 1;
     }

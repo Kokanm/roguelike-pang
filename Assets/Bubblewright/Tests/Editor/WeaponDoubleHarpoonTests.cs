@@ -9,6 +9,7 @@ namespace Bubblewright.Tests
     public class WeaponDoubleHarpoonTests
     {
         const float Dt = 1f / 60f;
+        static float TwinGap => Tuning.I.twinGapPixels * Tuning.I.Pixel;
 
         GameObject root;
         StageMap previousMap;
@@ -137,14 +138,15 @@ namespace Bubblewright.Tests
         // ------------------------------------------------------------------ cables
 
         [Test]
-        public void AVolleyIsTwoCablesTwinGapApartCentredOnHim()
+        public void AVolleyIsTwoCablesSideBySideCentredOnHim()
         {
             ctx.Muzzle = new Vector2(3f, 1f);
             Assert.IsTrue(Press());
             var up = Active();
             Assert.AreEqual(2, up.Count);
             float gap = up[1].CableRect.center.x - up[0].CableRect.center.x;
-            Assert.AreEqual(Tuning.I.twinGap, gap, Tuning.I.Pixel + 0.001f);
+            Assert.AreEqual(TwinGap, gap, 0.001f);
+            Assert.AreEqual(up[0].TipRect.xMax, up[1].TipRect.xMin, 0.001f, "the barbed tips touch: no gap, no overlap");
             Assert.AreEqual(3f, (up[0].CableRect.center.x + up[1].CableRect.center.x) * 0.5f, Tuning.I.Pixel + 0.001f);
             Assert.IsFalse(up[0].Down);
             Assert.IsFalse(up[1].Down);
@@ -213,7 +215,8 @@ namespace Bubblewright.Tests
             var up = Active();
             Assert.AreEqual(3, up.Count);
             Assert.AreEqual(-2f, up[1].CableRect.center.x, Tuning.I.Pixel + 0.001f);
-            Assert.AreEqual(Tuning.I.twinGap, up[2].CableRect.center.x - up[0].CableRect.center.x, Tuning.I.Pixel + 0.001f);
+            Assert.AreEqual(TwinGap, up[1].CableRect.center.x - up[0].CableRect.center.x, 0.001f);
+            Assert.AreEqual(TwinGap, up[2].CableRect.center.x - up[1].CableRect.center.x, 0.001f);
             Assert.IsFalse(Press(), "one volley at a time");
         }
 
@@ -303,13 +306,17 @@ namespace Bubblewright.Tests
         public void EachCableHitsWhatIsOverItOnly()
         {
             var xs = DoubleHarpoon.CableXs(0f, 2);
-            var left = Bubble.Create(root.transform, BubbleKind.Gloop, 1, new Vector2(xs[0], 3f), Vector2.zero, false, true);
+            var probe = Bubble.Create(root.transform, BubbleKind.Gloop, 1, new Vector2(-6f, 3f), Vector2.zero, false, true);
+            float r = probe.Radius;
+            Object.DestroyImmediate(probe.gameObject);
+            // Its right edge just past the left cable, still short of the right cable's barbed tip.
+            var left = Bubble.Create(root.transform, BubbleKind.Gloop, 1, new Vector2(xs[0] - r + 2f * Tuning.I.Pixel, 3f), Vector2.zero, false, true);
             var far = Bubble.Create(root.transform, BubbleKind.Gloop, 1, new Vector2(8f, 3f), Vector2.zero, false);
             Assert.IsTrue(Press());
             var up = Active();
             Tick(30);
             Assert.IsTrue(up[0].Hits(left), "the left cable reaches the bubble over it");
-            Assert.IsFalse(up[1].Hits(left), "the right cable is 1.6 u away");
+            Assert.IsFalse(up[1].Hits(left), "the right cable sits beside it, one tip width over");
             Assert.IsFalse(up[0].Hits(far));
             Assert.IsFalse(up[1].Hits(far));
         }
@@ -322,7 +329,7 @@ namespace Bubblewright.Tests
             var boss = Boss.Create(root.transform, BossSpec.ForWorld(1), 1, Themes.ForWorld(1));
             for (int i = 0; i < 120 && !boss.Entered; i++) boss.Tick(Dt, Vector2.zero, false);
             Assert.IsTrue(boss.Entered);
-            Assert.Less(Tuning.I.twinGap, boss.Body.width, "both cables fit under the body");
+            Assert.Less(TwinGap, boss.Body.width, "both cables fit under the body");
 
             ctx.Muzzle = new Vector2(boss.Body.center.x, 1f);
             Assert.IsTrue(Press());
