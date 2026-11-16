@@ -56,6 +56,7 @@ namespace Bubblewright
             ClearGas();
             ClearCrates();
             ClearMines();
+            ClearLampPosts();
             DisposeWeaponBehaviours();
             dropper = new WeaponDropper(run.Seed, run.Stage);
             weaponRng = run.StageRngFor(run.Stage, 0x3EA);
@@ -187,6 +188,7 @@ namespace Bubblewright
             Weapons.TickShots(dt);
             TickGas(dt);
             TickMines(dt);
+            TickLampPosts(dt);
             TickCrates(dt);
             if (weaponBannerTime > 0f) weaponBannerTime -= dt;
         }
@@ -197,6 +199,7 @@ namespace Bubblewright
             Weapons.ClearShots();
             ClearGas();
             PopMinesHarmlessly();
+            PutOutLampPosts();
             FizzleRocket();
         }
 
