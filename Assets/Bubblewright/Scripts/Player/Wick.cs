@@ -292,7 +292,8 @@ namespace Bubblewright
 
         /// <summary>Where an upward cable leaves the launcher. Lower while crouched.</summary>
         public Vector2 LauncherTip => (Vector2)transform.position +
-            new Vector2(rigOffsetX + (clingSide > 0 ? -T.launcherTip.x : T.launcherTip.x), T.launcherTip.y * (Crouching ? T.crouchSquash.y : 1f));
+            new Vector2(rigOffsetX + (clingSide > 0 ? -T.launcherTip.x : T.launcherTip.x),
+                Crouching ? Mathf.Min(T.launcherTip.y * T.crouchSquash.y, HitboxHeight - T.Pixel) : T.launcherTip.y);
 
         /// <summary>Where a downward cable (fire + Down in the air) leaves: under the launcher, at his feet.</summary>
         public Vector2 DownShotStart => new Vector2(transform.position.x + T.launcherTip.x, FeetY + T.Pixel * 2f);
@@ -420,7 +421,7 @@ namespace Bubblewright
             }
 
             // Down on the ground with no ladder to climb down: crouch. Any jump or fall stands him up.
-            Crouching = Mode == Mode.Ground && wantClimb < 0f && knockTimer <= 0f;
+            Crouching = Mode == Mode.Ground && (MustCrouch(map, pos.x, pos.y) || (wantClimb < 0f && knockTimer <= 0f));
 
             if (Mode == Mode.Climb)
             {
@@ -492,7 +493,11 @@ namespace Bubblewright
                 // In the air a press wall jumps off a touching wall, or else spends a double jump if he has one left.
                 if (controllable && !Dead && jumpBufferClock > 0f && knockTimer <= 0f)
                 {
-                    if (Mode == Mode.Ground || Mode == Mode.Fall && !Jumping && coyoteClock > 0f)
+                    if (Mode == Mode.Ground && MustCrouch(map, pos.x, pos.y))
+                    {
+                        // No jumping into a low roof.
+                    }
+                    else if (Mode == Mode.Ground || Mode == Mode.Fall && !Jumping && coyoteClock > 0f)
                     {
                         StartJump();
                         walkedOff = false;
@@ -564,7 +569,7 @@ namespace Bubblewright
                             fx.Dust(Feet(4), 1f);
                         }
                         // A buffered press jumps again straight away.
-                        if (controllable && !Dead && jumpBufferClock > 0f && knockTimer <= 0f) StartJump();
+                        if (controllable && !Dead && jumpBufferClock > 0f && knockTimer <= 0f && !MustCrouch(map, pos.x, pos.y)) StartJump();
                     }
                     else if (pos.y < -T.gapFallDepth)
                     {
@@ -702,6 +707,15 @@ namespace Bubblewright
             Sfx.Play(Sound.Turn, 1.9f, 0.7f);
         }
 
+        /// <summary>True when a roof is lower than his standing height, so he must stay crouched (and cannot jump).</summary>
+        bool MustCrouch(StageMap map, float x, float y)
+        {
+            float top = y + T.hitbox.y * T.crouchHeightScale;
+            float half = T.hitbox.x * 0.5f - 0.01f;
+            float ceiling = Mathf.Min(map.CeilingAbove(x - half, top, out _), map.CeilingAbove(x + half, top, out _));
+            return ceiling - y < T.hitbox.y - 1e-4f;
+        }
+
         /// <summary>Lowest underside of a solid tile above either edge of his hitbox (or the arena ceiling).</summary>
         float HeadCeiling(StageMap map, float x, float feetY)
         {
@@ -787,7 +801,7 @@ namespace Bubblewright
         }
 
         Rect BodyBox(float x, float y) =>
-            new Rect(x - T.hitbox.x * 0.5f, y + HitboxBottomInset, T.hitbox.x, Mathf.Max(0.01f, T.hitbox.y - HitboxBottomInset));
+            new Rect(x - T.hitbox.x * 0.5f, y + HitboxBottomInset, T.hitbox.x, Mathf.Max(0.01f, HitboxHeight - HitboxBottomInset));
 
         bool IsSupported(StageMap map, float x, float y)
         {

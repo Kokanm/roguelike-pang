@@ -327,6 +327,114 @@ namespace Bubblewright.Tests
             Assert.AreEqual(Rarity.Rare, Upgrade.ByName("Updraft").Rarity);
         }
 
+        // ---------------------------------------------------------------- Crouch tunnels
+
+        static readonly string[] Tunnel =
+        {
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "..............#####.............",
+            "................................",
+        };
+
+        static readonly string[] Slot =
+        {
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "..............##B.#.............",
+            "................................",
+        };
+
+        [Test]
+        public void CrouchingLetsWickShuffleThroughAOneRowTunnelAndLocksCrouchUntilClear()
+        {
+            SetMap(StageLayout.Parse(Tunnel));
+            wick.ResetForStage(StageMap.CenterX(10), 0f, 3);
+            Step(0.1f);
+            for (int i = 0; i < 120; i++) Tick(1f);
+            Assert.Less(wick.transform.position.x, StageMap.CellRect(14, 0).xMin, "standing, he is blocked at the entrance");
+            Assert.IsFalse(wick.Crouching);
+
+            for (int i = 0; i < 600 && wick.transform.position.x < StageMap.CenterX(15); i++) Tick(1f, climb: -1f);
+            Assert.GreaterOrEqual(wick.transform.position.x, StageMap.CenterX(15), "crouched, he shuffles in");
+
+            Tick(0f, climb: 0f);
+            Assert.IsTrue(wick.Crouching, "releasing Down inside keeps him crouched");
+            Tick(0f, jump: true);
+            Assert.IsFalse(wick.Jumping, "no jumping into the roof");
+            Assert.AreEqual(Mode.Ground, wick.Mode);
+
+            for (int i = 0; i < 900 && wick.transform.position.x < StageMap.CenterX(20); i++) Tick(1f);
+            Assert.Greater(wick.transform.position.x, StageMap.CellRect(18, 0).xMax);
+            Tick(0f);
+            Assert.IsFalse(wick.Crouching, "he stands up once clear");
+        }
+
+        [Test]
+        public void CrouchedInAOneRowTunnelCanFireUpThroughASlotOrBreakCeilingTile()
+        {
+            SetMap(StageLayout.Parse(Slot));
+            wick.ResetForStage(StageMap.CenterX(15), 0f, 3);
+            Step(0.1f, climb: -1f);
+            Assert.IsTrue(wick.Crouching);
+            Assert.Less(wick.LauncherTip.y, 1f, "the launcher is inside the 1-row tunnel");
+
+            int hitCol = -1, hitRow = -1;
+            var h = Harpoon.Create(root.transform, (c, r) => { hitCol = c; hitRow = r; });
+            h.HoldTime = 0f;
+            h.Fire(new Vector2(StageMap.CenterX(16), wick.LauncherTip.y));
+            for (int i = 0; i < 120 && h.Active; i++) h.Tick(Dt);
+            Assert.AreEqual(16, hitCol);
+            Assert.AreEqual(1, hitRow);
+
+            h.Fire(new Vector2(StageMap.CenterX(17), wick.LauncherTip.y));
+            float top = 0f;
+            for (int i = 0; i < 120 && h.Active; i++)
+            {
+                h.Tick(Dt);
+                top = Mathf.Max(top, h.TipRect.yMax);
+            }
+            Assert.Greater(top, 2f, "the cable goes up through the slot");
+        }
+
+        [Test]
+        public void HurtInsideAOneRowTunnelStaysCrouchedAndNeverOverlapsTheRoof()
+        {
+            var map = StageLayout.Parse(Tunnel);
+            SetMap(map);
+            wick.ResetForStage(StageMap.CenterX(15), 0f, 3);
+            Step(0.1f, climb: -1f);
+            Assert.IsTrue(wick.Crouching);
+
+            wick.Hurt(wick.transform.position.x - 1f, 1);
+            for (int i = 0; i < 90; i++)
+            {
+                Tick(0f);
+                Assert.IsTrue(wick.Crouching, "knockback cannot stand him up under the roof");
+                Assert.IsFalse(map.OverlapsSolid(wick.Hitbox), "never inside a solid tile");
+            }
+        }
+
         // ---------------------------------------------------------------- Shots in the air
 
         [Test]
