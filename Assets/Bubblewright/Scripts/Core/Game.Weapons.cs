@@ -92,7 +92,7 @@ namespace Bubblewright
             // A gun in hand wins; otherwise a harpoon head may have its own in-hand art (Skewer Harpoon).
             var inHand = run.Weapon?.HeldRows != null ? run.Weapon : run.Head;
             wick.SetHeld(WeaponArt.Held(inHand), WeaponArt.Held(inHand, true));
-            touchView.ShowWeapon(run.Weapon, run.WeaponAmmo, weaponBehaviour != null && weaponBehaviour.Dimmed);
+            touchView.ShowWeapon(run.Weapon, run.WeaponAmmo, weaponBehaviour != null && weaponBehaviour.Dimmed, weaponBehaviour?.Gauge ?? -1f);
         }
 
         void FillWeaponContext(WeaponSpec spec, WeaponSlot slot, bool pressed, bool held)
@@ -200,6 +200,7 @@ namespace Bubblewright
             ClearGas();
             PopMinesHarmlessly();
             PutOutLampPosts();
+            FizzleRocket();
         }
 
         // ------------------------------------------------------------------ crates

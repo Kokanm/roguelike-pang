@@ -116,6 +116,35 @@ namespace Bubblewright
             }
         }
 
+        /// <summary>
+        /// A firework burst (Skyrocket): one cream flash frame, then 16 rays of red, yellow and cream specks that fly out
+        /// to about radius units in 0.2 s and then fall for another 0.3 s.
+        /// </summary>
+        public void Firework(Vector2 at, float radius)
+        {
+            var art = PlaceholderArt.I;
+            var flash = Add(Take(art.BubbleFlash[art.BubbleFlash.Length - 1], 3), at, 1f);
+            flash.frames = 1;
+            Color[] colors = { Palette.Spark, Palette.SparkCore, Palette.Cream };
+            // With drag 8 a speck covers about a tenth of its start speed in 0.2 s.
+            float speed = Mathf.Max(0.5f, radius) * 10f;
+            for (int i = 0; i < 16; i++)
+            {
+                float a = i * Mathf.PI * 2f / 16f;
+                var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+                for (int k = 0; k < 3; k++)
+                {
+                    var sr = Take(art.Pixel, 2);
+                    sr.color = colors[(i + k) % colors.Length];
+                    var p = Add(sr, at, 0.5f);
+                    p.velocity = dir * speed * (0.6f + 0.2f * k);
+                    p.drag = 8f;
+                    p.gravity = 6f;
+                    if (k == 2) p.size = new Vector2(2f, 2f);
+                }
+            }
+        }
+
         /// <summary>Small masonry chips that arc away and fall under normal stage gravity.</summary>
         public void Debris(Vector2 at, Color a, Color b, int count)
         {

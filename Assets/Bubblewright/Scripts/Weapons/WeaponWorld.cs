@@ -6,6 +6,14 @@ namespace Bubblewright
 {
     public enum TargetKind { Bubble, Roller, Boss, Bullet }
 
+    /// <summary>A weapon's own things that live on in the WeaponWorld after its slot empties. See WeaponWorld.Field.</summary>
+    public interface IWeaponField
+    {
+        void Tick(float dt);
+        /// <summary>Remove everything at once (stage start, stage clear, tests).</summary>
+        void Clear();
+    }
+
     /// <summary>One thing a weapon query found. Exactly one of bubble, roller, boss or bullet is set.</summary>
     public struct WeaponTarget
     {
@@ -47,6 +55,7 @@ namespace Bubblewright
         readonly List<Shot> shots = new List<Shot>();
         readonly Stack<Shot> pool = new Stack<Shot>();
         float bossCarry;
+        readonly List<IWeaponField> fields = new List<IWeaponField>();
 
         public WeaponWorld(List<Bubble> bubbles, List<Roller> rollers, List<Bullet> bullets, Func<Boss> boss, Transform shotRoot)
         {
@@ -68,6 +77,8 @@ namespace Bubblewright
             }
         }
         public StageMap Map => Game.Map;
+        /// <summary>Where weapon objects go in the scene (the Weapons root under the world).</summary>
+        public Transform Root => shotRoot;
         public IReadOnlyList<Shot> Shots => shots;
         /// <summary>Boss damage waiting to add up to a whole hit.</summary>
         public float BossCarry => bossCarry;
@@ -267,6 +278,21 @@ namespace Bubblewright
             return true;
         }
 
+        // ------------------------------------------------------------------ fields
+
+        /// <summary>
+        /// The field of type T, made with create the first time. A field holds a weapon's own things that must outlive
+        /// its slot (the Ricochet Disc's last disc is still flying when the slot empties). Fields are ticked right after
+        /// the shots and cleared with them (stage start, stage clear), so they need no hooks in Game.
+        /// </summary>
+        public T Field<T>(Func<T> create) where T : class, IWeaponField
+        {
+            foreach (var f in fields) if (f is T found) return found;
+            var made = create();
+            fields.Add(made);
+            return made;
+        }
+
         // ------------------------------------------------------------------ shots
 
         /// <summary>Fires a shared spark bullet. Velocity in units per second; range in units (infinite by default).</summary>
@@ -326,6 +352,7 @@ namespace Bubblewright
                     pool.Push(s);
                 }
             }
+            for (int i = 0; i < fields.Count; i++) fields[i].Tick(dt);
         }
 
         bool StopsAtTile(Shot s)
@@ -380,6 +407,7 @@ namespace Bubblewright
             }
             shots.Clear();
             bossCarry = 0f;
+            foreach (var f in fields) f.Clear();
         }
 
         /// <summary>Destroys every shot object, pooled ones too (tests).</summary>
