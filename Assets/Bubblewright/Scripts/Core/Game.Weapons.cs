@@ -197,6 +197,7 @@ namespace Bubblewright
             Weapons.ClearShots();
             ClearGas();
             PopMinesHarmlessly();
+            FizzleRocket();
         }
 
         // ------------------------------------------------------------------ crates
