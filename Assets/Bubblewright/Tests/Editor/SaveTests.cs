@@ -28,7 +28,7 @@ namespace Bubblewright.Tests
         static string Describe(StagePlan plan)
         {
             string map = "";
-            for (int r = 0; r < StageMap.Rows; r++)
+            for (int r = 0; r < plan.map.Rows; r++)
                 for (int c = 0; c < StageMap.Cols; c++)
                 {
                     Cell cell = plan.map.Get(c, r);

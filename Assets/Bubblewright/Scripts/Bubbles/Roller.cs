@@ -172,7 +172,7 @@ namespace Bubblewright
             float best = float.PositiveInfinity;
             point = q;
             int c0 = Mathf.Max(0, StageMap.Col(q.x - range)), c1 = Mathf.Min(StageMap.Cols - 1, StageMap.Col(q.x + range));
-            int r0 = Mathf.Max(0, StageMap.Row(q.y - range)), r1 = Mathf.Min(StageMap.Rows - 1, StageMap.Row(q.y + range));
+            int r0 = Mathf.Max(0, StageMap.Row(q.y - range)), r1 = Mathf.Min(map.Rows - 1, StageMap.Row(q.y + range));
             for (int c = c0; c <= c1; c++)
                 for (int row = r0; row <= r1; row++)
                 {
@@ -220,7 +220,7 @@ namespace Bubblewright
                 }
 
                 Vector2 q = p + Tangent * sub;
-                if (q.x - r < -half || q.x + r > half || q.y + r > StageMap.Rows)
+                if (q.x - r < -half || q.x + r > half || q.y + r > map.Rows)
                 {
                     Direction = -Direction; // the arena wall or ceiling is in the way
                     continue;

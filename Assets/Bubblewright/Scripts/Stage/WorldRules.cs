@@ -56,7 +56,7 @@ namespace Bubblewright
         public static void PaintAll(StageMap map, Surface surface)
         {
             for (int c = 0; c < StageMap.Cols; c++) map.SetGround(c, surface);
-            for (int r = 0; r < StageMap.Rows; r++)
+            for (int r = 0; r < map.Rows; r++)
                 for (int c = 0; c < StageMap.Cols; c++)
                     SetTileSurface(map, c, r, surface);
         }
@@ -105,7 +105,7 @@ namespace Bubblewright
             for (int c = SafeFirstCol; c <= SafeLastCol; c++) map.SetGround(c, Surface.Normal);
 
             // Platforms (a run of solid tiles in one row): each is ice with a 50% chance.
-            for (int r = 0; r < StageMap.Rows; r++)
+            for (int r = 0; r < map.Rows; r++)
             {
                 int c = 0;
                 while (c < StageMap.Cols)
@@ -147,7 +147,7 @@ namespace Bubblewright
                     if (Valid(map, col, -1, width))
                         ground.Add(new Spot { col = col, row = -1, width = width });
 
-                for (int row = 0; row < StageMap.Rows; row++)
+                for (int row = 0; row < map.Rows; row++)
                 {
                     int col = 0;
                     while (col < StageMap.Cols)
@@ -187,7 +187,7 @@ namespace Bubblewright
             for (int col = c - 1; col <= c + 1; col++)
             {
                 if (col < 0 || col >= StageMap.Cols) continue;
-                for (int r = 0; r < StageMap.Rows; r++)
+                for (int r = 0; r < map.Rows; r++)
                     if (map.Get(col, r).ladder) return true;
             }
             return false;

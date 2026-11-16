@@ -248,7 +248,7 @@ namespace Bubblewright.Tests
             for (int c = 0; c < StageMap.Cols; c++)
             {
                 Assert.AreEqual(Surface.Sand, m.GetGround(c), $"ground column {c}");
-                for (int r = 0; r < StageMap.Rows; r++)
+                for (int r = 0; r < m.Rows; r++)
                     if (m.IsSolid(c, r)) Assert.AreEqual(Surface.Sand, m.Get(c, r).surface, $"tile {c},{r}");
             }
         }
@@ -278,7 +278,7 @@ namespace Bubblewright.Tests
             {
                 var m = StageLayout.Parse(StageLayouts.All[1].rows);
                 WorldRules.Apply(m, 4, new System.Random(seed));
-                for (int r = 0; r < StageMap.Rows; r++)
+                for (int r = 0; r < m.Rows; r++)
                 {
                     int c = 0;
                     while (c < StageMap.Cols)
@@ -309,7 +309,7 @@ namespace Bubblewright.Tests
                 for (int c = 0; c < StageMap.Cols; c++)
                 {
                     Assert.AreEqual(Surface.Normal, m.GetGround(c));
-                    for (int r = 0; r < StageMap.Rows; r++) Assert.AreEqual(Surface.Normal, m.Get(c, r).surface);
+                    for (int r = 0; r < m.Rows; r++) Assert.AreEqual(Surface.Normal, m.Get(c, r).surface);
                 }
             }
         }

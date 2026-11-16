@@ -7,7 +7,7 @@ namespace Bubblewright
     {
         const int TilePixels = 15;
         const int Width = StageMap.Cols * TilePixels;
-        const int Height = StageMap.Rows * TilePixels;
+        const int Height = StageMap.StoreyRows * TilePixels; // one storey for now
 
         readonly Color32[] pixels = new Color32[Width * Height];
         const int CapRows = 3;
@@ -76,7 +76,7 @@ namespace Bubblewright
 
             System.Array.Clear(pixels, 0, pixels.Length);
             System.Array.Clear(groundPixels, 0, groundPixels.Length);
-            for (int r = 0; r < StageMap.Rows; r++)
+            for (int r = 0; r < map.Rows; r++)
             {
                 for (int c = 0; c < StageMap.Cols; c++)
                 {

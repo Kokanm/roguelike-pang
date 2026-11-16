@@ -277,7 +277,7 @@ namespace Bubblewright
             var map = world.Map;
             if (map == null) return false;
             int c0 = Mathf.Max(0, StageMap.Col(p.x - r + 1e-4f)), c1 = Mathf.Min(StageMap.Cols - 1, StageMap.Col(p.x + r - 1e-4f));
-            int r0 = Mathf.Max(0, StageMap.Row(p.y - r + 1e-4f)), r1 = Mathf.Min(StageMap.Rows - 1, StageMap.Row(p.y + r - 1e-4f));
+            int r0 = Mathf.Max(0, StageMap.Row(p.y - r + 1e-4f)), r1 = Mathf.Min(map.Rows - 1, StageMap.Row(p.y + r - 1e-4f));
             for (int c = c0; c <= c1; c++)
                 for (int rr = r0; rr <= r1; rr++)
                     if (map.IsSolid(c, rr)) { col = c; row = rr; return true; }

@@ -36,7 +36,7 @@ namespace Bubblewright
         /// <summary>Light a flame on column col with its base at surfaceY. Does nothing outside the grid or over a ground gap.</summary>
         public void Add(StageMap map, int col, float surfaceY)
         {
-            if (map == null || col < 0 || col >= StageMap.Cols || surfaceY < -0.05f || surfaceY > StageMap.Rows) return;
+            if (map == null || col < 0 || col >= StageMap.Cols || surfaceY < -0.05f || surfaceY > map.Rows) return;
             if (surfaceY < 0.05f && map.IsGap(col)) return;
 
             foreach (var f in flames)

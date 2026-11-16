@@ -349,7 +349,7 @@ namespace Bubblewright.Tests
                 var plan = StageGenerator.Generate(stage, new System.Random(world));
                 Assert.AreEqual(0, plan.spawns.Count, $"world {world}");
                 for (int c = 0; c < StageMap.Cols; c++)
-                    for (int r = 0; r < StageMap.Rows; r++)
+                    for (int r = 0; r < plan.map.Rows; r++)
                         Assert.IsFalse(plan.map.IsSolid(c, r), $"world {world}: boss stages have no platforms ({c},{r})");
             }
             Assert.AreEqual(120f, StageGenerator.BossTime(), 1e-4f);

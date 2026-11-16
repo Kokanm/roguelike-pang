@@ -11,14 +11,14 @@ namespace Bubblewright
     {
         public static StageMap Parse(string[] rows)
         {
-            if (rows == null || (rows.Length != StageMap.Rows && rows.Length != StageMap.Rows + 1))
-                throw new ArgumentException($"Stage layout must have {StageMap.Rows} rows (plus an optional ground row), got {(rows == null ? 0 : rows.Length)}.", nameof(rows));
+            if (rows == null || (rows.Length != StageMap.StoreyRows && rows.Length != StageMap.StoreyRows + 1))
+                throw new ArgumentException($"Stage layout must have {StageMap.StoreyRows} rows (plus an optional ground row), got {(rows == null ? 0 : rows.Length)}.", nameof(rows));
 
             var map = StageMap.Flat();
-            for (int i = 0; i < StageMap.Rows; i++)
+            for (int i = 0; i < map.Rows; i++)
             {
                 string line = rows[i];
-                int r = StageMap.Rows - 1 - i;
+                int r = map.Rows - 1 - i;
                 if (line == null || line.Length != StageMap.Cols)
                     throw new ArgumentException($"Stage row {r} must have {StageMap.Cols} characters, got {(line == null ? 0 : line.Length)}.", nameof(rows));
 
@@ -50,7 +50,7 @@ namespace Bubblewright
                     }
                 }
             }
-            if (rows.Length > StageMap.Rows) ParseGround(map, rows[StageMap.Rows]);
+            if (rows.Length > map.Rows) ParseGround(map, rows[map.Rows]);
             return map;
         }
 

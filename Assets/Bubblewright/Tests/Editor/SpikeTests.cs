@@ -175,7 +175,7 @@ namespace Bubblewright.Tests
         static bool ColumnHasLadder(StageMap map, int c)
         {
             if (c < 0 || c >= StageMap.Cols) return false;
-            for (int r = 0; r < StageMap.Rows; r++)
+            for (int r = 0; r < map.Rows; r++)
                 if (map.Get(c, r).ladder) return true;
             return false;
         }

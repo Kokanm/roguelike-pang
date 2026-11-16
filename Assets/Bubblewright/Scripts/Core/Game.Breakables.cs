@@ -55,7 +55,7 @@ namespace Bubblewright
         {
             if (c < 0 || c >= StageMap.Cols) return false;
             int rMin = Mathf.Max(0, StageMap.Row(body.yMin));
-            int rMax = Mathf.Min(StageMap.Rows - 1, StageMap.Row(body.yMax - 0.0001f));
+            int rMax = Mathf.Min(Map.Rows - 1, StageMap.Row(body.yMax - 0.0001f));
             for (int r = rMin; r <= rMax; r++)
                 if (Map.Get(c, r).kind == TileKind.Breakable)
                     return true;

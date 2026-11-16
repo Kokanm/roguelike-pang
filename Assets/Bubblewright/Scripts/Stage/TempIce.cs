@@ -46,7 +46,7 @@ namespace Bubblewright
 
         public void FreezeTile(StageMap map, int col, int row)
         {
-            if (map == null || col < 0 || col >= StageMap.Cols || row < 0 || row >= StageMap.Rows) return;
+            if (map == null || col < 0 || col >= StageMap.Cols || row < 0 || row >= map.Rows) return;
             Cell cell = map.Get(col, row);
             if (cell.kind == TileKind.Empty) return;
             int i = Find(false, col, row);

@@ -26,12 +26,34 @@ namespace Bubblewright.Tests
         };
 
         [Test]
+        public void RowsAndHeightComeFromTheMapsStoreys()
+        {
+            var one = StageMap.Flat();
+            Assert.AreEqual(1, one.Storeys);
+            Assert.AreEqual(StageMap.StoreyRows, one.Rows);
+            Assert.AreEqual(14f, one.Height, 1e-5f);
+            Assert.AreEqual(0, one.StoreyOf(20f), "clamped to its only storey");
+
+            var three = StageMap.Flat(3);
+            Assert.AreEqual(3, three.Storeys);
+            Assert.AreEqual(42, three.Rows);
+            Assert.AreEqual(42f, three.Height, 1e-5f);
+            Assert.AreEqual(0, three.StoreyOf(-1f));
+            Assert.AreEqual(0, three.StoreyOf(13.9f));
+            Assert.AreEqual(1, three.StoreyOf(14f));
+            Assert.AreEqual(2, three.StoreyOf(41f));
+            Assert.AreEqual(2, three.StoreyOf(99f));
+            Assert.AreEqual(TileKind.Empty, three.Get(0, 41).kind);
+            Assert.AreEqual(TileKind.Solid, three.Get(0, 42).kind);
+        }
+
+        [Test]
         public void FlatHasNoSolidCellsInsideAndIsSolidOutside()
         {
             var map = StageMap.Flat();
             for (int c = 0; c < StageMap.Cols; c++)
             {
-                for (int r = 0; r < StageMap.Rows; r++)
+                for (int r = 0; r < map.Rows; r++)
                 {
                     Assert.AreEqual(TileKind.Empty, map.Get(c, r).kind);
                     Assert.IsFalse(map.IsSolid(c, r));
@@ -41,11 +63,11 @@ namespace Bubblewright.Tests
             Assert.AreEqual(TileKind.Solid, map.Get(-1, 0).kind);
             Assert.AreEqual(TileKind.Solid, map.Get(StageMap.Cols, 0).kind);
             Assert.AreEqual(TileKind.Solid, map.Get(0, -1).kind);
-            Assert.AreEqual(TileKind.Solid, map.Get(0, StageMap.Rows).kind);
+            Assert.AreEqual(TileKind.Solid, map.Get(0, map.Rows).kind);
             Assert.IsTrue(map.IsSolid(-1, 5));
             Assert.IsTrue(map.IsSolid(StageMap.Cols, 5));
             Assert.IsTrue(map.IsSolid(5, -1));
-            Assert.IsTrue(map.IsSolid(5, StageMap.Rows));
+            Assert.IsTrue(map.IsSolid(5, map.Rows));
         }
 
         [Test]
@@ -131,7 +153,7 @@ namespace Bubblewright.Tests
 
             float sky = map.CeilingAbove(-14f, 1f, out int skyRow);
             Assert.AreEqual(14f, sky, 1e-5f);
-            Assert.AreEqual(StageMap.Rows, skyRow);
+            Assert.AreEqual(map.Rows, skyRow);
         }
 
         [Test]
