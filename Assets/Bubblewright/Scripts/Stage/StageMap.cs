@@ -62,10 +62,14 @@ namespace Bubblewright
 
         public int Version { get; private set; }
 
+        /// <summary>Open hatches. Only empty ladder cells on a storey cap are ever set.</summary>
+        readonly bool[,] hatchOpen;
+
         public StageMap(int storeys = 1)
         {
             Storeys = Mathf.Clamp(storeys, 1, 3);
             cells = new Cell[Cols, Rows];
+            hatchOpen = new bool[Cols, Rows];
         }
 
         public static StageMap Flat(int storeys = 1) => new StageMap(storeys);
@@ -161,10 +165,54 @@ namespace Bubblewright
         public static Rect CellRect(int c, int r) => new Rect(-HalfWidth + c, r, 1f, 1f);
         public static float CenterX(int c) => -HalfWidth + c + 0.5f;
 
+        /// <summary>
+        /// When true, a shut storey cap blocks Wick. Shots and bubbles leave this false: a hatch is not a tile to them.
+        /// </summary>
+        public bool IncludeHatches { get; set; }
+
+        /// <summary>Storey caps block Wick except an open hatch. Off on a one-storey map, so a single screen plays as before.</summary>
+        public bool HatchRules { get; set; }
+
+        /// <summary>The top row of a storey that still has another storey above it.</summary>
+        public bool IsStoreyCap(int r) => r >= 0 && r + 1 < Rows && (r + 1) % StoreyRows == 0;
+
+        /// <summary>
+        /// The whole cap row is solid for Wick, except an open hatch. An open hatch is an empty ladder cell on that row.
+        /// A plain empty cell on the cap is an invisible ceiling, so he cannot jump the shaft beside the ladder.
+        /// </summary>
+        public bool CapBlocks(int c, int r)
+        {
+            if (!HatchRules || c < 0 || c >= Cols || !IsStoreyCap(r)) return false;
+            return !hatchOpen[c, r];
+        }
+
+        public bool IsHatchOpen(int c, int r) =>
+            c >= 0 && c < Cols && r >= 0 && r < Rows && hatchOpen[c, r];
+
+        /// <summary>Opens or shuts one hatch. Only an empty ladder cell on a cap can open. Bumps Version when it changes.</summary>
+        public void SetHatchOpen(int c, int r, bool open)
+        {
+            if (c < 0 || c >= Cols || !IsStoreyCap(r)) return;
+            var cell = cells[c, r];
+            if (cell.kind != TileKind.Empty || !cell.ladder) return;
+            if (hatchOpen[c, r] == open) return;
+            hatchOpen[c, r] = open;
+            Version++;
+        }
+
+        /// <summary>An empty ladder cell on a cap that is currently shut. The view draws a plate here.</summary>
+        public bool ShutHatch(int c, int r)
+        {
+            if (!HatchRules || c < 0 || c >= Cols || r < 0 || r >= Rows || !IsStoreyCap(r)) return false;
+            var cell = cells[c, r];
+            return cell.kind == TileKind.Empty && cell.ladder && !hatchOpen[c, r];
+        }
+
         public bool IsSolid(int c, int r)
         {
             var k = Get(c, r).kind;
-            return k == TileKind.Solid || k == TileKind.Breakable;
+            if (k == TileKind.Solid || k == TileKind.Breakable) return true;
+            return IncludeHatches && CapBlocks(c, r);
         }
 
         /// <summary>Damages a breakable cell once and returns true only when that hit destroys it.</summary>

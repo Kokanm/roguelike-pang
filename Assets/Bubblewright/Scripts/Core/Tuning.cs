@@ -21,6 +21,10 @@ namespace Bubblewright
         [Tooltip("Strip under the floor that holds the thumb controls.")]
         public float groundStrip = 4f;
 
+        [Header("Storeys")]
+        [Tooltip("How fast the camera pans up to the next storey, in units per second. 56 is about a quarter of a second per storey.")]
+        public float storeyPanSpeed = 56f;
+
         [Header("Wick")]
         [Tooltip("Top speed in units per second.")]
         public float runSpeed = 9f;

@@ -52,6 +52,7 @@ namespace Bubblewright
             lastMoveDir = TitleMoveDir;
             ClearTitleRects();
             SetState(State.Title);
+            ResetStoreyView();
         }
 
         void ClearTitleRects()

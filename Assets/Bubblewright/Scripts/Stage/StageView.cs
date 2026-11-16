@@ -7,9 +7,9 @@ namespace Bubblewright
     {
         const int TilePixels = 15;
         const int Width = StageMap.Cols * TilePixels;
-        const int Height = StageMap.StoreyRows * TilePixels; // one storey for now
+        const int Height = StageMap.StoreyRows * TilePixels; // one storey; a taller map rebuilds the buffer
 
-        readonly Color32[] pixels = new Color32[Width * Height];
+        Color32[] pixels = new Color32[Width * Height];
         const int CapRows = 3;
         /// <summary>The ground sprite reaches this far below the floor line: deep enough for a gap's dark opening.</summary>
         const int GroundRows = 12;
@@ -74,6 +74,7 @@ namespace Bubblewright
             theme = Game.CurrentTheme;
             if (map == paintedMap && map.Version == paintedVersion && theme == paintedTheme) return;
 
+            EnsureArena(map.Rows);
             System.Array.Clear(pixels, 0, pixels.Length);
             System.Array.Clear(groundPixels, 0, groundPixels.Length);
             for (int r = 0; r < map.Rows; r++)
@@ -82,7 +83,8 @@ namespace Bubblewright
                 {
                     Cell cell = map.Get(c, r);
                     if (cell.kind != TileKind.Empty) PaintTile(map, c, r, cell);
-                    if (cell.ladder) PaintLadder(c, r);
+                    if (map.ShutHatch(c, r)) PaintHatch(c, r);
+                    else if (cell.ladder) PaintLadder(c, r);
                 }
             }
 
@@ -232,6 +234,54 @@ namespace Bubblewright
                 Rect(x0 + 3, y0 + y, 9, 1, Palette.SteelLight);
         }
 
+        /// <summary>A shut hatch: a steel plate over the ladder, in the same tile size as the rest of the stage.</summary>
+        void PaintHatch(int c, int r)
+        {
+            int x0 = c * TilePixels, y0 = r * TilePixels;
+            Rect(x0, y0, TilePixels, TilePixels, Palette.SteelDark);
+            Rect(x0 + 1, y0 + 1, TilePixels - 2, TilePixels - 2, Palette.Steel);
+            Rect(x0, y0 + 12, TilePixels, 3, Palette.SteelLight);
+            Rect(x0, y0 + 11, TilePixels, 1, Palette.SteelDark);
+            Rect(x0 + 2, y0 + 2, 2, 2, Palette.SteelDark);
+            Rect(x0 + 11, y0 + 2, 2, 2, Palette.SteelDark);
+            Rect(x0 + 2, y0 + 9, 2, 2, Palette.SteelDark);
+            Rect(x0 + 11, y0 + 9, 2, 2, Palette.SteelDark);
+            Rect(x0, y0, TilePixels, 1, Palette.Ink);
+            Rect(x0, y0 + 14, TilePixels, 1, Palette.Ink);
+            Rect(x0, y0, 1, TilePixels, Palette.Ink);
+            Rect(x0 + 14, y0, 1, TilePixels, Palette.Ink);
+        }
+
+        /// <summary>A second storey needs 420 rows of pixels. Switching back to one storey builds the 210-row texture again.</summary>
+        void EnsureArena(int rows)
+        {
+            int height = rows * TilePixels;
+            if (pixels != null && pixels.Length == Width * height && texture != null && texture.height == height)
+                return;
+            pixels = new Color32[Width * height];
+            pixelCanvas = new PixelCanvas(Width, height, pixels);
+            spriteRenderer.sprite = null;
+            if (sprite != null) DestroyAsset(sprite);
+            if (texture != null) DestroyAsset(texture);
+            texture = new Texture2D(Width, height, TextureFormat.RGBA32, false)
+            {
+                name = "Stage Map",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, Width, height), Vector2.zero, TilePixels, 0, SpriteMeshType.FullRect);
+            sprite.name = "Stage Map";
+            spriteRenderer.sprite = sprite;
+            paintedVersion = -1;
+        }
+
+        static void DestroyAsset(UnityEngine.Object obj)
+        {
+            if (obj == null) return;
+            if (Application.isPlaying) UnityEngine.Object.Destroy(obj);
+            else UnityEngine.Object.DestroyImmediate(obj);
+        }
+
         void Rect(int x, int y, int width, int height, Color32 color)
         {
             for (int py = y; py < y + height; py++)
@@ -241,10 +291,10 @@ namespace Bubblewright
 
         void OnDestroy()
         {
-            if (sprite != null) Destroy(sprite);
-            if (texture != null) Destroy(texture);
-            if (groundSprite != null) Destroy(groundSprite);
-            if (groundTexture != null) Destroy(groundTexture);
+            if (sprite != null) DestroyAsset(sprite);
+            if (texture != null) DestroyAsset(texture);
+            if (groundSprite != null) DestroyAsset(groundSprite);
+            if (groundTexture != null) DestroyAsset(groundTexture);
         }
     }
 }

@@ -36,6 +36,11 @@ namespace Bubblewright
         void TickWaves(float dt)
         {
             if (waves == null) return;
+            if (activeStorey != ResolvedWaveStorey())
+            {
+                HideWaveMarkers();
+                return;
+            }
             int enemies = RequiredBubbles() + hitBubbles.Count + RequiredRollers();
             waves.Tick(dt, enemies, wick.transform.position.x, SpawnWaveBubble);
 
@@ -55,7 +60,8 @@ namespace Bubblewright
         {
             int tier = Mathf.Clamp(spec.tier, 0, T.tiers.Length - 1);
             float radius = T.tiers[tier].diameter * 0.5f;
-            var b = SpawnBubble(spec.kind, tier, new Vector2(x, T.arenaHeight - radius - 0.05f), spec.direction >= 0 ? 1 : -1, 0f, false, spec.ceramic, spec.pogo, spec.steel);
+            float ceiling = WaveCeiling();
+            var b = SpawnBubble(spec.kind, tier, new Vector2(x, ceiling - radius - 0.05f), spec.direction >= 0 ? 1 : -1, 0f, false, spec.ceramic, spec.pogo, spec.steel);
             if (storm) b.OnStorm();
         }
 
@@ -72,8 +78,9 @@ namespace Bubblewright
                 bool on = elapsed % (MarkerOn + MarkerOff) < MarkerOn;
                 markerIcons[i].gameObject.SetActive(on);
                 markerLines[i].gameObject.SetActive(on);
-                markerIcons[i].transform.position = new Vector3(m.x, T.arenaHeight, 0f);
-                markerLines[i].transform.position = new Vector3(m.x, T.arenaHeight - 9f * T.Pixel, 0f);
+                float ceiling = WaveCeiling();
+                markerIcons[i].transform.position = new Vector3(m.x, ceiling, 0f);
+                markerLines[i].transform.position = new Vector3(m.x, ceiling - 9f * T.Pixel, 0f);
             }
             for (int i = list.Count; i < markerIcons.Count; i++)
             {

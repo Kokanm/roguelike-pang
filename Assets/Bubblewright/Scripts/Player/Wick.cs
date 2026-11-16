@@ -385,6 +385,10 @@ namespace Bubblewright
         public void Tick(float move, float climb, bool jump, float dt, bool controllable)
         {
             var map = Game.Map ?? StageMap.Flat();
+            bool hatchFlag = map.IncludeHatches;
+            map.IncludeHatches = true;
+            try
+            {
             if (HoldStill)
             {
                 controllable = false;
@@ -594,6 +598,11 @@ namespace Bubblewright
 
             if (invulnerable > 0f) invulnerable -= dt;
             Animate(dt);
+            }
+            finally
+            {
+                map.IncludeHatches = hatchFlag;
+            }
         }
 
         /// <summary>Kick off the wall on side wallSide (-1 left, +1 right): a full jump, pushed away from it.</summary>
@@ -901,6 +910,8 @@ namespace Bubblewright
                     }
                 }
 
+                if (r >= 0 && map.CapBlocks(c, r)) r = -1;
+
                 if (r >= 0)
                 {
                     bestDist = dist;
@@ -912,12 +923,15 @@ namespace Bubblewright
             return foundCol >= 0;
         }
 
+        static bool LadderLinked(StageMap map, int c, int r) =>
+            r >= 0 && r < map.Rows && map.Get(c, r).ladder && !map.CapBlocks(c, r);
+
         static void GetLadderSpan(StageMap map, int c, int seedRow, out int bottomRow, out int topRow)
         {
             bottomRow = seedRow;
-            while (bottomRow > 0 && map.Get(c, bottomRow - 1).ladder) bottomRow--;
+            while (bottomRow > 0 && LadderLinked(map, c, bottomRow - 1)) bottomRow--;
             topRow = seedRow;
-            while (topRow + 1 < map.Rows && map.Get(c, topRow + 1).ladder) topRow++;
+            while (LadderLinked(map, c, topRow + 1)) topRow++;
         }
 
         float LadderTopStop(StageMap map, int c, int topRow)
@@ -962,6 +976,17 @@ namespace Bubblewright
                 Mode = Mode.Fall;
                 fallSpeed = 0f;
                 return;
+            }
+            if (map.CapBlocks(ladderCol, r))
+            {
+                if (LadderLinked(map, ladderCol, r + 1)) r++;
+                else if (LadderLinked(map, ladderCol, r - 1)) r--;
+                else
+                {
+                    Mode = Mode.Fall;
+                    fallSpeed = 0f;
+                    return;
+                }
             }
             GetLadderSpan(map, ladderCol, r, out ladderBottomRow, out ladderTopRow);
         }

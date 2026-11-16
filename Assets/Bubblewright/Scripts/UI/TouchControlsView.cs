@@ -58,10 +58,10 @@ namespace Bubblewright
             return sr;
         }
 
-        public void Refresh(GameInput input, Tuning t, bool nearLadder = false)
+        public void Refresh(GameInput input, Tuning t, bool nearLadder = false, float camPanY = 0f)
         {
             bool show = Application.isMobilePlatform || input.TouchUsed;
-            float stripMid = -t.groundStrip * 0.5f - 0.2f;
+            float stripMid = camPanY - t.groundStrip * 0.5f - 0.2f;
             float px = 1f / t.pixelsPerUnit;
 
             // Anchor to the visible screen edges (inside the safe area), not the arena, so thumbs reach them.

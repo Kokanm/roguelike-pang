@@ -425,5 +425,203 @@ namespace Bubblewright.Tests
             Assert.NotNull(f, field);
             f.SetValue(target, value);
         }
+
+        [Test]
+        public void StageViewResizesTextureForTwoStoreyMap()
+        {
+            SetMap(StageLayout.Parse(Blank(28)));
+            var view = StageView.Create(root.transform);
+            view.Tick();
+            var texture = view.GetComponent<SpriteRenderer>().sprite.texture;
+            Assert.AreEqual(480, texture.width);
+            Assert.AreEqual(420, texture.height);
+
+            SetMap(StageMap.Flat());
+            view.Tick();
+            texture = view.GetComponent<SpriteRenderer>().sprite.texture;
+            Assert.AreEqual(480, texture.width);
+            Assert.AreEqual(210, texture.height);
+        }
+
+        [Test]
+        public void ActiveStoreyOnlyAdvances()
+        {
+            Assert.AreEqual(0, Game.ComputeActiveStorey(0, 13.9f, 2));
+            Assert.AreEqual(1, Game.ComputeActiveStorey(0, 14f, 2));
+            Assert.AreEqual(1, Game.ComputeActiveStorey(1, 13.9f, 2));
+            Assert.AreEqual(1, Game.ComputeActiveStorey(1, 5f, 2));
+            Assert.AreEqual(1, Game.ComputeActiveStorey(0, 28f, 2));
+            Assert.AreEqual(2, Game.ComputeActiveStorey(1, 28f, 3));
+            Assert.AreEqual(2, Game.ComputeActiveStorey(2, 0f, 3));
+            Assert.AreEqual(0, Game.ComputeActiveStorey(0, 20f, 1));
+        }
+
+        [Test]
+        public void HatchOpensWhenTheStoreyIsClearedAndShutsBehindWick()
+        {
+            const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
+            var flames = typeof(Game).GetProperty("Flames", BindingFlags.Public | BindingFlags.Static);
+            var active = typeof(Game).GetField("active", BindingFlags.NonPublic | BindingFlags.Static);
+            var previousFlames = flames.GetValue(null);
+            var previousActive = active.GetValue(null);
+            var theme = Game.CurrentTheme;
+            var go = new GameObject("Storey Hatch Game");
+            var game = go.AddComponent<Game>();
+            try
+            {
+                Call(game, "Awake");
+                SetField(game, "run", new Run(1));
+                var plan = new StagePlan
+                {
+                    map = HatchClimbMap(),
+                    wickPosition = new Vector2(ShaftX, 10f),
+                    spawns = new List<SpawnSpec>
+                    {
+                        new SpawnSpec { kind = BubbleKind.Gloop, tier = 2, position = new Vector2(-14f, 8f), direction = -1 },
+                        new SpawnSpec { kind = BubbleKind.Gloop, tier = 2, position = new Vector2(14f, 22f), direction = 1 },
+                    },
+                };
+                Call(game, "LoadStage", plan);
+                SetState(game, "Play");
+                SetClimb(game, 1f);
+
+                var bubbles = (List<Bubble>)typeof(Game).GetField("bubbles", flags).GetValue(game);
+                var lower = OnStorey(bubbles, 0);
+                var upper = OnStorey(bubbles, 1);
+                var wick = (Wick)typeof(Game).GetField("wick", flags).GetValue(game);
+                Vector3 upperAt = upper.transform.position;
+                int hearts = wick.Hearts;
+                Assert.Greater(hearts, 0);
+
+                for (int i = 0; i < 90; i++) Call(game, "TickPlay", Dt);
+
+                Assert.Greater(wick.FeetY, 11f, "he should climb up to the shut hatch");
+                Assert.Less(wick.FeetY, 14f, "a living bubble on storey 0 keeps the hatch shut");
+                Assert.AreEqual(hearts, wick.Hearts);
+                Assert.AreEqual(upperAt.x, upper.transform.position.x, 0.0001f);
+                Assert.AreEqual(upperAt.y, upper.transform.position.y, 0.0001f);
+                Assert.IsFalse(game.IsStoreyAwake(1));
+                Assert.IsTrue(game.IsStoreyAwake(0));
+                Assert.IsFalse(Game.Map.IsHatchOpen(Shaft, 13));
+                Game.Map.IncludeHatches = true;
+                Assert.IsTrue(Game.Map.IsSolid(Shaft, 13), "the shut hatch blocks Wick");
+                Assert.IsTrue(Game.Map.IsSolid(8, 13), "the rest of the storey cap blocks Wick too");
+                Game.Map.IncludeHatches = false;
+                Assert.IsFalse(Game.Map.IsSolid(Shaft, 13), "a shot does not see the hatch");
+
+                Vector3 parked = upper.transform.position;
+                Vector3 overlap = wick.transform.position + new Vector3(0f, 0.3f, 0f);
+                upper.transform.position = overlap;
+                Call(game, "TickPlay", Dt);
+                Assert.AreEqual(hearts, wick.Hearts, "a sleeping bubble cannot hurt Wick");
+                Assert.AreEqual(overlap.x, upper.transform.position.x, 0.0001f, "a sleeping bubble does not move");
+                Assert.AreEqual(overlap.y, upper.transform.position.y, 0.0001f, "a sleeping bubble does not move");
+                Assert.Less(wick.FeetY, 14f);
+                upper.transform.position = parked;
+
+                bubbles.Remove(lower);
+                UnityEngine.Object.DestroyImmediate(lower.gameObject);
+                Call(game, "TickPlay", Dt);
+                Assert.IsTrue(Game.Map.IsHatchOpen(Shaft, 13));
+                Game.Map.IncludeHatches = true;
+                Assert.IsFalse(Game.Map.IsSolid(Shaft, 13));
+                Assert.IsTrue(Game.Map.IsSolid(8, 13));
+                Game.Map.IncludeHatches = false;
+
+                for (int i = 0; i < 180 && wick.FeetY < 14f; i++) Call(game, "TickPlay", Dt);
+                Assert.GreaterOrEqual(wick.FeetY, 14f);
+                Assert.AreEqual(1, game.ActiveStorey);
+                Assert.IsTrue(game.IsStoreyAwake(1));
+                Assert.IsTrue(game.IsStoreyAwake(0));
+                Assert.IsFalse(Game.Map.IsHatchOpen(Shaft, 13));
+                Game.Map.IncludeHatches = true;
+                Assert.IsTrue(Game.Map.IsSolid(Shaft, 13), "the hatch shuts once he is on the storey above");
+                Game.Map.IncludeHatches = false;
+
+                bubbles.Remove(upper);
+                UnityEngine.Object.DestroyImmediate(upper.gameObject);
+                SetClimb(game, -1f);
+                for (int i = 0; i < 180; i++)
+                {
+                    Call(game, "TickPlay", Dt);
+                    Assert.GreaterOrEqual(wick.FeetY, 14f - 0.02f, "frame " + i);
+                    Assert.AreEqual(1, game.ActiveStorey, "frame " + i);
+                }
+            }
+            finally
+            {
+                flames.SetValue(null, previousFlames);
+                active.SetValue(null, previousActive);
+                Game.CurrentTheme = theme;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void HudAndTouchStripFollowTheCameraPan()
+        {
+            Assert.AreEqual(14f, Game.HudAnchorWorld(14f).y - Game.HudAnchorWorld(0f).y, 0.0001f);
+            Assert.AreEqual(-Tuning.I.HalfWidth, Game.HudAnchorWorld(14f).x, 0.0001f);
+
+            var camGo = new GameObject("Pan Cam");
+            var cam = camGo.AddComponent<Camera>();
+            Game.ConfigureCamera(cam);
+            var view = TouchControlsView.Create(root.transform, cam);
+            var input = new GameInput();
+            try
+            {
+                view.Refresh(input, Tuning.I, false, 0f);
+                float fire0 = view.transform.Find("Fire Button").position.y;
+                float hint0 = view.transform.Find("Move Hint").position.y;
+                view.Refresh(input, Tuning.I, false, 14f);
+                float fire14 = view.transform.Find("Fire Button").position.y;
+                float hint14 = view.transform.Find("Move Hint").position.y;
+                Assert.AreEqual(14f, fire14 - fire0, 0.02f);
+                Assert.AreEqual(14f, hint14 - hint0, 0.02f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(camGo);
+            }
+        }
+
+        static StageMap HatchClimbMap()
+        {
+            var rows = Blank(28);
+            for (int row = 0; row <= 20; row++) Paint(rows, row, Shaft, 'H');
+            return StageLayout.Parse(rows);
+        }
+
+        static Bubble OnStorey(List<Bubble> list, int storey)
+        {
+            for (int i = 0; i < list.Count; i++)
+                if (list[i] != null && list[i].HomeStorey == storey) return list[i];
+            Assert.Fail("no bubble on storey " + storey);
+            return null;
+        }
+
+        static void SetState(Game game, string name)
+        {
+            const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance;
+            var stateType = typeof(Game).GetNestedType("State", flags);
+            Assert.NotNull(stateType, "State");
+            typeof(Game).GetField("state", flags).SetValue(game, Enum.Parse(stateType, name));
+        }
+
+        static void SetClimb(Game game, float climb)
+        {
+            var input = typeof(Game).GetField("input", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(game);
+            var setter = typeof(GameInput).GetProperty("Climb").GetSetMethod(true);
+            Assert.NotNull(setter, "Climb setter");
+            setter.Invoke(input, new object[] { climb });
+        }
+
+        static void Call(Game game, string method, params object[] args)
+        {
+            var found = typeof(Game).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(found, method);
+            try { found.Invoke(game, args.Length == 0 ? null : args); }
+            catch (TargetInvocationException e) { throw e.InnerException ?? e; }
+        }
     }
 }
