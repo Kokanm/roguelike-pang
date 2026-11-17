@@ -1,9 +1,11 @@
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Bubblewright.Tests
 {
-    /// <summary>Hard worlds: less time, one debuff for the whole world, double score, rarity and the richer pick.</summary>
+    /// <summary>Hard worlds: less time, one debuff for the whole world, double score, rarity, the richer pick and a harder boss.</summary>
     public class HardWorldTests
     {
         static Run RunAt(int stage, int seed = 1) => new Run(seed) { Stage = stage };
@@ -125,6 +127,28 @@ namespace Bubblewright.Tests
             run.Take(second);
             Assert.AreEqual(1, run.TimesTaken(first));
             Assert.AreEqual(1, run.TimesTaken(second));
+        }
+
+        [Test]
+        public void HardWorldNoLongerAddsBubbleBudget()
+        {
+            const BindingFlags all = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+            Assert.IsNull(typeof(Tuning).GetField("hardBudgetScale", all), "the +30% hard-road bubble budget is gone");
+            Assert.IsNull(typeof(Tuning).GetProperty("hardBudgetScale", all));
+        }
+
+        [Test]
+        public void HardWorldBossHasMoreHealth()
+        {
+            var t = Tuning.I;
+            var run = RunAt(12); // boss stage of world 2
+            Assert.IsTrue(run.IsBossStage);
+            int calm = BossSpec.HpForWorld(run.World, run.IsHard);
+            Assert.AreEqual(BossSpec.HpForWorld(2), calm, "a calm world keeps its boss's health");
+
+            run.SetHard(2, Debuff.All[0]);
+            Assert.AreEqual(Mathf.CeilToInt(calm * t.hardBossHpScale), BossSpec.HpForWorld(run.World, run.IsHard));
+            Assert.Greater(BossSpec.HpForWorld(run.World, run.IsHard), calm);
         }
 
         [Test]

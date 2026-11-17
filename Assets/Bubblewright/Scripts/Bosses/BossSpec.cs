@@ -59,9 +59,15 @@ namespace Bubblewright
         /// <summary>When each attack first fires after the boss has slid in, so they do not all fire together.</summary>
         public const float AimedStart = 1.0f, BouncyStart = 1.8f, BalloonStart = 3.0f;
 
-        /// <summary>Health of the boss of a world: bossBaseHp, then bossHpPerWorld more for each later world.</summary>
-        public static int HpForWorld(int world) =>
-            Tuning.I.bossBaseHp + Tuning.I.bossHpPerWorld * (Mathf.Max(1, world) - 1);
+        /// <summary>
+        /// Health of the boss of a world: bossBaseHp, then bossHpPerWorld more for each later world. On the hard road
+        /// that is multiplied by hardBossHpScale and rounded up.
+        /// </summary>
+        public static int HpForWorld(int world, bool hard = false)
+        {
+            int hp = Tuning.I.bossBaseHp + Tuning.I.bossHpPerWorld * (Mathf.Max(1, world) - 1);
+            return hard ? Mathf.CeilToInt(hp * Tuning.I.hardBossHpScale) : hp;
+        }
 
         /// <summary>The boss of each world. Placeholder numbers: tune them here.</summary>
         public static BossSpec ForWorld(int world)
