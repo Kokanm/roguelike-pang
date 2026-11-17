@@ -83,6 +83,27 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void World1OpensOnThreeDifferentStages()
+        {
+            var picked = StagePicker.PickForWorld(1, 1, false);
+            var opening = picked.Take(3).Select(s => s.Id).ToArray();
+            Assert.AreEqual(3, opening.Distinct().Count(), "the first three stages were " + string.Join(", ", opening));
+            Assert.AreEqual("w1_first_pop", opening[0]);
+            Assert.AreEqual(1, picked[0].MaxStageInWorld);
+        }
+
+        [Test]
+        public void World1HasOneIntroFiveMediumAndSixHardStages()
+        {
+            var world = StageSpec.All.Where(s => s.World == 1).ToList();
+            Assert.AreEqual(12, world.Count, string.Join(", ", world.Select(s => s.Id)));
+            Assert.AreEqual(1, world.Count(s => s.Difficulty == 1 && s.MaxStageInWorld == 1));
+            Assert.AreEqual(5, world.Count(s => s.Difficulty == 2 && s.MinStageInWorld >= 2));
+            Assert.AreEqual(6, world.Count(s => s.Difficulty == 3 && s.MinStageInWorld >= 3));
+            Assert.IsNotNull(StageSpec.ById("w1_slotted_bunker"));
+        }
+
+        [Test]
         public void StagePickerNeverRepeatsInAWorldAndMatchesCalmAndHardCurves()
         {
             for (int seed = 1; seed <= 100; seed++)
@@ -182,7 +203,7 @@ namespace Bubblewright.Tests
             save.stageMirrors[2] = !probeMirror;
             PlayerPrefs.SetString(SaveGame.Key, JsonUtility.ToJson(save));
             var fallen = StagePicker.Build(SaveGame.Load(), 3);
-            Assert.AreEqual("w1_first_pop", fallen.stageId);
+            Assert.AreEqual(probe.stageId, fallen.stageId);
             Assert.AreEqual(probe.spawns[0].position.x, fallen.spawns[0].position.x, 0.001f, "an unknown id takes a fresh pick");
 
             var old = run.ToSave();

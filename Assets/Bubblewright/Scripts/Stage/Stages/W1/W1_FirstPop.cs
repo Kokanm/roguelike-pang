@@ -11,8 +11,16 @@ namespace Bubblewright
         public override int World => 1;
         public override int Difficulty => 1;
         public override int MaxStageInWorld => 1;
-        public override string Concept => "Two large Gloops drift apart over an open roof.";
-        public override string[] Rows => BlankRows();
+        public override string Concept => "Two large Gloops drift apart over an open court, with a low step on each side.";
+        public override string[] Rows
+        {
+            get
+            {
+                var rows = BlankRows();
+                rows[rows.Length - 1] = "..######................######..";
+                return rows;
+            }
+        }
         public override string Ground => SolidGround;
 
         protected override void Populate(StageBuilder b)
