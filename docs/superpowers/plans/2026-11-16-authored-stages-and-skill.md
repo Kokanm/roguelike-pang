@@ -300,7 +300,7 @@ Kokan plays the debug stage in the editor and on a phone build and confirms the 
     - `Build(Run run, int stage, int debugOverrideIndex = -1) -> StagePlan`
     - `StageTime(int stage, bool hard = false) -> float`, `BossTime(bool hard = false) -> float`, `BubbleCost(BubbleKind kind, int tier) -> float`
   - `public static class StageValidator`:
-    - `Validate(StageSpec spec, bool mirror) -> List<string>` (returns empty list when valid; checks metadata, dimensions, unlock matrix in Spec §1.1, Wick footing + `72`-tick `1.2s` headless simulation for zero early hits, entity/roller/spike clearances, ladder completeness, sand `<= 2` / normal `<= 3` jumpable ground gaps, hazards only in their own world, no authored `Lucky`, at most one planned guest, iterative `B`-breach reachability for Moss with Heavy Boots and `0` upgrades (walk, crouch, jump, drop, ladder, wall jump and chained wall jumps), `all B broken` trap/soft-lock check, storeys `1..3` with a reachable hatch and a fair arrival on each, no bubble-reachable pocket Wick cannot shoot into, and pop count inside the `Difficulty` band).
+    - `Validate(StageSpec spec, bool mirror) -> List<string>` (returns empty list when valid; checks metadata, dimensions, unlock matrix in Spec §1.1, Wick footing + `72`-tick `1.2s` headless simulation for zero early hits, entity/roller/spike clearances, ladder completeness, sand `<= 1` / normal `<= 2` jumpable ground gaps (cap set by Kokan on 2026-11-17), hazards only in their own world, no authored `Lucky`, at most one planned guest, iterative `B`-breach reachability for Moss with Heavy Boots and `0` upgrades (walk, crouch, jump, drop, ladder, wall jump and chained wall jumps), `all B broken` trap/soft-lock check, storeys `1..3` with a reachable hatch and a fair arrival on each, no bubble-reachable pocket Wick cannot shoot into, and pop count inside the `Difficulty` band).
 
 - [ ] **Step 1: Write `StageValidatorTests.cs` covering `StageSpec` mirroring, `StagePicker` curves, and `StageValidator` positive + negative cases**
 
@@ -416,7 +416,7 @@ Record verbatim in test notes (`Temp/skill-red-baseline.md`): row-length/alignme
 3. **`SKILL.md`:** Positive concept-first recipe addressing every RED baseline failure:
    - Required **Stage Design Brief** before writing code (`World` + `Difficulty` + `MinStageInWorld`, 1-sentence `Concept`, symmetry/visual plan, Moss + default Harpoon hitless route, over-break check).
    - `32`-column ruler template (`// 01234567890123456789012345678901`) and `StageSpec` + `StageBuilder` recipe.
-   - Inline quick-reference numbers + hard fairness rules (no `Updraft`-only jumps, `<= 2`-col sand gaps, `patient: true` for puzzle Clingers, no over-break traps).
+   - Inline quick-reference numbers + hard fairness rules (no `Updraft`-only jumps, `<= 1`-col sand gaps and `<= 2`-col gaps elsewhere, `patient: true` for puzzle Clingers, no over-break traps).
    - Mandatory validation loop (`python3 .claude/skills/bubblewright-level-design/scripts/check_stage.py <file>`, `check_unity_project.py`, `unity test . --mode EditMode --filter StageValidatorTests`).
 4. **`CLAUDE.md`:** Concise repo guide (code layout, `Tuning` rules, no physics engine, EditMode test commands, and explicit rule to read `.claude/skills/bubblewright-level-design/SKILL.md` before designing or modifying stages).
 
@@ -470,13 +470,13 @@ The `7` stages listed per world are fixed; author `5` more per world (`+1× D2`,
   5. `W2_DrifterPrism` (`D3`, `MinStageInWorld = 2`): Angled `#` pillar diamond deflecting `Drifter` diagonals around a sheltered crouch pillbox.
   6. `W2_TreetopAscent` (`D4`, `MinStageInWorld = 3`, `Storeys = 2`): 2-storey Forest canopy climb with rollers on Storey `0` and ceiling Clingers + reinforcement wave on Storey `1`.
   7. `W2_BrambleFortress` (`D4`, `MinStageInWorld = 4`): Hard-road fortress combining a slotted bunker, orbiting platform roller, and patient floor Clinger Pogos on the flanks.
-- **World 3 (Desert — `Sinker` + `Sand` + `Steel` + `Ceramic`, max `2`-col sand gaps):**
+- **World 3 (Desert — `Sinker` + `Sand` + `Steel` + `Ceramic`, sand gaps `1` column wide at most; Kokan 2026-11-17):**
   1. `W3_SinkingDunes` (`D1`, `MaxStageInWorld = 1`): Clean `Sinker` on sand intro — twin `L` Sinkers quickly losing bounce into ground rollers between stepped dunes.
   2. `W3_KilnVault` (`D2`, `MinStageInWorld = 2`): `B`-brick sealed upper kiln holding `Ceramic` Gloops; Wick chips open whichever firing slot he wants.
-  3. `W3_PendulumPit` (`D2`, `MinStageInWorld = 2`): Indestructible `Steel` roller patrolling a central sunken sand basin while Wick works from twin side balconies (`2`-col sand gaps).
+  3. `W3_PendulumPit` (`D2`, `MinStageInWorld = 2`): Indestructible `Steel` roller patrolling a central sunken sand basin while Wick works from twin side balconies (`1`-col sand gaps).
   4. `W3_Hourglass` (`D3`, `MinStageInWorld = 2`): Symmetric hourglass funnel — `Sinker`s start on high shelves, lose height, and roll inward toward central `B` plugs.
   5. `W3_SteelColumns` (`D3`, `MinStageInWorld = 3`): Two `Steel` Pogos acting as rhythmic vertical gates flanking a central crouch bunker with `Ceramic` Sinkers outside.
-  6. `W3_MirageZiggurat` (`D4`, `MinStageInWorld = 3`, `Storeys = 2`): 2-storey stepped pyramid climb with sand gaps (`<= 2` cols), ceramic rollers on Storey `0`, and `Sinker` + `Clinger` guests on Storey `1`.
+  6. `W3_MirageZiggurat` (`D4`, `MinStageInWorld = 3`, `Storeys = 2`): 2-storey stepped pyramid climb with sand gaps (`1` col), ceramic rollers on Storey `0`, and `Sinker` + `Clinger` guests on Storey `1`.
   7. `W3_SandstormBunker` (`D4`, `MinStageInWorld = 4`): Slotted sandstone bunker with `Ceramic` Trigloops overhead, `Steel` roller sweeping the roof, and `1` reinforcement wave.
 - **World 4 (Winter — `Frost` + authored `Ice` stretches, normal grip at Wick's start):**
   1. `W4_FirstFreeze` (`D1`, `MaxStageInWorld = 1`): `Frost` intro on alternating `N`/`I` ground bands with safe normal central footing.

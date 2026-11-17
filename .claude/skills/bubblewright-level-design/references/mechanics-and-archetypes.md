@@ -93,8 +93,8 @@ Peak is the top of the bubble above the floor it bounces on. Every bubble moves 
 
 | Rule | Value |
 |---|---|
-| Widest ground gap allowed | 3 columns, 2 in World 3 or next to sand |
-| Widest gap Wick must jump across | 2 columns, 1 in World 3 (Moss with Heavy Boots reaches 3.77 u, 2.7 u on sand, centre to centre) |
+| Widest ground gap allowed | 2 columns, 1 in World 3 or next to sand |
+| Why | Moss with Heavy Boots jumps 3.77 u (2.7 u on sand) column centre to column centre, so he crosses 2 columns (1 on sand) |
 | D1 pop count | 10 to 25 |
 | D2 pop count | 20 to 40 |
 | D3 pop count | 35 to 65 |
@@ -129,7 +129,7 @@ Clearances are whole rows and columns, because tiles are 1 unit.
 | 3-tile hole | Lets L through (median about 5 s), so it filters only XL. |
 | 1-column shaft with walls both sides | Wick climbs it with chained wall jumps, one row per jump, no ladder needed. |
 | Step 1 row up | A standing jump. 2 rows up needs a ladder, a wall to kick off, or a shaft. |
-| Ground gap Wick must cross | **2 columns at most, 1 in World 3.** The gap check allows 3 (2 on sand), but the reach check jumps centre to centre with Moss and Heavy Boots, so a wider gap he has to cross fails as "cannot reach". A wider gap is fine only where a ladder or another route goes round it. |
+| Ground gap | **2 columns at most, 1 in World 3 or next to sand** (Kokan, 2026-11-17). That is what Moss with Heavy Boots jumps, column centre to column centre; StageValidator rejects anything wider. |
 
 Filter numbers are from `FilterGapTests` (Task 5). `MossGetsPastATriggeredFloorPogo` logs how Moss with Heavy Boots
 gets past a triggered floor Pogo; by arithmetic he clears a triggered M Pogo by only about 0.2 u, so a stage that

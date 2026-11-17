@@ -70,9 +70,8 @@ under the class `<summary>`, so a reviewer can read it next to the grid.
 * **Every storey** has at least one required enemy (steel things do not count).
 * **Pop count** inside the band: D1 10-25, D2 20-40, D3 35-65, D4 55-90. Gloop XL = 15, L = 7, M = 3, S = 1;
   Trigloop XL = 40, L = 13, M = 4; ceramic adds 1; a big roller is 3. And pops / shortest hard clock <= 1.6.
-* **Gaps Wick must cross: 2 columns at most, 1 in World 3** (all of World 3 is sand). The gap rule allows 3/2, but
-  the reach check (Moss with Heavy Boots, column centre to column centre) cannot cross wider. Wider gaps only where
-  another route exists.
+* **Ground gaps: 2 columns at most, 1 in World 3** (all of World 3 is sand) or next to sand. Kokan set this cap
+  on 2026-11-17; it is what Moss with Heavy Boots jumps, column centre to column centre.
 * **Wick's start:** on solid footing, not on ice, not inside a tile, and nothing touches him in the first 1.2 s
   standing still (a roof between him and a bubble counts as safe). Any plain Gloop/Trigloop/Lead may become a
   Lucky, so it must be fair either way.
@@ -254,7 +253,7 @@ Kokan play-tests every world; whatever he corrects becomes a rule here, so fix t
 |---|---|
 | A row of 31 or 33 characters | Use `StageSketch`, or keep the ruler comment above literal rows; run `check_stage.py` |
 | Row 0 written first | `Rows` is top row first; with `StageSketch`, y = 0 is the ground row and `Lines` flips it |
-| 3-column gap, or 2-column gap in World 3 | 2 columns at most, 1 in World 3 |
+| 3-column gap, or 2-column gap in World 3 | 2 columns at most, 1 in World 3 or next to sand |
 | Platform 2 rows above where Wick stands, no ladder | One row per jump; add a ladder, a wall-jump wall or a 1-column shaft |
 | Sealed `#` room with a bubble in it | Give it a slot, a `B` wall, or a ladder route |
 | `B` floor that is the only way into a `#` room | Make the `B` a wall Wick chips from outside, or add a second route |

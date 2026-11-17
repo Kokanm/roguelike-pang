@@ -14,8 +14,11 @@ namespace Bubblewright
         const float FairDt = 1f / 60f;
         /// <summary>Fastest pop rate a stage may ask for on touch controls: pops over the shortest hard-road clock.</summary>
         public const float TouchPopsPerSecond = 1.6f;
-        /// <summary>Widest ground gap, in columns, Moss with Heavy Boots jumps from a standing start; narrower next to sand.</summary>
-        public const int MaxGapColumns = 3, MaxSandGapColumns = 2;
+        /// <summary>
+        /// Widest ground gap, in columns: what Moss with Heavy Boots jumps from column centre to column centre (3.77 u,
+        /// 2.7 u on sand). Kokan set the cap on 2026-11-17: 2 columns, 1 in World 3 or next to sand.
+        /// </summary>
+        public const int MaxGapColumns = 2, MaxSandGapColumns = 1;
         const float FootInset = 0.02f;
 
         struct Node

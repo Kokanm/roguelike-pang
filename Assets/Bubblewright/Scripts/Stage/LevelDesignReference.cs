@@ -147,7 +147,7 @@ namespace Bubblewright
                 // The reach check jumps from column centre to column centre: a gap of n columns is n + 1 units across.
                 float reach = moss.BaseRunSpeed * bootsScale * air + 0.2f;
                 float sandReach = moss.BaseRunSpeed * bootsScale * t.sandSpeedScale * air + 0.2f;
-                Line($"| Widest gap Wick must jump across | {Mathf.FloorToInt(reach) - 1} columns, {Mathf.FloorToInt(sandReach) - 1} in World 3 (Moss with Heavy Boots reaches {F(reach)} u, {F(sandReach)} u on sand, centre to centre) |");
+                Line($"| Why | Moss with Heavy Boots jumps {F(reach)} u ({F(sandReach)} u on sand) column centre to column centre, so he crosses {Mathf.FloorToInt(reach) - 1} columns ({Mathf.FloorToInt(sandReach) - 1} on sand) |");
             }
             for (int d = 1; d <= 4; d++)
             {
