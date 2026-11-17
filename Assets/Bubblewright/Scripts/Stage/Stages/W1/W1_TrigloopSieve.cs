@@ -2,7 +2,7 @@ using UnityEngine.Scripting;
 
 namespace Bubblewright
 {
-    /// <summary>World 1 difficulty 3. A deck with a two-tile sieve and a ladder to each side.</summary>
+    /// <summary>World 1 difficulty 3. A deck with two two-tile sieve holes and a ladder at each end.</summary>
     [Preserve]
     public sealed class W1_TrigloopSieve : StageSpec
     {
@@ -12,19 +12,22 @@ namespace Bubblewright
         public override int Difficulty => 3;
         public override int MinStageInWorld => 3;
         public override string Concept =>
-            "A deck is split by a two-tile slot. Climb either ladder and pop the Trigloop and the Gloop; their smaller children drop through the slot.";
+            "Two Trigloops bounce on a deck with two two-tile holes. Only their M and S children fit through and rain into the court below.";
 
         public override string[] Rows
         {
             get
             {
+                // Deck on row 6, holes on columns 9-10 and 21-22, ladders on 4 and 27. A 2-tile hole lets M and S through
+                // and holds L and XL (FilterGapTests).
                 var grid = StageSketch.Open();
-                StageSketch.Box(grid, 0, 13, 6, 6, '#');
-                StageSketch.Box(grid, 16, 31, 6, 6, '#');
+                StageSketch.Box(grid, 0, 31, 6, 6, '#');
+                StageSketch.Box(grid, 9, 10, 6, 6, '.');
+                StageSketch.Box(grid, 21, 22, 6, 6, '.');
                 StageSketch.Box(grid, 4, 4, 0, 5, 'H');
-                StageSketch.Box(grid, 24, 24, 0, 5, 'H');
+                StageSketch.Box(grid, 27, 27, 0, 5, 'H');
                 grid[6][4] = 'T';
-                grid[6][24] = 'T';
+                grid[6][27] = 'T';
                 return StageSketch.Lines(grid);
             }
         }
@@ -33,9 +36,9 @@ namespace Bubblewright
 
         protected override void Populate(StageBuilder b)
         {
-            b.WickAtCol(30);
-            b.BubbleAt(BubbleKind.Trigloop, StageBuilder.TierXL, 8, 10f, -1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierL, 20, 10f, 1);
+            b.WickAtCol(16);
+            b.BubbleAt(BubbleKind.Trigloop, StageBuilder.TierXL, 6, 10f, -1);
+            b.BubbleAt(BubbleKind.Trigloop, StageBuilder.TierL, 25, 10f, 1);
         }
     }
 }

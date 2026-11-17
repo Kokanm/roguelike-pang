@@ -692,15 +692,17 @@ namespace Bubblewright
                     float dx = Mathf.Abs(StageMap.CenterX(a.Col) - StageMap.CenterX(b.Col));
                     bool same = Mathf.Abs(dy) <= 0.05f && Mathf.Abs(a.Col - b.Col) == 1;
                     bool ladder = LadderBetween(plan.map, a, b);
-                    bool jump = a.CanJump && dy > 0.05f && dy <= jumpH + 0.05f && dx <= reach + 0.2f && dx >= 0.4f && Clear(plan.map, a, b, broken);
-                    bool jumpBack = b.CanJump && -dy > 0.05f && -dy <= jumpH + 0.05f && dx <= reach + 0.2f && dx >= 0.4f && Clear(plan.map, a, b, broken);
+                    // A jump goes up to jumpH higher, or level or lower: a level jump clears a ground gap or a hole in a deck.
+                    bool jump = a.CanJump && dy <= jumpH + 0.05f && dx <= reach + 0.2f && dx >= 0.4f && Clear(plan.map, a, b, broken);
+                    bool jumpBack = b.CanJump && -dy <= jumpH + 0.05f && dx <= reach + 0.2f && dx >= 0.4f && Clear(plan.map, a, b, broken);
                     bool drop = dy < -0.2f && dx <= 1.2f && Clear(plan.map, a, b, broken);
                     bool dropBack = -dy < -0.2f && dx <= 1.2f && Clear(plan.map, a, b, broken);
                     if (WallAway(plan.map, a, b, broken) && a.CanJump && dy >= -0.05f && dy <= jumpH + 0.05f && dx <= reach + 0.2f)
                         jump = true;
                     if (WallAway(plan.map, b, a, broken) && b.CanJump && -dy >= -0.05f && -dy <= jumpH + 0.05f && dx <= reach + 0.2f)
                         jumpBack = true;
-                    bool shaft = a.Col == b.Col && Mathf.Abs(a.Col) > 0 && ShaftCell(plan.map, a.Col, a.Feet, broken) && ShaftCell(plan.map, b.Col, b.Feet, broken) && Mathf.Abs(dy) <= 1.05f && Mathf.Abs(dy) > 0.2f;
+                    // Chained wall jumps climb a one-column shaft a row at a time. The lower end may be the floor at its foot.
+                    bool shaft = a.Col == b.Col && Mathf.Abs(a.Col) > 0 && (ShaftCell(plan.map, a.Col, a.Feet, broken) || ShaftCell(plan.map, b.Col, b.Feet, broken)) && Mathf.Abs(dy) <= 1.05f && Mathf.Abs(dy) > 0.2f;
                     if (same || ladder || jump || drop || shaft) edges[i].Add(j);
                     if (same || ladder || jumpBack || dropBack || shaft) edges[j].Add(i);
                 }

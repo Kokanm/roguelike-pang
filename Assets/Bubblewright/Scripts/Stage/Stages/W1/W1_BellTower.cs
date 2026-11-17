@@ -13,7 +13,7 @@ namespace Bubblewright
         public override int MinStageInWorld => 3;
         public override int Storeys => 2;
         public override string Concept =>
-            "Clear the Gloop between the lower pillars, climb the ladder through the hatch, and pop the Trigloop in the belfry.";
+            "Clear the Gloop between the lower pillars, climb either of the twin center ladders through a hatch, and pop the Trigloop in the belfry.";
 
         public override string[] Rows
         {
@@ -21,11 +21,16 @@ namespace Bubblewright
             {
                 var grid = StageSketch.Open(2);
                 StageSketch.Box(grid, 0, 31, 14, 14, '#');
-                for (int y = 0; y <= 14; y++) grid[y][16] = y == 14 ? 'T' : 'H';
+                // Twin ladders on columns 14 and 17, each with its own hatch on row 13. Pillars on 8 and 23 mirror each other.
+                for (int y = 0; y <= 14; y++)
+                {
+                    grid[y][14] = y == 14 ? 'T' : 'H';
+                    grid[y][17] = y == 14 ? 'T' : 'H';
+                }
                 StageSketch.Box(grid, 8, 8, 1, 4, '#');
-                StageSketch.Box(grid, 24, 24, 1, 4, '#');
+                StageSketch.Box(grid, 23, 23, 1, 4, '#');
                 StageSketch.Box(grid, 8, 8, 16, 19, '#');
-                StageSketch.Box(grid, 24, 24, 16, 19, '#');
+                StageSketch.Box(grid, 23, 23, 16, 19, '#');
                 return StageSketch.Lines(grid);
             }
         }
@@ -35,8 +40,8 @@ namespace Bubblewright
         protected override void Populate(StageBuilder b)
         {
             b.WickAtCol(2);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 6, 8f, 1);
-            b.BubbleAt(BubbleKind.Trigloop, StageBuilder.TierXL, 26, 22f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 5, 8f, 1);
+            b.BubbleAt(BubbleKind.Trigloop, StageBuilder.TierXL, 27, 22f, 1);
         }
     }
 }
