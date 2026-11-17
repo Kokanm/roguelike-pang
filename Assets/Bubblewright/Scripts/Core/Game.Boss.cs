@@ -27,11 +27,14 @@ namespace Bubblewright
             bossBurst = false;
         }
 
-        /// <summary>Called from StartStage after ClearBoss: a boss stage gets a boss of its world, ready to slide in.</summary>
+        /// <summary>
+        /// Called from StartStage after ClearBoss: a boss stage gets a boss of its world, ready to slide in. On the hard
+        /// road it is the harder boss (more health, faster walk, faster attacks).
+        /// </summary>
         void SetupBoss()
         {
             if (!run.IsBossStage) return;
-            boss = Boss.Create(world, BossSpec.ForWorld(run.World), run.World, CurrentTheme);
+            boss = Boss.Create(world, BossSpec.ForWorld(run.World), run.World, CurrentTheme, run.IsHard);
             boss.OnShoot = FireBullet;
             boss.OnBouncy = FireBouncy;
             boss.OnBalloon = ReleaseBalloon;
