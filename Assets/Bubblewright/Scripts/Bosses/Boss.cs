@@ -6,7 +6,8 @@ namespace Bubblewright
     /// A boss: slides in from above during the stage intro, then moves left and right near the ceiling. Its spec
     /// picks from three attacks with their own timers: aimed bullets (single, fan or burst), bouncy bullets, and
     /// released balloons (ordinary Gloops). It has no Update of its own; Game ticks it, so hit-stop, slow motion and pause freeze it.
-    /// Everything about one boss is in its BossSpec. Any harpoon touch hurts it through Damage.
+    /// Everything about one boss is in its BossSpec. Any harpoon touch hurts it through Damage. The boss of a hard
+    /// world has more health, walks faster and attacks more often (Tuning.hardBoss*Scale).
     /// </summary>
     public class Boss : MonoBehaviour
     {
@@ -18,6 +19,8 @@ namespace Bubblewright
         public BossSpec Spec { get; private set; }
         public int Hp { get; private set; }
         public int MaxHp { get; private set; }
+        /// <summary>True for the boss of a hard world: more health, a faster walk and faster attacks.</summary>
+        public bool Hard { get; private set; }
         /// <summary>Called when the boss fires: where from, and the direction (unit length) of each bullet.</summary>
         public System.Action<Vector2, Vector2> OnShoot;
         /// <summary>Called when the boss drops a bouncy bullet: where from, which way it heads (+1 right, -1 left), and its bounces.</summary>
@@ -51,13 +54,15 @@ namespace Bubblewright
         float flash;
         Vector2 shakeOffset;
 
-        public static Boss Create(Transform parent, BossSpec spec, int world, Theme theme)
+        /// <summary>Creates the boss of a world; hard is true when the run took the hard road into that world.</summary>
+        public static Boss Create(Transform parent, BossSpec spec, int world, Theme theme, bool hard = false)
         {
             var go = new GameObject("Boss " + spec.name);
             go.transform.SetParent(parent, false);
             var boss = go.AddComponent<Boss>();
             boss.Spec = spec;
-            boss.MaxHp = boss.Hp = BossSpec.HpForWorld(world);
+            boss.Hard = hard;
+            boss.MaxHp = boss.Hp = BossSpec.HpForWorld(world, hard);
             boss.sprites = PlaceholderArt.I.BossFor(theme, spec);
 
             boss.body = go.AddComponent<SpriteRenderer>();
@@ -87,8 +92,14 @@ namespace Bubblewright
         public bool Enraged => Spec.enrageAtHalf && Hp > 0 && Hp < MaxHp * 0.5f;
         /// <summary>Multiplier on speed and every attack rate: bossEnrageScale while enraged, otherwise 1.</summary>
         public float RageScale => Enraged ? T.bossEnrageScale : 1f;
-        /// <summary>Walking speed right now, before the storm.</summary>
-        public float CurrentSpeed => Spec.speed * RageScale;
+        /// <summary>Multiplier on the walk from the hard road: hardBossSpeedScale in a hard world, otherwise 1.</summary>
+        public float HardSpeedScale => Hard ? T.hardBossSpeedScale : 1f;
+        /// <summary>Multiplier on every attack rate from the hard road: hardBossRateScale in a hard world, otherwise 1.</summary>
+        public float HardRateScale => Hard ? T.hardBossRateScale : 1f;
+        /// <summary>How much faster than its spec every attack timer runs right now: the enrage times the hard road.</summary>
+        public float AttackRateScale => RageScale * HardRateScale;
+        /// <summary>Walking speed right now, before the storm: the spec's speed times the enrage and the hard road.</summary>
+        public float CurrentSpeed => Spec.speed * RageScale * HardSpeedScale;
         /// <summary>True while the visor is open after releasing a balloon.</summary>
         public bool Open => open > 0f;
 
@@ -157,7 +168,7 @@ namespace Bubblewright
 
                 y = T.bossY + Mathf.Sin(bob / BobPeriod * Mathf.PI * 2f) * BobAmplitude;
 
-                TickAttacks(dt * RageScale, target, bubblesAlive);
+                TickAttacks(dt * AttackRateScale, target, bubblesAlive);
             }
             else y = T.bossY + Mathf.Sin(bob / BobPeriod * Mathf.PI * 2f) * BobAmplitude;
             UpdateVisual();
@@ -256,7 +267,7 @@ namespace Bubblewright
             get
             {
                 if (Dying || !Entered || Spec.aimedEvery <= 0f) return false;
-                float remaining = aimedTimer / RageScale;
+                float remaining = aimedTimer / AttackRateScale;
                 if (remaining > TellTime) return false;
                 float t = TellTime - remaining;
                 return t < TellBlink || (t >= TellBlink * 2f && t < TellBlink * 3f);
