@@ -96,7 +96,9 @@ under the class `<summary>`, so a reviewer can read it next to the grid.
   out, and the hatch arrival gets its own 1.2 s fair start.
 * **Placed things:** bubbles start clear of tiles and of each other; Clingers have a surface (`mount`) to hold;
   rollers rest on solid ground with a diameter of headroom and never over a gap; spikes sit on open floor, away
-  from ladders and from each other.
+  from ladders and from each other. Every Pogo, floor Clinger Pogos included, sits over ground (not a gap), in a
+  column with no ladder in any row of any storey, and at least `pogoMinSpacing` (2 u) from every other Pogo
+  (`PogoTests.PogosFollowTheirStageRules`).
 
 ## 3. Design rules (the validator cannot see these, Kokan can)
 
