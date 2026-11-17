@@ -23,7 +23,9 @@ namespace Bubblewright.Tests
             string tables = LevelDesignReference.Tables();
             StageValidator.PopBand(4, out int min, out int max);
             StringAssert.Contains($"| D4 pop count | {min} to {max} |", tables);
-            StringAssert.Contains($"Widest ground gap | {StageValidator.MaxGapColumns} columns", tables);
+            StringAssert.Contains(
+                $"Widest ground gap allowed | {StageValidator.MaxGapColumns} columns, {StageValidator.MaxSandGapColumns} in World 3 or next to sand",
+                tables);
             StringAssert.Contains("| Moss |", tables);
         }
     }
