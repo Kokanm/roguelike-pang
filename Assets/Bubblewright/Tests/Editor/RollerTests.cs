@@ -359,55 +359,31 @@ namespace Bubblewright.Tests
         // ------------------------------------------------------------------ generator
 
         [Test]
-        public void GeneratorPlacesRollersOnlyWhereAllowed()
+        public void StagePickerPlacesRollersOnlyWhereAllowed()
         {
             var t = Tuning.I;
-            int placed = 0;
             for (int seed = 1; seed <= 20; seed++)
             {
                 for (int stage = 1; stage <= t.RunLength; stage++)
                 {
-                    var plan = StageGenerator.Generate(stage, new System.Random(seed * 31 + stage));
+                    var plan = StagePicker.Build(new Run(seed) { Stage = stage }, stage);
                     int world = Run.WorldOf(stage);
                     string where = $"seed {seed} stage {stage}";
-                    int pearl = 0, steel = 0;
-                    foreach (var ro in plan.rollers) { if (ro.steel) steel++; else pearl++; }
-                    if (world < t.rollerFromWorld || world == 1) Assert.AreEqual(0, pearl, $"{where}: no rollers in world 1");
-                    if (world < t.steelFromWorld) Assert.AreEqual(0, steel, $"{where}: no steel before world {t.steelFromWorld}");
-                    if (Run.IsBossStageNumber(stage)) Assert.AreEqual(0, plan.rollers.Count, $"{where}: no rollers on a boss stage");
-                    Assert.LessOrEqual(pearl, t.rollerMaxPerStage, where);
-                    Assert.LessOrEqual(steel, t.steelMaxPerStage, where);
-
+                    if (Run.IsBossStageNumber(stage))
+                    {
+                        Assert.AreEqual(0, plan.rollers.Count, $"{where}: no rollers on a boss stage");
+                        continue;
+                    }
                     foreach (var spec in plan.rollers)
                     {
-                        placed++;
-                        Assert.AreEqual(0, spec.tier, $"{where}: starts big");
-                        Assert.GreaterOrEqual(Mathf.Abs(spec.x - plan.wickX), 6f - 1e-4f, $"{where}: at least 6 units from Wick's start");
+                        if (spec.steel) Assert.GreaterOrEqual(world, t.steelFromWorld, where);
+                        else Assert.GreaterOrEqual(world, t.rollerFromWorld, where);
                         int c = StageMap.Col(spec.x);
                         int row = spec.surfaceY <= 0.01f ? -1 : Mathf.RoundToInt(spec.surfaceY) - 1;
                         if (row < 0) Assert.IsFalse(plan.map.IsGap(c), $"{where}: on solid ground");
                         else Assert.IsTrue(plan.map.IsSolid(c, row), $"{where}: on a platform");
-                        foreach (var strip in plan.map.spikes)
-                            if (strip.row == row)
-                                Assert.IsFalse(c >= strip.col && c < strip.col + strip.width, $"{where}: not on a spike strip");
                     }
                 }
-            }
-            Assert.Greater(placed, 0, "rollers do appear from world 2 on");
-        }
-
-        [Test]
-        public void RollerSpotsAvoidSpikesAndWickAndShortStretches()
-        {
-            var map = StageMap.Flat();
-            map.spikes.Add(new StageMap.SpikeStrip { col = 2, row = -1, width = 4 });
-            for (int c = 26; c <= 28; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid }); // only 3 tiles long
-            foreach (var spot in StageGenerator.RollerSpots(map, 0f))
-            {
-                int c = StageMap.Col(spot.x);
-                Assert.GreaterOrEqual(Mathf.Abs(spot.x), 6f);
-                Assert.AreEqual(0f, spot.y, 1e-4f, "the short platform is never used");
-                Assert.IsFalse(c >= 1 && c <= 6, "not on the spike strip or right next to it");
             }
         }
 

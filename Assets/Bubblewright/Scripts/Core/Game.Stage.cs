@@ -5,6 +5,9 @@ namespace Bubblewright
     public partial class Game
     {
         public static StageMap Map { get; private set; }
+
+        /// <summary>Tests install a map for a fair-start simulation and put the previous one back afterwards.</summary>
+        public static void InstallMap(StageMap map) => Map = map;
         /// <summary>Wick's feet at the start of the latest play tick. Behaviours and tests read this; the game writes it.</summary>
         public static Vector2 WickFeet { get; set; }
         /// <summary>Wick's hitbox at the start of the latest play tick.</summary>
@@ -42,14 +45,19 @@ namespace Bubblewright
             ApplyTheme(Themes.All[debugTheme]);
         }
 
-        int testLayoutIndex = -1;
-        bool testLayout => testLayoutIndex >= 0;
-        LayoutDef CurrentTestLayout => testLayout ? StageLayouts.All[testLayoutIndex] : null;
+        int testStageIndex = -1;
 
-        void ToggleTestLayout()
+        string TestStageLabel()
         {
-            debugStoreyStage = false;
-            testLayoutIndex = (testLayoutIndex + 1) % StageLayouts.All.Length;
+            if (testStageIndex < 0 || testStageIndex >= StageSpec.All.Count) return "TEST STAGE";
+            return "TEST STAGE: " + StageSpec.All[testStageIndex].Name.ToUpperInvariant();
+        }
+
+        /// <summary>F3 and the TEST STAGE button: the next authored stage, with no mirror and no Lucky.</summary>
+        void CycleTestStage()
+        {
+            if (StageSpec.All.Count == 0) return;
+            testStageIndex = (testStageIndex + 1) % StageSpec.All.Count;
             run.Hearts = wick.Hearts;
             StartStage();
         }

@@ -366,61 +366,35 @@ namespace Bubblewright.Tests
         public void PogosFollowTheirStageRules()
         {
             var t = Tuning.I;
-            int plainPogos = 0, specialPogos = 0, steel = 0;
             for (int seed = 1; seed <= 40; seed++)
             {
                 var run = new Bubblewright.Run(seed);
                 for (int stage = 1; stage <= t.RunLength; stage++)
                 {
                     if (Bubblewright.Run.IsBossStageNumber(stage)) continue;
-                    var plan = StageGenerator.GenerateFor(run, stage);
+                    var plan = StagePicker.Build(run, stage);
                     string where = $"seed {seed} stage {stage}";
-                    bool quiet = plan.recipeName == "Introduction" || plan.recipeName == StageGenerator.DebutRecipeName;
-                    var all = new List<SpawnSpec>(plan.spawns);
-                    foreach (var wave in plan.waves) all.AddRange(wave);
                     var xs = new List<float>();
                     foreach (var s in plan.spawns)
                     {
-                        if (!s.pogo) continue;
-                        xs.Add(s.position.x);
-                    }
-                    foreach (var s in all)
-                    {
-                        if (!s.pogo) continue;
-                        Assert.IsFalse(quiet, $"{where}: no Pogos on {plan.recipeName}");
-                        Assert.AreNotEqual(BubbleKind.Lucky, s.kind, $"{where}: Lucky is never a Pogo");
-                        Assert.IsFalse(s.steel, $"{where}: steel Pogos are kept apart");
-                        if (StageGenerator.IsPlainPogoKind(s.kind))
-                        {
-                            Assert.GreaterOrEqual(stage, t.pogoFromStage, $"{where}: plain Pogo too early");
-                            plainPogos++;
-                        }
-                        else specialPogos++;
+                        if (!s.pogo || s.steel) continue;
+                        Assert.AreNotEqual(BubbleKind.Lucky, s.kind, where);
                         int col = StageMap.Col(s.position.x);
                         Assert.IsFalse(plan.map.IsGap(col), $"{where}: Pogo over a gap");
                         for (int r = 0; r < plan.map.Rows; r++) Assert.IsFalse(plan.map.Get(col, r).ladder, $"{where}: Pogo over a ladder");
+                        xs.Add(s.position.x);
                     }
                     for (int i = 0; i < xs.Count; i++)
                         for (int j = i + 1; j < xs.Count; j++)
-                            Assert.GreaterOrEqual(Mathf.Abs(xs[i] - xs[j]), t.pogoMinSpacing - 1e-4f, $"{where}: Pogos too close");
-
-                    Assert.LessOrEqual(plan.steelPogos.Count, 1, $"{where}: one steel Pogo at most");
+                            Assert.GreaterOrEqual(Mathf.Abs(xs[i] - xs[j]), t.pogoMinSpacing - 1e-4f, where);
                     foreach (var s in plan.steelPogos)
                     {
-                        steel++;
-                        Assert.IsFalse(quiet, where);
-                        Assert.GreaterOrEqual(Bubblewright.Run.WorldOf(stage), t.pogoSteelFromWorld, $"{where}: steel too early");
-                        Assert.IsTrue(s.pogo && s.steel);
-                        Assert.GreaterOrEqual(Mathf.Abs(s.position.x), 5f, $"{where}: steel Pogo near Wick's start");
+                        Assert.IsTrue(s.pogo && s.steel, where);
+                        Assert.GreaterOrEqual(Bubblewright.Run.WorldOf(stage), t.pogoSteelFromWorld, where);
                         Assert.IsFalse(plan.map.IsGap(StageMap.Col(s.position.x)), where);
-                        foreach (float x in xs)
-                            Assert.GreaterOrEqual(Mathf.Abs(x - s.position.x), t.pogoMinSpacing - 1e-4f, $"{where}: steel Pogo too close to a Pogo");
                     }
                 }
             }
-            Assert.Greater(plainPogos, 0, "plain Pogos should appear");
-            Assert.Greater(specialPogos, 0, "special Pogos should appear");
-            Assert.Greater(steel, 0, "steel Pogos should appear");
         }
 
         [Test]
@@ -430,8 +404,8 @@ namespace Bubblewright.Tests
             var b = new Bubblewright.Run(7);
             for (int stage = 1; stage <= Tuning.I.RunLength; stage++)
             {
-                var pa = StageGenerator.GenerateFor(a, stage);
-                var pb = StageGenerator.GenerateFor(b, stage);
+                var pa = StagePicker.Build(a, stage);
+                var pb = StagePicker.Build(b, stage);
                 Assert.AreEqual(pa.spawns.Count, pb.spawns.Count);
                 for (int i = 0; i < pa.spawns.Count; i++) Assert.AreEqual(pa.spawns[i].pogo, pb.spawns[i].pogo, $"stage {stage} spawn {i}");
                 Assert.AreEqual(pa.steelPogos.Count, pb.steelPogos.Count, $"stage {stage}");

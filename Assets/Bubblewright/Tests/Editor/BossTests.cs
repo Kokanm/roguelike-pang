@@ -18,7 +18,7 @@ namespace Bubblewright.Tests
         {
             root = new GameObject("BossTests");
             previousMap = Game.Map;
-            SetMap(StageLayout.Parse(StageLayouts.All[0].rows)); // the flat boss stage
+            SetMap(StageMap.Flat());
         }
 
         [TearDown]
@@ -346,14 +346,14 @@ namespace Bubblewright.Tests
             {
                 int stage = world * Tuning.I.stagesPerWorld;
                 Assert.IsTrue(Run.IsBossStageNumber(stage));
-                var plan = StageGenerator.Generate(stage, new System.Random(world));
+                var plan = StagePicker.Build(new Run(world) { Stage = stage }, stage);
                 Assert.AreEqual(0, plan.spawns.Count, $"world {world}");
                 for (int c = 0; c < StageMap.Cols; c++)
                     for (int r = 0; r < plan.map.Rows; r++)
                         Assert.IsFalse(plan.map.IsSolid(c, r), $"world {world}: boss stages have no platforms ({c},{r})");
             }
-            Assert.AreEqual(120f, StageGenerator.BossTime(), 1e-4f);
-            Assert.AreEqual(120f * Tuning.I.hardTimeScale, StageGenerator.BossTime(true), 1e-4f);
+            Assert.AreEqual(120f, StagePicker.BossTime(), 1e-4f);
+            Assert.AreEqual(120f * Tuning.I.hardTimeScale, StagePicker.BossTime(true), 1e-4f);
         }
 
         [Test]

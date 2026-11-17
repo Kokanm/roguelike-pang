@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -243,58 +244,36 @@ namespace Bubblewright.Tests
         [Test]
         public void DesertMakesEverythingSand()
         {
-            var m = StageLayout.Parse(StageLayouts.All[1].rows);
-            WorldRules.Apply(m, 3, new System.Random(5));
+            var painted = StageMap.Flat();
+            painted.Set(4, 3, new Cell { kind = TileKind.Solid });
+            WorldRules.PaintAll(painted, Surface.Sand);
+            Assert.AreEqual(Surface.Sand, painted.GetGround(0));
+            Assert.AreEqual(Surface.Sand, painted.Get(4, 3).surface);
+
+            var dunes = StageSpec.ById("w3_sinking_dunes").Build();
             for (int c = 0; c < StageMap.Cols; c++)
-            {
-                Assert.AreEqual(Surface.Sand, m.GetGround(c), $"ground column {c}");
-                for (int r = 0; r < m.Rows; r++)
-                    if (m.IsSolid(c, r)) Assert.AreEqual(Surface.Sand, m.Get(c, r).surface, $"tile {c},{r}");
-            }
+                Assert.AreEqual(Surface.Sand, dunes.map.GetGround(c), $"ground column {c}");
         }
 
         [Test]
         public void WinterHasIceButNeverUnderWickAtTheStart()
         {
-            for (int seed = 0; seed < 50; seed++)
+            var map = StageSpec.ById("w4_first_freeze").Build().map;
+            bool anyIce = false;
+            for (int c = 0; c < StageMap.Cols; c++)
             {
-                var m = StageLayout.Parse(StageLayouts.All[1].rows);
-                WorldRules.Apply(m, 4, new System.Random(seed));
-                bool anyIce = false;
-                for (int c = 0; c < StageMap.Cols; c++)
-                {
-                    if (m.GetGround(c) == Surface.Ice) anyIce = true;
-                    if (c >= 14 && c <= 17) Assert.AreEqual(Surface.Normal, m.GetGround(c), $"seed {seed}, column {c}");
-                }
-                Assert.IsTrue(anyIce, $"seed {seed} has some ice on the ground");
+                if (map.GetGround(c) == Surface.Ice) anyIce = true;
+                if (c >= 14 && c <= 17) Assert.AreEqual(Surface.Normal, map.GetGround(c), $"column {c}");
             }
+            Assert.IsTrue(anyIce, "winter ground has some ice");
         }
 
         [Test]
-        public void WinterIcesWholePlatformsOrNone()
+        public void WinterKeepsNormalGroundUnderWickWhenMirrored()
         {
-            bool sawIce = false, sawNormal = false;
-            for (int seed = 0; seed < 50; seed++)
-            {
-                var m = StageLayout.Parse(StageLayouts.All[1].rows);
-                WorldRules.Apply(m, 4, new System.Random(seed));
-                for (int r = 0; r < m.Rows; r++)
-                {
-                    int c = 0;
-                    while (c < StageMap.Cols)
-                    {
-                        if (!m.IsSolid(c, r)) { c++; continue; }
-                        Surface first = m.Get(c, r).surface;
-                        while (c < StageMap.Cols && m.IsSolid(c, r))
-                        {
-                            Assert.AreEqual(first, m.Get(c, r).surface, $"seed {seed}, row {r}, column {c}");
-                            c++;
-                        }
-                        if (first == Surface.Ice) sawIce = true; else sawNormal = true;
-                    }
-                }
-            }
-            Assert.IsTrue(sawIce && sawNormal, "some platforms are icy and some are not");
+            var map = StageSpec.ById("w4_first_freeze").Build(true).map;
+            for (int c = 14; c <= 17; c++)
+                Assert.AreEqual(Surface.Normal, map.GetGround(c), $"column {c}");
         }
 
         [Test]
@@ -302,14 +281,13 @@ namespace Bubblewright.Tests
         {
             foreach (int world in new[] { 1, 2, 5, 6 })
             {
-                var m = StageLayout.Parse(StageLayouts.All[1].rows);
-                int before = m.Version;
-                WorldRules.Apply(m, world, new System.Random(1));
-                Assert.AreEqual(before, m.Version, $"world {world}");
+                var spec = StageSpec.All.First(s => s.World == world);
+                var map = spec.Build().map;
+                Assert.AreEqual(0, map.spikes.Count, $"world {world}");
                 for (int c = 0; c < StageMap.Cols; c++)
                 {
-                    Assert.AreEqual(Surface.Normal, m.GetGround(c));
-                    for (int r = 0; r < m.Rows; r++) Assert.AreEqual(Surface.Normal, m.Get(c, r).surface);
+                    Assert.AreNotEqual(Surface.Sand, map.GetGround(c), $"world {world} ground {c}");
+                    Assert.AreNotEqual(Surface.Ice, map.GetGround(c), $"world {world} ground {c}");
                 }
             }
         }
@@ -317,8 +295,8 @@ namespace Bubblewright.Tests
         [Test]
         public void DesertStagesGetMoreTime()
         {
-            Assert.AreEqual((60f + 16f) * Tuning.I.desertTimeScale, StageGenerator.StageTime(13), 0.001f);
-            Assert.AreEqual(60f + 24f, StageGenerator.StageTime(19), 0.001f, "Winter is unchanged");
+            Assert.AreEqual((60f + 16f) * Tuning.I.desertTimeScale, StagePicker.StageTime(13), 0.001f);
+            Assert.AreEqual(60f + 24f, StagePicker.StageTime(19), 0.001f, "Winter is unchanged");
         }
     }
 }

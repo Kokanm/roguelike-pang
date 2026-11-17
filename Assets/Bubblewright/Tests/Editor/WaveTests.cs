@@ -169,107 +169,25 @@ namespace Bubblewright.Tests
         }
 
         [Test]
-        public void ReinforcementsStagesSplitTheBudgetIntoAStartAndWaves()
-        {
-            var row = Tuning.I.Recipe(RecipeId.Reinforcements);
-            int seen = 0;
-            for (int seed = 1; seed <= 200; seed++)
-            {
-                var run = new Run(seed);
-                int perWorld = 0, world = 1;
-                for (int stage = 1; stage <= 36; stage++)
-                {
-                    if (Run.WorldOf(stage) != world) { world = Run.WorldOf(stage); perWorld = 0; }
-                    var plan = StageGenerator.GenerateFor(run, stage);
-                    if (plan.recipeName != row.name)
-                    {
-                        Assert.AreEqual(1f, plan.timeScale, 1e-5f, $"seed {seed} stage {stage} time scale");
-                        Assert.AreEqual(0, plan.waves.Count, $"seed {seed} stage {stage} waves");
-                        continue;
-                    }
-                    seen++;
-                    perWorld++;
-                    Assert.GreaterOrEqual(Run.WorldOf(stage), row.fromWorld, $"seed {seed} stage {stage}");
-                    Assert.LessOrEqual(perWorld, 1, $"seed {seed} world {world} draws it more than once");
-                    Assert.AreEqual(row.timeScale, plan.timeScale, 1e-5f);
-                    Assert.LessOrEqual(plan.waves.Count, row.waves, $"seed {seed} stage {stage}");
-
-                    float start = 0f, wave = 0f, guestCost = 0f;
-                    int picks = 0;
-                    foreach (var s in plan.spawns)
-                    {
-                        if (s.kind == BubbleKind.Lucky) continue;
-                        // A guest stays in the start group whatever the split says, so it is left out of the split.
-                        if (s.kind.ToString() == plan.guestName) { guestCost += Cost(s); continue; }
-                        start += Cost(s);
-                        picks++;
-                    }
-                    foreach (var list in plan.waves)
-                    {
-                        Assert.Greater(list.Count, 0, $"seed {seed} stage {stage} has an empty wave");
-                        foreach (var s in list)
-                        {
-                            wave += Cost(s);
-                            picks++;
-                        }
-                    }
-                    float all = start + wave;
-                    Assert.LessOrEqual(all + guestCost + plan.rollerSpend, plan.budget + 0.01f, $"seed {seed} stage {stage} overspent");
-                    if (picks >= 4 && plan.waves.Count > 0)
-                    {
-                        // Too small only when no waiting bubble could have joined without pushing the start past 65%.
-                        bool couldJoin = false;
-                        foreach (var list in plan.waves)
-                            foreach (var s in list)
-                                if (start + Cost(s) <= all * 0.65f + 0.01f) couldJoin = true;
-                        if (couldJoin) Assert.GreaterOrEqual(start, all * 0.35f - 0.01f, $"seed {seed} stage {stage} start too small");
-                        if (plan.spawns.FindAll(s => s.kind != BubbleKind.Lucky && s.kind.ToString() != plan.guestName).Count > 1)
-                            Assert.LessOrEqual(start, all * 0.65f + 0.01f, $"seed {seed} stage {stage} start too big");
-                    }
-
-                    var again = StageGenerator.GenerateFor(run, stage);
-                    Assert.AreEqual(plan.waves.Count, again.waves.Count, $"seed {seed} stage {stage}");
-                    for (int w = 0; w < plan.waves.Count; w++)
-                    {
-                        Assert.AreEqual(plan.waves[w].Count, again.waves[w].Count);
-                        for (int i = 0; i < plan.waves[w].Count; i++)
-                        {
-                            Assert.AreEqual(plan.waves[w][i].kind, again.waves[w][i].kind);
-                            Assert.AreEqual(plan.waves[w][i].tier, again.waves[w][i].tier);
-                            Assert.AreEqual(plan.waves[w][i].position.x, again.waves[w][i].position.x);
-                        }
-                    }
-                }
-            }
-            Assert.Greater(seen, 0, "Reinforcements was drawn");
-        }
-
-        [Test]
         public void TheReportCountsWaveBubblesAndUsesTheTimeScale()
         {
-            var row = Tuning.I.Recipe(RecipeId.Reinforcements);
-            bool checkedOne = false;
-            for (int seed = 1; seed <= 200 && !checkedOne; seed++)
+            const int stage = 8;
+            var plan = new StagePlan
             {
-                var run = new Run(seed);
-                for (int stage = 7; stage <= 36 && !checkedOne; stage++)
+                map = StageMap.Flat(),
+                spawns = new List<SpawnSpec>(),
+                waves = new List<List<SpawnSpec>>
                 {
-                    var plan = StageGenerator.GenerateFor(run, stage);
-                    if (plan.recipeName != row.name || plan.waves.Count == 0) continue;
-                    var report = StageReport.From(stage, plan, run.IsHardWorld(Run.WorldOf(stage)));
-                    int inWaves = 0;
-                    foreach (var list in plan.waves) inWaves += list.Count;
-                    Assert.AreEqual(plan.waves.Count, report.waves);
-                    Assert.AreEqual(inWaves, report.waveBubbles);
-                    Assert.AreEqual(StageGenerator.StageTime(stage, run.IsHardWorld(Run.WorldOf(stage))) * 1.15f, report.time, 0.01f);
-                    Assert.IsTrue(StageReport.Header().Contains("waves\twave bubbles"));
-                    checkedOne = true;
-                }
-            }
-            Assert.IsTrue(checkedOne, "found a Reinforcements stage with waves");
+                    new List<SpawnSpec> { new SpawnSpec { kind = BubbleKind.Gloop, tier = 3, position = new Vector2(-4f, 8f) } },
+                    new List<SpawnSpec> { new SpawnSpec { kind = BubbleKind.Gloop, tier = 3, position = new Vector2(4f, 8f) } },
+                },
+                timeScale = 1.15f,
+            };
+            var report = StageReport.From(stage, plan, false);
+            Assert.AreEqual(2, report.waves);
+            Assert.AreEqual(2, report.waveBubbles);
+            Assert.AreEqual(StagePicker.StageTime(stage, false) * 1.15f, report.time, 0.01f);
+            Assert.IsTrue(StageReport.Header().Contains("waves\twave bubbles"));
         }
-
-        static float Cost(SpawnSpec s) =>
-            StageGenerator.BubbleCost(s.kind, s.tier) * (s.ceramic ? Tuning.I.ceramicCostScale : 1f);
     }
 }

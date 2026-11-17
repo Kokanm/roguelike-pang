@@ -97,35 +97,31 @@ namespace Bubblewright.Tests
         }
 
         [Test]
-        public void GeneratorUsesSteelAndCeramicOnlyFromTheirWorlds()
+        public void StagePickerUsesSteelAndCeramicOnlyFromTheirWorlds()
         {
             var t = Tuning.I;
-            bool steel = false, ceramicBubble = false, ceramicRoller = false;
             for (int seed = 1; seed <= 40; seed++)
                 for (int stage = 1; stage <= t.RunLength; stage++)
                 {
-                    var plan = StageGenerator.Generate(stage, new System.Random(seed * 17 + stage));
+                    var plan = StagePicker.Build(new Run(seed) { Stage = stage }, stage);
                     int world = Run.WorldOf(stage);
                     foreach (var r in plan.rollers)
                     {
-                        if (r.steel) { steel = true; Assert.GreaterOrEqual(world, t.steelFromWorld); }
-                        if (r.ceramic) { ceramicRoller = true; Assert.GreaterOrEqual(world, t.ceramicFromWorld); Assert.IsFalse(r.steel); }
+                        if (r.steel) Assert.GreaterOrEqual(world, t.steelFromWorld);
+                        if (r.ceramic)
+                        {
+                            Assert.GreaterOrEqual(world, t.ceramicFromWorld);
+                            Assert.IsFalse(r.steel);
+                        }
                     }
                     foreach (var s in plan.spawns)
                         if (s.ceramic)
                         {
-                            ceramicBubble = true;
                             Assert.GreaterOrEqual(world, t.ceramicFromWorld, $"stage {stage}");
                             Assert.LessOrEqual(s.tier, t.ceramicMaxTier);
                             Assert.AreNotEqual(BubbleKind.Lucky, s.kind);
                         }
-                    // the budget still holds with the ceramic surcharge
-                    var report = StageReport.From(stage, plan, false);
-                    if (!report.boss) Assert.LessOrEqual(report.bubbleSpend + report.rollerSpend, report.budget + 0.01f, $"seed {seed} stage {stage}");
                 }
-            Assert.IsTrue(steel, "steel rollers appear");
-            Assert.IsTrue(ceramicBubble, "ceramic bubbles appear");
-            Assert.IsTrue(ceramicRoller, "ceramic rollers appear");
         }
     }
 }

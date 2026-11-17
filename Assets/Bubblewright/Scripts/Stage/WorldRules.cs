@@ -4,17 +4,14 @@ using System.Collections.Generic;
 namespace Bubblewright
 {
     /// <summary>
-    /// What each world does to a freshly parsed stage map. Sand covers all of Desert, patchy ice covers Winter,
-    /// and Lava (not its boss stage) grows retracting spike strips. Desert also narrows gaps in the ground to 2 columns. Every other world is left alone, because
-    /// each hazard belongs to one world only.
+    /// Debug helpers for the hazards that belong to one world. PaintAll paints a whole map one surface.
+    /// PlaceSpikes grows Lava's retracting strips. Authored stages set their own sand, ice and spikes.
     /// </summary>
     public static class WorldRules
     {
         public const int DesertWorld = 3;
         public const int WinterWorld = 4;
         public const int LavaWorld = 6;
-        const int SafeFirstCol = 14, SafeLastCol = 17;
-        const int MinStretch = 4, MaxStretch = 8;
 
         // Wick starts on columns 14 to 17. On the ground, keep three columns clear on each side of that.
         const int GroundClearFirst = 11, GroundClearLast = 20;
@@ -22,34 +19,6 @@ namespace Bubblewright
         struct Spot
         {
             public int col, row, width;
-        }
-
-        public static void Apply(StageMap map, Run run, Random rng) =>
-            Apply(map, run.World, rng, run.StageInWorld, run.IsBossStage);
-
-        public static void Apply(StageMap map, int world, Random rng, int stageInWorld = 0, bool boss = false)
-        {
-            NarrowGaps(map, MaxGap(world));
-            if (world == DesertWorld) PaintAll(map, Surface.Sand);
-            else if (world == WinterWorld) PatchyIce(map, rng);
-            if (world == LavaWorld && !boss && stageInWorld >= 1 && stageInWorld <= 5)
-                PlaceSpikes(map, stageInWorld, rng);
-        }
-
-        /// <summary>Widest gap in the ground a world allows. On sand the jump is shorter, so Desert gaps are 2 columns at most.</summary>
-        public static int MaxGap(int world) => world == DesertWorld ? 2 : 3;
-
-        /// <summary>Fills in the right-hand end of any gap wider than maxGap columns.</summary>
-        public static void NarrowGaps(StageMap map, int maxGap)
-        {
-            int c = 0;
-            while (c < StageMap.Cols)
-            {
-                if (!map.IsGap(c)) { c++; continue; }
-                int start = c;
-                while (c < StageMap.Cols && map.IsGap(c)) c++;
-                for (int i = start + maxGap; i < c; i++) map.SetGap(i, false);
-            }
         }
 
         /// <summary>Every ground column and every solid tile gets this surface.</summary>
@@ -86,36 +55,6 @@ namespace Bubblewright
                     phase = placed * Tuning.I.spikePhaseStep,
                 });
                 placed++;
-            }
-        }
-
-        static void PatchyIce(StageMap map, Random rng)
-        {
-            // Ground: stretches of 4 to 8 columns, alternating normal and ice, starting with either.
-            bool ice = rng.Next(2) == 0;
-            int col = 0;
-            while (col < StageMap.Cols)
-            {
-                int length = MinStretch + rng.Next(MaxStretch - MinStretch + 1);
-                for (int i = 0; i < length && col < StageMap.Cols; i++, col++)
-                    map.SetGround(col, ice ? Surface.Ice : Surface.Normal);
-                ice = !ice;
-            }
-            // Wick starts around the middle, so never on ice.
-            for (int c = SafeFirstCol; c <= SafeLastCol; c++) map.SetGround(c, Surface.Normal);
-
-            // Platforms (a run of solid tiles in one row): each is ice with a 50% chance.
-            for (int r = 0; r < map.Rows; r++)
-            {
-                int c = 0;
-                while (c < StageMap.Cols)
-                {
-                    if (!map.IsSolid(c, r)) { c++; continue; }
-                    int start = c;
-                    while (c < StageMap.Cols && map.IsSolid(c, r)) c++;
-                    if (rng.Next(2) != 0) continue;
-                    for (int i = start; i < c; i++) SetTileSurface(map, i, r, Surface.Ice);
-                }
             }
         }
 

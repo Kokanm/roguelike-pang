@@ -136,7 +136,7 @@ namespace Bubblewright
             }
             run = loaded;
             newBest = false;
-            forcedRecipeIndex = -1;
+            testStageIndex = -1;
             StartStage();
         }
 

@@ -111,7 +111,7 @@ namespace Bubblewright.Tests
         public void CardNumbersComeFromTuning()
         {
             var t = Tuning.I;
-            Assert.AreEqual($"{Mathf.RoundToInt((t.hardBudgetScale - 1f) * 100f)}% more bubbles, {Mathf.RoundToInt((1f - t.hardTimeScale) * 100f)}% less time", Run.HardRoadNumbers());
+            Assert.AreEqual($"{Mathf.RoundToInt((1f - t.hardTimeScale) * 100f)}% less time", Run.HardRoadNumbers());
             StringAssert.Contains($"pick {t.hardRewardPicks} of {t.hardRewardCards}", Run.HardRoadReward());
             StringAssert.StartsWith("Reward:", Run.HardRoadReward());
         }

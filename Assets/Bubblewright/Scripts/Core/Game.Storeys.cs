@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Bubblewright
@@ -15,7 +14,6 @@ namespace Bubblewright
         float camPanY;
         bool[] awakeStoreys;
         int waveStorey = -1;
-        bool debugStoreyStage;
         SpriteRenderer floorStrip;
 
         public int ActiveStorey => activeStorey;
@@ -298,65 +296,5 @@ namespace Bubblewright
             else UnityEngine.Object.DestroyImmediate(obj);
         }
 
-        void ToggleDebugStoreyStage()
-        {
-            debugStoreyStage = !debugStoreyStage;
-            if (debugStoreyStage) testLayoutIndex = -1;
-            run.Hearts = wick.Hearts;
-            StartStage();
-        }
-
-        /// <summary>
-        /// A two-storey look at the pan, the strip, the HUD and the hatch. Not a real stage.
-        /// The crouch tunnel is on the left, the hatch is the centre ladder, and the floor Clinger waits on the right.
-        /// He has to pop that Clinger too: it is a required enemy, so the hatch stays shut until it is gone.
-        /// </summary>
-        StagePlan StoreyDebugPlan()
-        {
-            const int ladder = 16;
-            int rows = StageMap.StoreyRows * 2;
-            var lines = new string[rows];
-            for (int i = 0; i < rows; i++) lines[i] = new string('.', StageMap.Cols);
-            for (int row = 0; row <= 16; row++)
-            {
-                string line = row == 1 ? TunnelRow(ladder) : row == 13 ? CapRow(ladder) : LadderRow(ladder);
-                lines[rows - 1 - row] = line;
-            }
-            return new StagePlan
-            {
-                map = StageLayout.Parse(lines),
-                layoutName = "Storey test",
-                wickPosition = new Vector2(StageMap.CenterX(ladder), 0f),
-                spawns = new List<SpawnSpec>
-                {
-                    new SpawnSpec { kind = BubbleKind.Gloop, tier = 2, position = new Vector2(-14f, 9f), direction = 1 },
-                    new SpawnSpec { kind = BubbleKind.Gloop, tier = 2, position = new Vector2(6f, 7f), direction = -1 },
-                    new SpawnSpec { kind = BubbleKind.Clinger, tier = 2, position = new Vector2(10f, 1f), direction = -1, pogo = true, mount = ClingerMount.Floor, patient = true },
-                    new SpawnSpec { kind = BubbleKind.Gloop, tier = 2, position = new Vector2(-8f, 18f), direction = 1 },
-                    new SpawnSpec { kind = BubbleKind.Gloop, tier = 2, position = new Vector2(8f, 22f), direction = -1 },
-                },
-            };
-        }
-
-        static string LadderRow(int col)
-        {
-            var chars = new string('.', StageMap.Cols).ToCharArray();
-            chars[col] = 'H';
-            return new string(chars);
-        }
-
-        static string TunnelRow(int col)
-        {
-            var chars = LadderRow(col).ToCharArray();
-            for (int c = 4; c <= 11; c++) chars[c] = '#';
-            return new string(chars);
-        }
-
-        static string CapRow(int col)
-        {
-            var chars = new string('#', StageMap.Cols).ToCharArray();
-            chars[col] = 'H';
-            return new string(chars);
-        }
     }
 }

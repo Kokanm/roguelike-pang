@@ -28,7 +28,7 @@ namespace Bubblewright
         /// <summary>Double jumps in the air before landing (the Updraft upgrade).</summary>
         public int AirJumps;
 
-        // Hard worlds, indexed by world number 1 to 6. A hard world has more bubbles, less time, one debuff and richer rewards.
+        // Hard worlds, indexed by world number 1 to 6. A hard world has less time, one debuff and richer rewards.
         public readonly bool[] hardWorld = new bool[7];
         public readonly string[] worldDebuff = new string[7];
 
@@ -109,9 +109,9 @@ namespace Bubblewright
             return string.Join(" ", parts);
         }
 
-        /// <summary>"30% more bubbles, 25% less time", from the hard world numbers.</summary>
+        /// <summary>"25% less time", from the hard world clock.</summary>
         public static string HardRoadNumbers() =>
-            $"{Mathf.RoundToInt((Tuning.I.hardBudgetScale - 1f) * 100f)}% more bubbles, {Mathf.RoundToInt((1f - Tuning.I.hardTimeScale) * 100f)}% less time";
+            $"{Mathf.RoundToInt((1f - Tuning.I.hardTimeScale) * 100f)}% less time";
 
         /// <summary>"Reward: double score, and pick 2 of 4 upgrades after the boss".</summary>
         public static string HardRoadReward()
@@ -169,13 +169,54 @@ namespace Bubblewright
             return parts.Count == 0 ? "nothing yet" : string.Join(", ", parts);
         }
 
+        /// <summary>Ids and mirror flags of the five stages picked for the current world. Null until that world is built.</summary>
+        public string[] stageIds;
+        public bool[] stageMirrors;
+        int pickedWorld = -1;
+        bool pickedHard;
+        bool hasPick;
+        int savedWorld = -1;
+        bool savedHard;
+        bool hasSaved;
+        string[] savedIds;
+        bool[] savedMirrors;
+
+        public bool HasStagePick(int world, bool hard) => hasPick && pickedWorld == world && pickedHard == hard;
+
+        public void StoreStagePick(int world, bool hard, string[] ids, bool[] mirrors)
+        {
+            pickedWorld = world;
+            pickedHard = hard;
+            hasPick = true;
+            stageIds = ids;
+            stageMirrors = mirrors;
+        }
+
+        /// <summary>Remember a version 2 save. Call this after Stage and the hard-world flags are restored.</summary>
+        public void NoteSavedStages(string[] ids, bool[] mirrors)
+        {
+            if (ids == null || ids.Length != StagePicker.Slots) return;
+            hasSaved = true;
+            savedWorld = World;
+            savedHard = IsHard;
+            savedIds = (string[])ids.Clone();
+            savedMirrors = new bool[StagePicker.Slots];
+            if (mirrors != null)
+                for (int i = 0; i < Mathf.Min(StagePicker.Slots, mirrors.Length); i++)
+                    savedMirrors[i] = mirrors[i];
+        }
+
+        public bool SavedStagesMatch(int world, bool hard) => hasSaved && savedWorld == world && savedHard == hard;
+        public string SavedStageId(int slot) => savedIds != null && slot >= 0 && slot < savedIds.Length ? savedIds[slot] : null;
+        public bool SavedStageMirror(int slot) => savedMirrors != null && slot >= 0 && slot < savedMirrors.Length && savedMirrors[slot];
+
         public SaveData ToSave()
         {
             var names = new string[taken.Count];
             for (int i = 0; i < taken.Count; i++) names[i] = taken[i].Name;
             var save = new SaveData
             {
-                version = 1,
+                version = 2,
                 seed = Seed,
                 stage = Stage,
                 score = Score,
@@ -185,6 +226,8 @@ namespace Bubblewright
                 character = Character.id,
                 hardWorld = (bool[])hardWorld.Clone(),
                 worldDebuff = (string[])worldDebuff.Clone(),
+                stageIds = stageIds == null ? null : (string[])stageIds.Clone(),
+                stageMirrors = stageMirrors == null ? null : (bool[])stageMirrors.Clone(),
             };
             SaveWeapons(save);
             return save;
@@ -192,7 +235,7 @@ namespace Bubblewright
 
         public static Run FromSave(SaveData d)
         {
-            if (d == null || d.version != 1) return null;
+            if (d == null || (d.version != 1 && d.version != 2)) return null;
             var run = new Run(d.seed, Character.ById(d.character));
             if (d.upgrades != null)
             {
@@ -213,6 +256,7 @@ namespace Bubblewright
                 for (int i = 0; i < Mathf.Min(run.worldDebuff.Length, d.worldDebuff.Length); i++)
                     run.worldDebuff[i] = string.IsNullOrEmpty(d.worldDebuff[i]) ? null : d.worldDebuff[i];
             run.LoadWeapons(d);
+            if (d.version >= 2) run.NoteSavedStages(d.stageIds, d.stageMirrors);
             return run;
         }
 
@@ -308,10 +352,7 @@ namespace Bubblewright
         }
     }
 
-    /// <summary>
-    /// Builds a stage from the sheet's bubble budget: each stage gets a budget that grows by stage, and spends it
-    /// on bubbles (XL 8, L 4, M 2, S 1, times a cost per kind). Trigloops and Leads join in later stages.
-    /// </summary>
+    /// <summary>The geometry and the enemies of one stage.</summary>
     public class StagePlan
     {
         public StageMap map;
@@ -329,6 +370,10 @@ namespace Bubblewright
         public int waveStorey = -1;
         /// <summary>The layout's name, for the balance page.</summary>
         public string layoutName;
+        /// <summary>The authored stage, when this plan came from a StageSpec.</summary>
+        public string stageId;
+        public int difficulty;
+        public string concept;
         /// <summary>The recipe that shaped this stage. Null on a boss stage and when no recipe was used.</summary>
         public string recipeName;
         /// <summary>The placement pattern that put the bubbles down. Null when no recipe was used.</summary>
@@ -358,939 +403,5 @@ namespace Bubblewright
         /// <summary>Takes Tuning.ceramicHits hits to break.</summary>
         public bool ceramic;
     }
-
-    public static class StageGenerator
-    {
-        /// <summary>Bubble budget of a stage (1 to 36) from the world and the stage inside it.</summary>
-        public static float Budget(int stage, bool hard = false)
-        {
-            var t = Tuning.I;
-            float budget = t.budgetBase + t.budgetPerWorld * (Run.WorldOf(stage) - 1) + t.budgetPerStage * (Run.StageInWorldOf(stage) - 1);
-            budget *= t.jumpBudgetBonus; // jumping makes dodging easier
-            return hard ? budget * t.hardBudgetScale : budget;
-        }
-
-        /// <summary>Most bubbles at the start: 4, 4, 5, 5, 6, 6 for worlds 1 to 6.</summary>
-        public static int MaxStartBubbles(int stage) => Tuning.I.startBubblesBase + (Run.WorldOf(stage) + 1) / 2;
-
-        /// <summary>Seconds on the storm clock for a stage (1 to 36).</summary>
-        public static float StageTime(int stage, bool hard = false)
-        {
-            var t = Tuning.I;
-            float time = t.timeBase + t.timePerWorld * (Run.WorldOf(stage) - 1) + t.timePerStage * (Run.StageInWorldOf(stage) - 1);
-            if (Run.WorldOf(stage) == 3) time *= t.desertTimeScale; // Desert: everything is slower on sand
-            return hard ? time * t.hardTimeScale : time;
-        }
-
-        /// <summary>Seconds on the storm clock of a boss stage. A hard world still scales it.</summary>
-        public static float BossTime(bool hard = false) => hard ? Tuning.I.bossTime * Tuning.I.hardTimeScale : Tuning.I.bossTime;
-
-        public static LayoutDef PickLayout(Run run, System.Random rng) => PickLayout(run.Stage, rng);
-
-        static LayoutDef PickLayout(int stage, System.Random rng)
-        {
-            int world = Run.WorldOf(stage);
-            int stageInWorld = Run.StageInWorldOf(stage);
-            if (Run.IsBossStageNumber(stage) || world == 1 && stageInWorld <= 2)
-                return Mirrored(StageLayouts.All[0], rng);
-
-            if (world == 5)
-            {
-                var catacombs = new List<LayoutDef>();
-                foreach (var layout in StageLayouts.All)
-                    if (layout.onlyWorld == 5)
-                        catacombs.Add(layout);
-                return Mirrored(catacombs[rng.Next(catacombs.Count)], rng);
-            }
-
-            int wantedLevels = 2;
-            if (world >= 2 && stageInWorld >= 2)
-                wantedLevels = rng.Next(3) == 0 ? 2 : 3;
-
-            // From world 2 on, about one stage in three has gaps in the ground (never a boss stage: those returned above).
-            bool wantGaps = world >= 2 && rng.NextDouble() < Tuning.I.gapLayoutChance;
-
-            var choices = new List<LayoutDef>();
-            foreach (var layout in StageLayouts.All)
-                if (layout.levels == wantedLevels && layout.minWorld <= world && layout.HasGaps == wantGaps &&
-                    (layout.onlyWorld == 0 || layout.onlyWorld == world))
-                    choices.Add(layout);
-            if (choices.Count == 0)
-                foreach (var layout in StageLayouts.All)
-                    if (layout.levels == wantedLevels && layout.minWorld <= world &&
-                        (layout.onlyWorld == 0 || layout.onlyWorld == world))
-                        choices.Add(layout);
-
-            // minWorld can remove a whole tier from a future data set; fall back to any eligible non-flat layout.
-            if (choices.Count == 0)
-                foreach (var layout in StageLayouts.All)
-                    if (layout.levels > 1 && layout.minWorld <= world &&
-                        (layout.onlyWorld == 0 || layout.onlyWorld == world))
-                        choices.Add(layout);
-
-            return Mirrored(choices[rng.Next(choices.Count)], rng);
-        }
-
-        static LayoutDef Mirrored(LayoutDef layout, System.Random rng)
-        {
-            if (rng.NextDouble() >= 0.5) return layout;
-            return new LayoutDef
-            {
-                name = layout.name,
-                levels = layout.levels,
-                minWorld = layout.minWorld,
-                onlyWorld = layout.onlyWorld,
-                needsBreaking = layout.needsBreaking,
-                bubbleMinY = layout.bubbleMinY,
-                rows = StageLayouts.Mirror(layout.rows),
-            };
-        }
-
-        public static StagePlan Generate(Run run) => GenerateFor(run, run.Stage);
-
-        /// <summary>
-        /// The stage with only its layout re-rolled (debug NEXT LAYOUT): the stage's own random numbers still choose
-        /// the bubbles, a separate stream chooses the layout. layoutReroll 0 is the stage as normally generated.
-        /// </summary>
-        public static StagePlan Generate(Run run, int layoutReroll) => GenerateFor(run, run.Stage, layoutReroll);
-
-        public static StagePlan Generate(Run run, LayoutDef layout) =>
-            Generate(run.Stage, run.StageRng(0), run.IsHard, layout, null, RecipeFor(run.Seed, run.Stage));
-
-        public static StagePlan Generate(int stage, System.Random rng, bool hard = false) =>
-            Generate(stage, rng, hard, null);
-
-        /// <summary>
-        /// The stage a run would build, including the recipe drawn for this seed and stage. layoutReroll above 0
-        /// re-rolls only the layout. forced, when set, is used instead of the drawn recipe. A boss stage has no recipe.
-        /// </summary>
-        public static StagePlan GenerateFor(Run run, int stage, int layoutReroll = 0, RecipeDef forced = null)
-        {
-            RecipeDef recipe = forced ?? RecipeFor(run.Seed, stage);
-            bool hard = run.IsHardWorld(Run.WorldOf(stage));
-            System.Random layoutRng = layoutReroll <= 0 ? null : run.StageRngFor(stage, 100 + layoutReroll);
-            BubbleKind? guest = null;
-            bool debut = false;
-            if (recipe != null && recipe.id != RecipeId.Introduction && !recipe.classicKindsOnly)
-            {
-                guest = GuestFor(run.Seed, stage, hard);
-                debut = guest == BubbleKind.Drifter && IsDrifterDebut(run, stage);
-            }
-            return Generate(stage, run.StageRngFor(stage, 0), hard, null, layoutRng, recipe, guest, debut);
-        }
-
-        /// <summary>
-        /// The recipe drawn for this seed and stage. Boss stages return null. World 1 stages 1 and 2 are Mixed.
-        /// Every other normal stage takes the next row of that world's pool, shuffled from the seed, and a row
-        /// repeats only after the pool is used up.
-        /// </summary>
-        public static RecipeDef RecipeFor(int seed, int stage)
-        {
-            if (Run.IsBossStageNumber(stage)) return null;
-            var tuning = Tuning.I;
-            int world = Run.WorldOf(stage);
-            int stageInWorld = Run.StageInWorldOf(stage);
-            if (world == 1 && stageInWorld <= 2) return tuning.Recipe(RecipeId.Mixed);
-            bool hasSignature = SignatureKind(world).HasValue;
-            // Stage 1 of a world with a signature enemy introduces it.
-            if (stageInWorld == 1 && hasSignature) return tuning.Recipe(RecipeId.Introduction);
-
-            var pool = new List<RecipeDef>();
-            if (tuning.recipes != null)
-                foreach (var row in tuning.recipes)
-                    if (row != null && row.inPool && row.fromWorld <= world && (hasSignature || row.signatureShare < 0f))
-                        pool.Add(row);
-            if (pool.Count == 0) return tuning.Recipe(RecipeId.Mixed);
-
-            var draw = new System.Random(unchecked(seed * 7919 + world * 15485863 + 977));
-            for (int i = pool.Count - 1; i > 0; i--)
-            {
-                int j = draw.Next(i + 1);
-                RecipeDef swap = pool[i];
-                pool[i] = pool[j];
-                pool[j] = swap;
-            }
-            int slot = world == 1 ? stageInWorld - 3 : hasSignature ? stageInWorld - 2 : stageInWorld - 1;
-            return pool[slot % pool.Count];
-        }
-
-        /// <summary>
-        /// The kind that visits this stage as a guest, or null. Never on a boss stage, in world 1, or when the stage's
-        /// recipe is Introduction or classic-kinds-only (Giants). Depends only on its three arguments.
-        /// </summary>
-        public static BubbleKind? GuestFor(int seed, int stage, bool hard)
-        {
-            if (Run.IsBossStageNumber(stage)) return null;
-            int world = Run.WorldOf(stage);
-            if (world <= 1) return null;
-            RecipeDef recipe = RecipeFor(seed, stage);
-            if (recipe == null || recipe.id == RecipeId.Introduction || recipe.classicKindsOnly) return null;
-            var t = Tuning.I;
-            var rng = new System.Random(unchecked(seed * 7919 + stage * 104729 + 9 * 31));
-            if (rng.NextDouble() >= (hard ? t.guestChanceHard : t.guestChance)) return null;
-            var eligible = new List<BubbleKind>();
-            for (int w = 2; w < world; w++)
-            {
-                BubbleKind? signature = SignatureKind(w);
-                if (signature.HasValue) eligible.Add(signature.Value);
-            }
-            if (world >= t.drifterFromWorld) eligible.Add(BubbleKind.Drifter);
-            if (eligible.Count == 0) return null;
-            return eligible[rng.Next(eligible.Count)];
-        }
-
-        /// <summary>True when this stage has a Drifter guest and no earlier stage of the run has one.</summary>
-        public static bool IsDrifterDebut(Run run, int stage)
-        {
-            if (GuestFor(run.Seed, stage, run.IsHardWorld(Run.WorldOf(stage))) != BubbleKind.Drifter) return false;
-            for (int s = 1; s < stage; s++)
-                if (GuestFor(run.Seed, s, run.IsHardWorld(Run.WorldOf(s))) == BubbleKind.Drifter) return false;
-            return true;
-        }
-
-        public const string DebutRecipeName = "Drifter arrives";
-
-        /// <summary>The plain stage a Drifter's first visit is built as: Mixed, all Gloops, nothing ceramic, no budget rolling balls.</summary>
-        static RecipeDef DebutRecipe()
-        {
-            RecipeDef mixed = Tuning.I.Recipe(RecipeId.Mixed);
-            return new RecipeDef
-            {
-                id = RecipeId.Mixed, name = DebutRecipeName, fromWorld = 1,
-                minTier = mixed.minTier, maxTier = mixed.maxTier, startCapScale = mixed.startCapScale, startCapMax = mixed.startCapMax,
-                ceramicChance = 0f, inPool = false, patterns = new[] { PlacementPattern.Scattered },
-                classicKindsOnly = true, noBudgetRollers = true,
-            };
-        }
-
-        /// <summary>The enemy a world is known for, or null for Rooftops, an unknown world, or a world whose entry is Gloop.</summary>
-        public static BubbleKind? SignatureKind(int world)
-        {
-            var kinds = Tuning.I.signatureKinds;
-            if (world < 2 || kinds == null || world > kinds.Length) return null;
-            BubbleKind kind = kinds[world - 1];
-            return kind == BubbleKind.Gloop ? (BubbleKind?)null : kind;
-        }
-
-        static StagePlan Generate(int stage, System.Random rng, bool hard, LayoutDef layoutOverride, System.Random layoutRng = null, RecipeDef recipe = null, BubbleKind? guest = null, bool debut = false)
-        {
-            var t = Tuning.I;
-            LayoutDef layout = layoutOverride ?? PickLayout(stage, rng);
-            if (layoutOverride == null && layoutRng != null)
-            {
-                // Try a few times for a different layout; small pools may only offer the same one mirrored.
-                string first = layout.name;
-                for (int i = 0; i < 8; i++)
-                {
-                    layout = PickLayout(stage, layoutRng);
-                    if (layout.name != first) break;
-                }
-            }
-            StageMap map = StageLayout.Parse(layout.rows);
-            WorldRules.Apply(map, Run.WorldOf(stage), rng, Run.StageInWorldOf(stage), Run.IsBossStageNumber(stage));
-            if (Run.IsBossStageNumber(stage))
-                return new StagePlan { map = map, spawns = new List<SpawnSpec>(), wickX = 0f, layoutName = layout.name }; // the boss is the whole stage
-            float bubbleMinY = layout.bubbleMinY > 0f ? layout.bubbleMinY : 5f;
-            // A Drifter's first visit: a plain stage of Gloops with the Drifter among them.
-            debut = debut && guest == BubbleKind.Drifter;
-            if (debut) recipe = DebutRecipe();
-            float budget = Budget(stage, hard);
-            if (recipe != null && recipe.id == RecipeId.Introduction) budget *= t.introBudgetScale;
-            else if (recipe != null && recipe.budgetScale > 0f) budget *= recipe.budgetScale;
-            float fullBudget = budget;
-            bool plain = recipe != null && recipe.plain;
-            BubbleKind? signature = recipe != null && !recipe.classicKindsOnly ? SignatureKind(Run.WorldOf(stage)) : null;
-            float signatureShare = recipe == null ? 0f : recipe.signatureShare < 0f ? t.signatureShare : recipe.signatureShare;
-            // A rolling-floor recipe needs room for several balls. Without it, the stage is Mixed.
-            if (recipe != null && recipe.rollerShare > 0f && RollerSpots(map, 0f).Count < 2)
-                recipe = t.Recipe(RecipeId.Mixed);
-            var rollers = new List<RollerSpec>();
-            float rollerSpend = plain ? 0f : AddRollers(map, stage, rng, ref budget, rollers, 0f, recipe);
-            int maxBubbles = StartCap(stage, recipe);
-            bool hasWaves = recipe != null && recipe.waves > 0;
-            // With waves, pick for the whole budget: the start cap is raised so there is something left to send later.
-            if (hasWaves) maxBubbles = Mathf.RoundToInt(maxBubbles / Mathf.Max(0.05f, recipe.startShare));
-            var picks = new List<(BubbleKind kind, int tier, bool ceramic)>();
-            bool ceramicWorld = Run.WorldOf(stage) >= t.ceramicFromWorld;
-
-            // The guest takes its share first. Its bubbles count toward the start cap and are never ceramic.
-            var guestPicks = new List<(BubbleKind kind, int tier, bool ceramic)>();
-            if (guest.HasValue)
-            {
-                float guestLeft = Mathf.Min(t.guestBudgetShare * fullBudget, budget);
-                int wanted = 1 + rng.Next(Mathf.Max(1, t.guestMaxBubbles));
-                for (int i = 0; i < wanted && guestPicks.Count < maxBubbles; i++)
-                {
-                    int tier = BiggestAffordable(guest.Value, guestLeft);
-                    if (recipe != null) tier = TierInRange(recipe, tier);
-                    if (tier < 0) break;
-                    bool canShrink = tier < t.tiers.Length - 1 && (recipe == null || tier < recipe.maxTier);
-                    if (i > 0 && canShrink && rng.NextDouble() < 0.35) tier++;
-                    float cost = Cost(guest.Value, tier);
-                    if (cost > guestLeft + 0.001f) break;
-                    guestLeft -= cost;
-                    budget -= cost;
-                    guestPicks.Add((guest.Value, tier, false));
-                }
-            }
-
-            while (guestPicks.Count + picks.Count < maxBubbles)
-            {
-                BubbleKind kind;
-                if (debut)
-                    kind = BubbleKind.Gloop;
-                else if (signature.HasValue)
-                    kind = rng.NextDouble() < signatureShare ? signature.Value : recipe.gloopFill ? BubbleKind.Gloop : PickKind(stage, rng);
-                else
-                    kind = PickKind(stage, rng);
-                int tier = BiggestAffordable(kind, budget);
-                // Outside the recipe's tiers counts as unaffordable, so the Gloop fallback still applies.
-                if (recipe != null) tier = TierInRange(recipe, tier);
-                if (tier < 0 && kind != BubbleKind.Gloop)
-                {
-                    kind = BubbleKind.Gloop;
-                    tier = BiggestAffordable(kind, budget);
-                    if (recipe != null) tier = TierInRange(recipe, tier);
-                }
-                if (tier < 0) break;
-                // After the first bubble, sometimes go one size down so stages are not all XLs.
-                // A recipe keeps that step inside its tier range, and does not roll when it cannot.
-                bool canShrink = tier < t.tiers.Length - 1 && (recipe == null || tier < recipe.maxTier);
-                if (picks.Count > 0 && canShrink && rng.NextDouble() < 0.35) tier++;
-                // From ceramicFromWorld on some bubbles are ceramic: they take more hits, so they cost more budget.
-                // A recipe with ceramicChance at 0 or above uses that chance in every world.
-                bool ceramic;
-                if (plain)
-                    ceramic = false;
-                else if (recipe != null && recipe.ceramicChance >= 0f)
-                    ceramic = kind != BubbleKind.Lucky && tier <= t.ceramicMaxTier && rng.NextDouble() < recipe.ceramicChance;
-                else
-                    ceramic = ceramicWorld && kind != BubbleKind.Lucky && tier <= t.ceramicMaxTier && rng.NextDouble() < t.ceramicChance;
-                float cost = Cost(kind, tier) * (ceramic ? t.ceramicCostScale : 1f);
-                if (ceramic && cost > budget + 0.001f)
-                {
-                    ceramic = false;
-                    cost = Cost(kind, tier);
-                }
-                budget -= cost;
-                picks.Add((kind, tier, ceramic));
-            }
-            var waveLists = new List<List<SpawnSpec>>();
-            if (hasWaves) picks = SplitWaves(picks, recipe, rng, waveLists);
-            picks.AddRange(guestPicks); // guests stay in the start group
-            if (!plain && stage > 1 && rng.NextDouble() < t.luckyChance) picks.Add((BubbleKind.Lucky, 2, false));
-
-            // Biggest first. Flat stages assign the furthest random positions to the biggest bubbles.
-            picks.Sort((a, b) => a.tier.CompareTo(b.tier));
-            var specs = new List<SpawnSpec>();
-            // A recipe names the placement patterns it may use. One is drawn only when there is a choice, so a
-            // recipe with just Scattered draws the same random numbers as before patterns existed.
-            PlacementPattern pattern = PlacementPattern.Scattered;
-            if (recipe != null && recipe.patterns != null && recipe.patterns.Length > 0)
-                pattern = recipe.patterns.Length == 1 ? recipe.patterns[0] : recipe.patterns[rng.Next(recipe.patterns.Length)];
-            // Clingers hang from a surface, so they are placed by their own rule and the rest go through the pattern.
-            var clingerPicks = picks.FindAll(p => p.kind == BubbleKind.Clinger);
-            picks.RemoveAll(p => p.kind == BubbleKind.Clinger);
-            List<SpawnSpec> patterned = pattern == PlacementPattern.Scattered ? null : PlacementPatterns.Place(pattern, map, picks, bubbleMinY, rng);
-            if (patterned != null)
-            {
-                specs.AddRange(patterned);
-            }
-            else if (layout.levels == 1)
-            {
-                var positions = new List<Vector2>();
-                float largestClearance = t.tiers[0].diameter * 0.5f + 0.25f;
-                for (int i = 0; i < picks.Count; i++)
-                    if (TryPosition(map, largestClearance, bubbleMinY, 0f, rng, out Vector2 position))
-                        positions.Add(position);
-                positions.Sort((a, b) => Mathf.Abs(b.x).CompareTo(Mathf.Abs(a.x)));
-                int count = Mathf.Min(picks.Count, positions.Count);
-                for (int i = 0; i < count; i++)
-                    specs.Add(Spec(picks[i], positions[i], rng));
-            }
-            else
-            {
-                foreach (var pick in picks)
-                {
-                    float clearance = t.tiers[pick.tier].diameter * 0.5f + 0.25f;
-                    if (TryPosition(map, clearance, bubbleMinY, 0f, rng, out Vector2 position))
-                        specs.Add(Spec(pick, position, rng));
-                }
-            }
-            PlaceClingers(map, clingerPicks, specs, bubbleMinY, rng);
-            if (guest == BubbleKind.Drifter) MakeDriftersFair(map, specs, bubbleMinY, rng);
-            // Pogos come last, from their own random numbers, so the stage around them is the same as before they existed.
-            var steelPogos = new List<SpawnSpec>();
-            if (!plain && !debut)
-            {
-                var pogoRng = new System.Random(rng.Next());
-                MakePogos(stage, map, specs, pogoRng);
-                foreach (var wave in waveLists) MakePogos(stage, map, wave, pogoRng);
-                AddSteelPogo(stage, map, specs, steelPogos, pogoRng);
-            }
-            string guestName = null;
-            if (guest.HasValue && specs.Exists(s => s.kind == guest.Value)) guestName = guest.Value.ToString();
-            return new StagePlan
-            {
-                map = map, spawns = specs, rollers = rollers, wickX = 0f, guestName = guestName,
-                layoutName = layout.name, recipeName = recipe == null ? null : recipe.name,
-                patternName = recipe == null ? null : PlacementPatterns.NameOf(pattern),
-                budget = fullBudget, rollerSpend = rollerSpend,
-                waves = waveLists, timeScale = recipe == null ? 1f : recipe.timeScale, steelPogos = steelPogos,
-            };
-        }
-
-        /// <summary>Kinds that can come as a Pogo from Tuning.pogoFromStage on, with Tuning.pogoChance.</summary>
-        public static bool IsPlainPogoKind(BubbleKind kind) =>
-            kind == BubbleKind.Gloop || kind == BubbleKind.Trigloop || kind == BubbleKind.Lead;
-
-        /// <summary>
-        /// Turns some of the specs into Pogos. Plain kinds from Tuning.pogoFromStage, special kinds (not Lucky) with their
-        /// own chance. A Pogo never starts over a ground gap or a ladder, and never within Tuning.pogoMinSpacing sideways
-        /// of another Pogo; such a spec stays round. Draws one number per eligible spec, in order.
-        /// </summary>
-        public static void MakePogos(int stage, StageMap map, List<SpawnSpec> specs, System.Random rng)
-        {
-            var t = Tuning.I;
-            var pogoXs = new List<float>();
-            for (int i = 0; i < specs.Count; i++)
-            {
-                var spec = specs[i];
-                if (spec.kind == BubbleKind.Lucky || spec.pogo) continue;
-                bool plainKind = IsPlainPogoKind(spec.kind);
-                if (plainKind && stage < t.pogoFromStage) continue;
-                float chance = plainKind ? t.pogoChance : t.pogoSpecialChance;
-                if (rng.NextDouble() >= chance) continue;
-                if (!PogoSpotIsFair(map, spec.position.x, pogoXs)) continue;
-                spec.pogo = true;
-                specs[i] = spec;
-                pogoXs.Add(spec.position.x);
-            }
-        }
-
-        /// <summary>A Pogo may start at x: no ground gap or ladder in that column, and no other Pogo too close sideways.</summary>
-        public static bool PogoSpotIsFair(StageMap map, float x, List<float> otherPogoXs)
-        {
-            var t = Tuning.I;
-            int col = StageMap.Col(x);
-            if (map != null)
-            {
-                if (map.IsGap(col)) return false;
-                for (int r = 0; r < map.Rows; r++)
-                    if (map.Get(col, r).ladder) return false;
-            }
-            foreach (float other in otherPogoXs)
-                if (Mathf.Abs(other - x) < t.pogoMinSpacing) return false;
-            return true;
-        }
-
-        /// <summary>
-        /// From Tuning.pogoSteelFromWorld, sometimes one steel Pogo on the ground: away from Wick's start, the walls, gaps,
-        /// ladders, platforms overhead that would leave no room, and the other Pogos.
-        /// </summary>
-        static void AddSteelPogo(int stage, StageMap map, List<SpawnSpec> specs, List<SpawnSpec> steel, System.Random rng)
-        {
-            var t = Tuning.I;
-            if (Run.WorldOf(stage) < t.pogoSteelFromWorld || rng.NextDouble() >= t.pogoSteelChance) return;
-            int tier = Mathf.Clamp(t.pogoSteelTier, 0, t.tiers.Length - 1);
-            float r = t.tiers[tier].diameter * 0.5f;
-            var pogoXs = new List<float>();
-            foreach (var s in specs) if (s.pogo) pogoXs.Add(s.position.x);
-            var spots = new List<float>();
-            for (int c = 0; c < StageMap.Cols; c++)
-            {
-                float x = StageMap.CenterX(c);
-                if (Mathf.Abs(x) < 5f || Mathf.Abs(x) > t.HalfWidth - 3f) continue;
-                if (!PogoSpotIsFair(map, x, pogoXs)) continue;
-                // Room for its full bounce: no tile in its column below its peak.
-                float top = map != null ? map.CeilingAbove(x, 0.01f, out _) : t.arenaHeight;
-                if (top < t.tiers[tier].peakHeight) continue;
-                spots.Add(x);
-            }
-            if (spots.Count == 0) return;
-            float at = spots[rng.Next(spots.Count)];
-            steel.Add(new SpawnSpec { kind = BubbleKind.Gloop, tier = tier, position = new Vector2(at, r), direction = 1, pogo = true, steel = true });
-        }
-
-        /// <summary>The velocity a Drifter spawned from this spec flies away with (see DrifterBehavior.OnSpawn).</summary>
-        static Vector2 DrifterStartVelocity(SpawnSpec spec)
-        {
-            float v = Tuning.I.drifterSpeed / Mathf.Sqrt(2f);
-            return new Vector2(spec.direction * v, spec.position.y >= 7f ? -v : v);
-        }
-
-        static bool DrifterIsFair(SpawnSpec spec) =>
-            DrifterBehavior.StartIsFair(spec.position, DrifterStartVelocity(spec), new Vector2(0f, 0f));
-
-        /// <summary>
-        /// Every Drifter in specs must start fair (not on a line to Wick in its first second). An unfair one flips its
-        /// direction, then tries up to 8 new scattered positions, and is dropped when none is fair.
-        /// </summary>
-        static void MakeDriftersFair(StageMap map, List<SpawnSpec> specs, float bubbleMinY, System.Random rng)
-        {
-            var t = Tuning.I;
-            for (int i = 0; i < specs.Count; i++)
-            {
-                SpawnSpec spec = specs[i];
-                if (spec.kind != BubbleKind.Drifter || DrifterIsFair(spec)) continue;
-                spec.direction = -spec.direction;
-                bool fair = DrifterIsFair(spec);
-                float clearance = t.tiers[spec.tier].diameter * 0.5f + 0.25f;
-                for (int attempt = 0; attempt < 8 && !fair; attempt++)
-                {
-                    if (!TryPosition(map, clearance, bubbleMinY, 0f, rng, out Vector2 position)) continue;
-                    spec.position = position;
-                    if (DrifterIsFair(spec)) { fair = true; break; }
-                    spec.direction = -spec.direction;
-                    fair = DrifterIsFair(spec);
-                }
-                if (fair) specs[i] = spec;
-                else specs.RemoveAt(i--);
-            }
-        }
-
-        /// <summary>
-        /// Places the Clinger picks (biggest first) on hanging spots, away from the bubbles already in specs and from
-        /// each other. A pick with no spot left is placed like any bubble and attaches to whatever is above it.
-        /// </summary>
-        static void PlaceClingers(StageMap map, List<(BubbleKind kind, int tier, bool ceramic)> clingers, List<SpawnSpec> specs, float bubbleMinY, System.Random rng)
-        {
-            var t = Tuning.I;
-            var taken = new List<(Vector2 pos, float radius)>();
-            foreach (var spec in specs) taken.Add((spec.position, t.tiers[spec.tier].diameter * 0.5f));
-            foreach (var pick in clingers)
-            {
-                float radius = t.tiers[pick.tier].diameter * 0.5f;
-                var ceiling = ClingerSpots(map, radius, 0f, true);
-                // XL bubbles only fit on the ceiling. Spots under a platform have y below the ceiling line.
-                var underPlatform = new List<Vector2>();
-                if (pick.tier > 0)
-                    foreach (var sp in ClingerSpots(map, radius, 0f, false))
-                        if (sp.y < t.arenaHeight - radius - 0.001f) underPlatform.Add(sp);
-                underPlatform.RemoveAll(sp => TooClose(sp, radius, taken));
-                ceiling.RemoveAll(sp => TooClose(sp, radius, taken));
-                List<Vector2> from;
-                if (underPlatform.Count > 0 && ceiling.Count > 0) from = rng.Next(3) < 2 ? underPlatform : ceiling;
-                else from = underPlatform.Count > 0 ? underPlatform : ceiling;
-                Vector2 spot;
-                if (from.Count > 0) spot = from[rng.Next(from.Count)];
-                else if (!TryPosition(map, radius + 0.25f, bubbleMinY, 0f, rng, out spot)) continue;
-                taken.Add((spot, radius));
-                specs.Add(Spec(pick, spot, rng));
-            }
-        }
-
-        static bool TooClose(Vector2 spot, float radius, List<(Vector2 pos, float radius)> centres)
-        {
-            foreach (var c in centres)
-                if ((c.pos - spot).magnitude < radius + c.radius) return true;
-            return false;
-        }
-
-        /// <summary>
-        /// Where a Clinger of this radius may hang: on the arena ceiling, and (unless ceilingOnly) under a platform tile
-        /// of rows 4 and 9 with open air below it. At least 5 units sideways from wickX, and clear of tiles apart from
-        /// touching the surface above it.
-        /// </summary>
-        public static List<Vector2> ClingerSpots(StageMap map, float radius, float wickX, bool ceilingOnly)
-        {
-            var t = Tuning.I;
-            var spots = new List<Vector2>();
-            for (float x = -t.HalfWidth + radius + 0.5f; x <= t.HalfWidth - radius - 0.5f + 0.0001f; x += 1f)
-            {
-                if (Mathf.Abs(x - wickX) < 5f) continue;
-                var spot = new Vector2(x, t.arenaHeight - radius);
-                if (ClearHanging(map, spot, radius)) spots.Add(spot);
-            }
-            if (ceilingOnly) return spots;
-            foreach (int row in new[] { 4, 9 })
-                for (int col = 0; col < StageMap.Cols; col++)
-                {
-                    if (!map.IsSolid(col, row) || map.IsSolid(col, row - 1)) continue;
-                    float x = StageMap.CenterX(col);
-                    if (Mathf.Abs(x - wickX) < 5f) continue;
-                    var spot = new Vector2(x, row - radius);
-                    if (ClearHanging(map, spot, radius)) spots.Add(spot);
-                }
-            return spots;
-        }
-
-        /// <summary>A circle that hangs from a surface: clear of tiles once moved down a little, so touching the surface is fine.</summary>
-        static bool ClearHanging(StageMap map, Vector2 spot, float radius)
-        {
-            var candidate = new Vector2(spot.x, spot.y - 0.05f);
-            Vector2 resolved = candidate;
-            Contact contact = map.ResolveCircle(ref resolved, radius);
-            return IsClear(candidate, resolved, contact);
-        }
-
-        /// <summary>
-        /// Splits the picks of a Reinforcements stage. The biggest bubbles stay at the start until they cost half of
-        /// everything, but never more than 65% (a bubble that would push the start past that waits for a wave, unless it
-        /// is the only way to have a start group at all). The rest is dealt to the waves in turn, wave 1 first. An empty
-        /// wave is dropped, so a stage with few bubbles has fewer waves. Returns the start picks; fills waves.
-        /// </summary>
-        static List<(BubbleKind kind, int tier, bool ceramic)> SplitWaves(
-            List<(BubbleKind kind, int tier, bool ceramic)> picks, RecipeDef recipe, System.Random rng, List<List<SpawnSpec>> waves)
-        {
-            var t = Tuning.I;
-            var sorted = new List<(BubbleKind kind, int tier, bool ceramic)>(picks);
-            sorted.Sort((a, b) => a.tier.CompareTo(b.tier)); // biggest first
-            float total = 0f;
-            foreach (var p in sorted) total += PickCost(p);
-
-            var start = new List<(BubbleKind kind, int tier, bool ceramic)>();
-            var later = new List<(BubbleKind kind, int tier, bool ceramic)>();
-            float startCost = 0f;
-            foreach (var p in sorted)
-            {
-                float cost = PickCost(p);
-                bool enough = startCost >= recipe.startShare * total - 0.001f;
-                bool fits = start.Count == 0 || startCost + cost <= total * 0.65f + 0.001f;
-                if (!enough && fits)
-                {
-                    start.Add(p);
-                    startCost += cost;
-                }
-                else later.Add(p);
-            }
-
-            // Skipping big bubbles can leave the start too thin: bring the biggest waiting one that still fits back.
-            while (startCost < total * 0.35f && later.Count > 0)
-            {
-                int best = -1;
-                for (int i = 0; i < later.Count; i++)
-                {
-                    float cost = PickCost(later[i]);
-                    if (startCost + cost > total * 0.65f + 0.001f) continue;
-                    if (best < 0 || cost > PickCost(later[best])) best = i;
-                }
-                if (best < 0) break;
-                startCost += PickCost(later[best]);
-                start.Add(later[best]);
-                later.RemoveAt(best);
-            }
-
-            int count = Mathf.Max(1, recipe.waves);
-            var lists = new List<SpawnSpec>[count];
-            for (int i = 0; i < count; i++) lists[i] = new List<SpawnSpec>();
-            for (int i = 0; i < later.Count; i++)
-            {
-                var p = later[i];
-                float radius = t.tiers[p.tier].diameter * 0.5f;
-                float x = -t.HalfWidth + radius + (float)rng.NextDouble() * (2f * t.HalfWidth - 2f * radius);
-                lists[i % count].Add(new SpawnSpec
-                {
-                    kind = p.kind, tier = p.tier, ceramic = p.ceramic,
-                    position = new Vector2(x, 0f),
-                    direction = rng.NextDouble() < 0.5 ? -1 : 1,
-                });
-            }
-            foreach (var list in lists)
-                if (list.Count > 0) waves.Add(list);
-            return start;
-        }
-
-        static float PickCost((BubbleKind kind, int tier, bool ceramic) p) =>
-            Cost(p.kind, p.tier) * (p.ceramic ? Tuning.I.ceramicCostScale : 1f);
-
-        /// <summary>Most bubbles placed before the free Lucky one. A null recipe keeps the usual cap.</summary>
-        static int StartCap(int stage, RecipeDef recipe)
-        {
-            if (recipe == null) return MaxStartBubbles(stage);
-            var tuning = Tuning.I;
-            if (recipe.id == RecipeId.Giants && Run.WorldOf(stage) >= tuning.giantsLateFromWorld)
-                return tuning.giantsMaxLate;
-            if (recipe.startCapMax > 0) return recipe.startCapMax;
-            return Mathf.RoundToInt(MaxStartBubbles(stage) * recipe.startCapScale);
-        }
-
-        /// <summary>
-        /// The affordable tier clamped into the recipe's range, or -1 when nothing in that range is affordable.
-        /// A tier below minTier is a bigger bubble than the recipe allows; the biggest allowed tier is cheaper, so it still fits.
-        /// </summary>
-        static int TierInRange(RecipeDef recipe, int tier)
-        {
-            int last = Tuning.I.tiers.Length - 1;
-            int minTier = Mathf.Clamp(recipe.minTier, 0, last);
-            int maxTier = Mathf.Clamp(recipe.maxTier, minTier, last);
-            if (tier < 0 || tier > maxTier) return -1;
-            return tier < minTier ? minTier : tier;
-        }
-
-        /// <summary>Most rollers a stage of this world starts with: 0 before rollerFromWorld, 2 from rollerTwoFromWorld, capped.</summary>
-        public static int RollersFor(int stage)
-        {
-            var t = Tuning.I;
-            int world = Run.WorldOf(stage);
-            if (Run.IsBossStageNumber(stage) || world < t.rollerFromWorld) return 0;
-            return Mathf.Clamp(world >= t.rollerTwoFromWorld ? 2 : 1, 0, t.rollerMaxPerStage);
-        }
-
-        /// <summary>
-        /// From rollerFromWorld on, on normal stages, with rollerChance a stage swaps some budget for big rollers. Each
-        /// costs rollerCost from the budget before bubbles are picked, and at least one budget point is left for bubbles.
-        /// A recipe with rollerShare above 0 spends up to that share instead, up to rollerMax balls. Giants and Swarm
-        /// skip the budget rollers. Steel balls are still added by today's rule. A null recipe draws the same random
-        /// numbers, in the same order, as before recipes existed. Returns the budget spent.
-        /// </summary>
-        static float AddRollers(StageMap map, int stage, System.Random rng, ref float budget, List<RollerSpec> into, float wickX, RecipeDef recipe)
-        {
-            var t = Tuning.I;
-            if (Run.IsBossStageNumber(stage)) return 0f;
-            int world = Run.WorldOf(stage);
-            float spent = 0f;
-            List<Vector2> spots = null;
-            bool skipBudget = recipe != null && (recipe.id == RecipeId.Giants || recipe.id == RecipeId.Swarm || recipe.noBudgetRollers);
-            bool share = recipe != null && recipe.rollerShare > 0f && !skipBudget;
-
-            if (share)
-            {
-                spots = RollerSpots(map, wickX);
-                float cap = recipe.rollerShare * budget;
-                for (int i = 0; i < recipe.rollerMax && spots.Count > 0; i++)
-                {
-                    bool forceCeramic = recipe.allRollersCeramic;
-                    bool ceramic = forceCeramic || (world >= t.ceramicFromWorld && rng.NextDouble() < t.ceramicRollerChance);
-                    float cost = t.rollerCost * (ceramic ? t.ceramicCostScale : 1f);
-                    if (spent + cost > cap + 0.001f || cost > budget + 0.001f)
-                    {
-                        if (!ceramic || forceCeramic) break;
-                        ceramic = false;
-                        cost = t.rollerCost;
-                        if (spent + cost > cap + 0.001f || cost > budget + 0.001f) break;
-                    }
-                    Vector2 spot = spots[rng.Next(spots.Count)];
-                    into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1, ceramic = ceramic });
-                    budget -= cost;
-                    spent += cost;
-                    spots.RemoveAll(sp => Mathf.Approximately(sp.y, spot.y) && Mathf.Abs(sp.x - spot.x) < 3f);
-                }
-            }
-            else if (!skipBudget)
-            {
-                int count = RollersFor(stage);
-                if (count > 0 && rng.NextDouble() < t.rollerChance)
-                {
-                    spots = RollerSpots(map, wickX);
-                    for (int i = 0; i < count && spots.Count > 0; i++)
-                    {
-                        if (budget - t.rollerCost < 1f - 0.001f) break;
-                        Vector2 spot = spots[rng.Next(spots.Count)];
-                        bool ceramic;
-                        float cost;
-                        if (recipe != null && recipe.allRollersCeramic)
-                        {
-                            ceramic = true;
-                            cost = t.rollerCost * t.ceramicCostScale;
-                            if (budget - cost < 1f - 0.001f) break;
-                        }
-                        else
-                        {
-                            ceramic = world >= t.ceramicFromWorld && rng.NextDouble() < t.ceramicRollerChance;
-                            cost = t.rollerCost * (ceramic ? t.ceramicCostScale : 1f);
-                            if (ceramic && budget - cost < 1f - 0.001f)
-                            {
-                                ceramic = false;
-                                cost = t.rollerCost;
-                            }
-                        }
-                        into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1, ceramic = ceramic });
-                        budget -= cost;
-                        spent += cost;
-                        // Keep the next one away from this one on the same surface, so they do not start touching.
-                        spots.RemoveAll(sp => Mathf.Approximately(sp.y, spot.y) && Mathf.Abs(sp.x - spot.x) < 3f);
-                    }
-                }
-            }
-
-            // Steel balls cost no budget: they cannot be popped and are not needed to clear the stage.
-            if (world >= t.steelFromWorld && t.steelMaxPerStage > 0 && rng.NextDouble() < t.steelChance)
-            {
-                if (spots == null) spots = RollerSpots(map, wickX);
-                for (int i = 0; i < t.steelMaxPerStage && spots.Count > 0; i++)
-                {
-                    Vector2 spot = spots[rng.Next(spots.Count)];
-                    into.Add(new RollerSpec { tier = 0, x = spot.x, surfaceY = spot.y, direction = rng.NextDouble() < 0.5 ? -1 : 1, steel = true });
-                    spots.RemoveAll(sp => Mathf.Approximately(sp.y, spot.y) && Mathf.Abs(sp.x - spot.x) < 3f);
-                }
-            }
-            return spent;
-        }
-
-        /// <summary>Shortest stretch of surface, in tiles, a roller is placed on.</summary>
-        public const int RollerMinStretch = 5;
-        /// <summary>A roller starts at least this far (horizontally) from Wick's start.</summary>
-        public const float RollerMinWickDistance = 6f;
-
-        /// <summary>
-        /// Where a big roller may start: (centre x, surface y) at a column centre on the ground or a platform top, on a
-        /// stretch of at least RollerMinStretch tiles it can roll along, not at either end of it, at least
-        /// RollerMinWickDistance from wickX, and with no spike strip under it or its neighbours.
-        /// </summary>
-        public static List<Vector2> RollerSpots(StageMap map, float wickX)
-        {
-            var spots = new List<Vector2>();
-            float diameter = Roller.RadiusOf(0) * 2f;
-            // row -1 is the ground; any other row is a tile row whose top is a surface.
-            for (int row = -1; row < map.Rows - 1; row++)
-            {
-                float surface = row + 1f;
-                if (surface + diameter > map.Rows) break;
-                int start = -1;
-                for (int c = 0; c <= StageMap.Cols; c++)
-                {
-                    bool ok = c < StageMap.Cols && Rollable(map, c, row, surface, diameter);
-                    if (ok && start < 0) start = c;
-                    if (ok || start < 0) continue;
-                    int end = c - 1;
-                    if (end - start + 1 >= RollerMinStretch)
-                    {
-                        for (int k = start + 1; k <= end - 1; k++)
-                        {
-                            float x = StageMap.CenterX(k);
-                            if (Mathf.Abs(x - wickX) < RollerMinWickDistance) continue;
-                            if (SpikeNear(map, k, row)) continue;
-                            spots.Add(new Vector2(x, surface));
-                        }
-                    }
-                    start = -1;
-                }
-            }
-            return spots;
-        }
-
-        static bool Rollable(StageMap map, int c, int row, float surface, float diameter)
-        {
-            bool floor = row < 0 ? !map.IsGap(c) : map.IsSolid(c, row);
-            if (!floor) return false;
-            int rMin = StageMap.Row(surface + 0.0001f), rMax = StageMap.Row(surface + diameter - 0.0001f);
-            for (int r = rMin; r <= rMax; r++)
-                if (map.IsSolid(c, r)) return false;
-            return true;
-        }
-
-        /// <summary>A spike strip on this surface under column c or a neighbour (the ball is a little wider than a tile).</summary>
-        static bool SpikeNear(StageMap map, int c, int row)
-        {
-            foreach (var strip in map.spikes)
-            {
-                if (strip.row != row) continue;
-                if (c + 1 >= strip.col && c - 1 <= strip.col + strip.width - 1) return true;
-            }
-            return false;
-        }
-
-        /// <summary>Budget cost of one bubble (kind and tier), as the generator spends it.</summary>
-        public static float BubbleCost(BubbleKind kind, int tier) => Cost(kind, tier);
-
-        static SpawnSpec Spec((BubbleKind kind, int tier, bool ceramic) pick, Vector2 position, System.Random rng) =>
-            new SpawnSpec
-            {
-                kind = pick.kind,
-                tier = pick.tier,
-                ceramic = pick.ceramic,
-                position = position,
-                direction = rng.NextDouble() < 0.5 ? -1 : 1,
-            };
-
-        internal static bool TryPosition(StageMap map, float clearance, float minY, float wickX, System.Random rng, out Vector2 position)
-        {
-            var t = Tuning.I;
-            float minX = -t.HalfWidth + clearance;
-            float maxX = t.HalfWidth - clearance;
-            float maxY = Mathf.Min(12.5f, t.arenaHeight - clearance);
-            for (int attempt = 0; attempt < 30; attempt++)
-            {
-                // The largest bubble plus its safety margin exactly fills a four-unit level, so explicitly
-                // try the two level centres before sampling the rest of the vertical range.
-                float y = attempt == 0 ? (minY > 5f ? 12f : 7f) :
-                    attempt == 1 ? 12f : Mathf.Lerp(minY, maxY, (float)rng.NextDouble());
-                var candidate = new Vector2(
-                    Mathf.Lerp(minX, maxX, (float)rng.NextDouble()),
-                    y);
-                if (Mathf.Abs(candidate.x - wickX) < 5f) continue;
-
-                Vector2 resolved = candidate;
-                Contact contact = map.ResolveCircle(ref resolved, clearance);
-                if (IsClear(candidate, resolved, contact))
-                {
-                    position = candidate;
-                    return true;
-                }
-            }
-
-            // The two tries above are the only heights where the largest bubble fits, and each one
-            // draws a single x. When that x is on Wick, a later random y never lands on the centre
-            // again and the bubble is dropped. Search those rows, then the rest of the open air.
-            if (SearchClear(map, clearance, minY, minX, maxX, maxY, wickX, out position))
-                return true;
-            position = default;
-            return false;
-        }
-
-        static bool SearchClear(StageMap map, float clearance, float minY, float minX, float maxX, float maxY, float wickX, out Vector2 position)
-        {
-            if (SearchRow(map, clearance, minY > 5f ? 12f : 7f, minY, minX, maxX, maxY, wickX, out position)) return true;
-            if (SearchRow(map, clearance, 12f, minY, minX, maxX, maxY, wickX, out position)) return true;
-
-            int rows = Mathf.Max(1, Mathf.CeilToInt((maxY - minY) / 0.25f));
-            for (int i = 0; i <= rows; i++)
-            {
-                float y = Mathf.Lerp(maxY, minY, i / (float)rows);
-                if (SearchRow(map, clearance, y, minY, minX, maxX, maxY, wickX, out position)) return true;
-            }
-            position = default;
-            return false;
-        }
-
-        static bool SearchRow(StageMap map, float clearance, float y, float minY, float minX, float maxX, float maxY, float wickX, out Vector2 position)
-        {
-            position = default;
-            if (y < minY || y > maxY) return false;
-            int steps = Mathf.Max(1, Mathf.CeilToInt((maxX - minX) / 0.25f));
-            for (int i = 0; i <= steps; i++)
-            {
-                float x = Mathf.Lerp(maxX, minX, i / (float)steps);
-                if (Mathf.Abs(x - wickX) < 5f) continue;
-                var candidate = new Vector2(x, y);
-                Vector2 resolved = candidate;
-                Contact contact = map.ResolveCircle(ref resolved, clearance);
-                if (!IsClear(candidate, resolved, contact)) continue;
-                position = candidate;
-                return true;
-            }
-            return false;
-        }
-
-        internal static bool IsClear(Vector2 candidate, Vector2 resolved, Contact contact) =>
-            (resolved - candidate).sqrMagnitude <= 0.000001f &&
-            !contact.landed && !contact.bumped && contact.side == 0;
-
-        static BubbleKind PickKind(int stage, System.Random rng)
-        {
-            var t = Tuning.I;
-            double roll = rng.NextDouble();
-            if (Run.WorldOf(stage) >= t.leadFromWorld && roll < 0.25) return BubbleKind.Lead;
-            if (stage >= t.trigloopFromStage && roll > 0.65) return BubbleKind.Trigloop;
-            return BubbleKind.Gloop;
-        }
-
-        static float Cost(BubbleKind kind, int tier)
-        {
-            var t = Tuning.I;
-            float scale = (int)kind < t.kindCostScale.Length ? t.kindCostScale[(int)kind] : 1f;
-            return t.tierCost[Mathf.Min(tier, t.tierCost.Length - 1)] * scale;
-        }
-
-        /// <summary>Biggest tier this kind is allowed to be: 0 XL, 1 L.</summary>
-        public static int LargestTier(BubbleKind kind) => Tuning.I.Kind(kind).largestTier;
-
-        public static int BiggestAffordable(BubbleKind kind, float budget)
-        {
-            for (int tier = LargestTier(kind); tier < Tuning.I.tiers.Length; tier++)
-                if (Cost(kind, tier) <= budget + 0.001f) return tier;
-            return -1;
-        }
-    }
 }
+

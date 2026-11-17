@@ -14,6 +14,8 @@ namespace Bubblewright
         public string[] worldDebuff;     // length 7
         public string weapon, head;      // weapon slot and harpoon-head slot ids; missing or unknown ids load as empty
         public int weaponAmmo, headAmmo; // as at the start of the stage, so quitting mid-stage cannot bank ammo
+        public string[] stageIds;        // the five authored stages of the current world; version 1 saves have none
+        public bool[] stageMirrors;      // whether each of those stages was mirrored
     }
 
     public static class SaveGame
@@ -79,7 +81,7 @@ namespace Bubblewright
             try { data = JsonUtility.FromJson<SaveData>(json); }
             catch { return null; }
 
-            if (data == null || data.version != 1 || data.stage < 1 || data.hearts < 1 || data.maxHearts < 1)
+            if (data == null || (data.version != 1 && data.version != 2) || data.stage < 1 || data.hearts < 1 || data.maxHearts < 1)
                 return null;
             return data;
         }
