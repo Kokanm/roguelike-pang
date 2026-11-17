@@ -141,7 +141,16 @@ crashlytics-build.properties
 
 # Installed agent skills (generated from skills-lock.json)
 .agents/
-.claude/
+# .claude/ is local, except the skills the stage tasks run: the project's own level-design skill and the
+# unity-csharp-scripting copy whose check_unity_project.py every task calls.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/bubblewright-level-design/
+!.claude/skills/unity-csharp-scripting/
 
 # Local git worktrees for parallel feature work
 .worktrees/
+
+# Python bytecode from the skill scripts
+__pycache__/

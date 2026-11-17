@@ -12,7 +12,10 @@ namespace Bubblewright
     {
         const int FairTicks = 72;
         const float FairDt = 1f / 60f;
-        const float TouchPopsPerSecond = 1.6f;
+        /// <summary>Fastest pop rate a stage may ask for on touch controls: pops over the shortest hard-road clock.</summary>
+        public const float TouchPopsPerSecond = 1.6f;
+        /// <summary>Widest ground gap, in columns, Moss with Heavy Boots jumps from a standing start; narrower next to sand.</summary>
+        public const int MaxGapColumns = 3, MaxSandGapColumns = 2;
         const float FootInset = 0.02f;
 
         struct Node
@@ -331,7 +334,7 @@ namespace Bubblewright
                 bool sand = spec.World == 3
                     || (start > 0 && map.GetGround(start - 1) == Surface.Sand)
                     || (c < StageMap.Cols && map.GetGround(c) == Surface.Sand);
-                int limit = sand ? 2 : 3;
+                int limit = sand ? MaxSandGapColumns : MaxGapColumns;
                 if (run > limit)
                     errors.Add(sand
                         ? $"Ground gap of {run} columns is wider than sand allows ({limit})."
@@ -462,11 +465,17 @@ namespace Bubblewright
                 }
         }
 
+        /// <summary>The pop count a stage of this difficulty must land in (Section 2.2 of the authored-stages spec).</summary>
+        public static void PopBand(int difficulty, out int min, out int max)
+        {
+            min = difficulty == 1 ? 10 : difficulty == 2 ? 20 : difficulty == 3 ? 35 : 55;
+            max = difficulty == 1 ? 25 : difficulty == 2 ? 40 : difficulty == 3 ? 65 : 90;
+        }
+
         static void CheckPops(StageSpec spec, StagePlan plan, List<string> errors)
         {
             int pops = StageReport.PopsNeeded(plan);
-            int min = spec.Difficulty == 1 ? 10 : spec.Difficulty == 2 ? 20 : spec.Difficulty == 3 ? 35 : 55;
-            int max = spec.Difficulty == 1 ? 25 : spec.Difficulty == 2 ? 40 : spec.Difficulty == 3 ? 65 : 90;
+            PopBand(spec.Difficulty, out int min, out int max);
             if (pops < min || pops > max)
                 errors.Add($"Pop count {pops} is outside the D{spec.Difficulty} band ({min} to {max}).");
 
