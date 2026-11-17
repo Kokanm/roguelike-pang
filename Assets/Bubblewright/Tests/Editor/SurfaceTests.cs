@@ -283,7 +283,8 @@ namespace Bubblewright.Tests
             {
                 var spec = StageSpec.All.First(s => s.World == world);
                 var map = spec.Build().map;
-                Assert.AreEqual(0, map.spikes.Count, $"world {world}");
+                // Spike strips are World 6's own hazard: its authored stages place them, the other worlds never do.
+                if (world != WorldRules.LavaWorld) Assert.AreEqual(0, map.spikes.Count, $"world {world}");
                 for (int c = 0; c < StageMap.Cols; c++)
                 {
                     Assert.AreNotEqual(Surface.Sand, map.GetGround(c), $"world {world} ground {c}");
