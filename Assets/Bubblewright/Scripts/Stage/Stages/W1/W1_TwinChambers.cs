@@ -18,13 +18,15 @@ namespace Bubblewright
         {
             get
             {
+                // Divider on columns 15 and 16, a ladder on each face, and a bridge on row 11. Two rows above the bridge
+                // let Wick and M or S bubbles cross, never an L or an XL.
                 var grid = StageSketch.Open();
-                StageSketch.Box(grid, 16, 16, 0, 10, '#');
-                StageSketch.Box(grid, 14, 14, 0, 9, 'H');
-                StageSketch.Box(grid, 18, 18, 0, 9, 'H');
-                StageSketch.Box(grid, 13, 19, 10, 10, '#');
-                grid[10][14] = 'T';
-                grid[10][18] = 'T';
+                StageSketch.Box(grid, 15, 16, 0, 10, '#');
+                StageSketch.Box(grid, 14, 14, 0, 10, 'H');
+                StageSketch.Box(grid, 17, 17, 0, 10, 'H');
+                StageSketch.Box(grid, 14, 17, 11, 11, '#');
+                grid[11][14] = 'T';
+                grid[11][17] = 'T';
                 return StageSketch.Lines(grid);
             }
         }
