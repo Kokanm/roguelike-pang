@@ -261,6 +261,12 @@ namespace Bubblewright
         public int bossMaxBubbles = 6;
         [Tooltip("A boss that enrages at half health multiplies its speed and every attack rate by this below half health.")]
         public float bossEnrageScale = 1.3f;
+        [Tooltip("On the hard road the world's boss has this much more health (rounded up). Stands in for the old extra bubble budget.")]
+        public float hardBossHpScale = 1.5f;
+        [Tooltip("On the hard road the world's boss walks this much faster. Stacks with the enrage and the storm.")]
+        public float hardBossSpeedScale = 1.2f;
+        [Tooltip("On the hard road the world's boss fires every attack this many times as often. Stacks with the enrage.")]
+        public float hardBossRateScale = 1.25f;
 
         [Header("Jump")]
         [Tooltip("Height of a jump from standing, in units. Platforms are 5 units up, so one jump (or a jump and a double jump) never reaches one; wall jumps can.")]

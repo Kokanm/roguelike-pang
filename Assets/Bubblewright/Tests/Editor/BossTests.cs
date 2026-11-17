@@ -35,9 +35,9 @@ namespace Bubblewright.Tests
             property.SetValue(null, map);
         }
 
-        Boss MakeBoss(int world = 1)
+        Boss MakeBoss(int world = 1, bool hard = false)
         {
-            var boss = Boss.Create(root.transform, BossSpec.ForWorld(world), world, Themes.ForWorld(world));
+            var boss = Boss.Create(root.transform, BossSpec.ForWorld(world), world, Themes.ForWorld(world), hard);
             return boss;
         }
 
@@ -516,6 +516,137 @@ namespace Bubblewright.Tests
             var calm = MakeBoss(1);
             calm.Damage(calm.MaxHp / 2 + 1);
             Assert.AreEqual(calm.Spec.speed, calm.CurrentSpeed, 1e-5f, "a boss without enrageAtHalf never speeds up");
+        }
+
+        // ------------------------------------------------------------------ hard road
+
+        /// <summary>
+        /// Plays a boss for the given seconds after it has slid in and returns when each attack fired: aimed shots
+        /// (each bullet of a fan counts once per shot), bouncy bullets and balloons. No bubble cap is reached.
+        /// </summary>
+        static (List<float> aimed, List<float> bouncy, List<float> balloon) AttackTimes(Boss boss, float seconds)
+        {
+            var aimed = new List<float>();
+            var bouncy = new List<float>();
+            var balloon = new List<float>();
+            float clock = 0f;
+            float lastAimed = -1f;
+            boss.OnShoot = (f, d) => { if (clock != lastAimed) { aimed.Add(clock); lastAimed = clock; } };
+            boss.OnBouncy = (f, dir, n) => bouncy.Add(clock);
+            boss.OnBalloon = (f, dir, tier) => balloon.Add(clock);
+            SlideIn(boss, WickCentreAt(0f));
+            for (int i = 0; i < Mathf.RoundToInt(seconds * 60f); i++)
+            {
+                clock += Dt;
+                boss.Tick(Dt, WickCentreAt(0f), true, 1f, 0);
+            }
+            return (aimed, bouncy, balloon);
+        }
+
+        /// <summary>Each hard time is the calm time divided by rate, within two ticks.</summary>
+        static void AssertFaster(List<float> calm, List<float> hard, float rate, string at)
+        {
+            Assert.GreaterOrEqual(hard.Count, Mathf.Min(calm.Count, 2), at + ": the hard boss attacks at least as often");
+            for (int i = 0; i < Mathf.Min(calm.Count, 2); i++)
+                Assert.AreEqual(calm[i] / rate, hard[i], 2.5f * Dt, $"{at} #{i}");
+        }
+
+        [Test]
+        public void HardWorldBossHasMoreHealthMovesFasterAndAttacksFaster()
+        {
+            var t = Tuning.I;
+            Assert.Greater(t.hardBossHpScale, 1f);
+            Assert.Greater(t.hardBossSpeedScale, 1f);
+            Assert.Greater(t.hardBossRateScale, 1f);
+            for (int world = 1; world <= 6; world++)
+            {
+                string at = $"world {world}";
+
+                // Health: the calm health times hardBossHpScale, rounded up.
+                int hp = Mathf.CeilToInt(BossSpec.HpForWorld(world) * t.hardBossHpScale);
+                Assert.AreEqual(hp, BossSpec.HpForWorld(world, true), at);
+                var hard = MakeBoss(world, true);
+                Assert.IsTrue(hard.Hard, at);
+                Assert.AreEqual(hp, hard.Hp, at);
+                Assert.AreEqual(hp, hard.MaxHp, at);
+
+                // Movement: hardBossSpeedScale faster, and the storm stacks on top.
+                Assert.AreEqual(hard.Spec.speed * t.hardBossSpeedScale, hard.CurrentSpeed, 1e-4f, at);
+                var calmWalker = MakeBoss(world);
+                var hardWalker = MakeBoss(world, true);
+                SlideIn(calmWalker, Vector2.zero);
+                SlideIn(hardWalker, Vector2.zero);
+                for (int i = 0; i < 30; i++) // half a second, too short to reach a wall
+                {
+                    calmWalker.Tick(Dt, Vector2.zero, true, t.bossStormScale, 0);
+                    hardWalker.Tick(Dt, Vector2.zero, true, t.bossStormScale, 0);
+                }
+                Assert.AreEqual(Mathf.Abs(calmWalker.Centre.x) * t.hardBossSpeedScale, Mathf.Abs(hardWalker.Centre.x), 0.02f, at + ": walk in the storm");
+
+                // Attacks: every timer runs hardBossRateScale times as fast.
+                Assert.AreEqual(t.hardBossRateScale, hard.AttackRateScale, 1e-5f, at);
+                var calmTimes = AttackTimes(MakeBoss(world), 20f);
+                var hardTimes = AttackTimes(MakeBoss(world, true), 20f);
+                AssertFaster(calmTimes.aimed, hardTimes.aimed, t.hardBossRateScale, at + " aimed");
+                AssertFaster(calmTimes.bouncy, hardTimes.bouncy, t.hardBossRateScale, at + " bouncy");
+                AssertFaster(calmTimes.balloon, hardTimes.balloon, t.hardBossRateScale, at + " balloon");
+                Assert.Greater(calmTimes.aimed.Count + calmTimes.bouncy.Count + calmTimes.balloon.Count, 0, at + ": sanity, the boss attacked");
+            }
+        }
+
+        [Test]
+        public void HardWorldScalesStackWithTheEnrage()
+        {
+            var t = Tuning.I;
+            var boss = MakeBoss(6, true);
+            Assert.IsTrue(boss.Spec.enrageAtHalf);
+            boss.Damage(boss.MaxHp / 2 + 1); // below half
+            Assert.IsTrue(boss.Enraged);
+            Assert.AreEqual(boss.Spec.speed * t.bossEnrageScale * t.hardBossSpeedScale, boss.CurrentSpeed, 1e-4f);
+            Assert.AreEqual(t.bossEnrageScale * t.hardBossRateScale, boss.AttackRateScale, 1e-5f);
+
+            var times = AttackTimes(boss, 3f);
+            Assert.Greater(times.aimed.Count, 0);
+            Assert.AreEqual(BossSpec.AimedStart / (t.bossEnrageScale * t.hardBossRateScale), times.aimed[0], 2.5f * Dt);
+        }
+
+        [Test]
+        public void TheTellStillBlinksJustBeforeAHardBossShoots()
+        {
+            var boss = MakeBoss(1, true);
+            SlideIn(boss, WickCentreAt(0f));
+            int shots = 0, blinkFrames = 0;
+            boss.OnShoot = (f, d) => shots++;
+            float clock = 0f, firstShot = BossSpec.AimedStart / Tuning.I.hardBossRateScale;
+            while (shots == 0 && clock < 4f)
+            {
+                clock += Dt;
+                boss.Tick(Dt, WickCentreAt(0f), true);
+                if (boss.TellOn) { blinkFrames++; Assert.Greater(clock, firstShot - 0.55f, "only in the last half second"); }
+            }
+            Assert.AreEqual(1, shots);
+            Assert.Greater(blinkFrames, 0);
+        }
+
+        [Test]
+        public void CalmWorldBossIsUnchanged()
+        {
+            for (int world = 1; world <= 6; world++)
+            {
+                string at = $"world {world}";
+                var boss = MakeBoss(world);
+                Assert.IsFalse(boss.Hard, at);
+                Assert.AreEqual(BossSpec.HpForWorld(world), boss.MaxHp, at);
+                Assert.AreEqual(BossSpec.HpForWorld(world), BossSpec.HpForWorld(world, false), at);
+                Assert.AreEqual(boss.Spec.speed, boss.CurrentSpeed, 1e-5f, at);
+                Assert.AreEqual(1f, boss.AttackRateScale, 1e-5f, at);
+            }
+
+            // The calm rhythm is still the spec's: world 1 shoots at 1, 3 and 5 s.
+            var times = AttackTimes(MakeBoss(1), 6f);
+            Assert.AreEqual(3, times.aimed.Count);
+            Assert.AreEqual(BossSpec.AimedStart, times.aimed[0], 0.05f);
+            Assert.AreEqual(BossSpec.ForWorld(1).aimedEvery, times.aimed[1] - times.aimed[0], 0.05f);
         }
 
         // ------------------------------------------------------------------ walkability

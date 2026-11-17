@@ -104,6 +104,18 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void ValidatorLetsMossJumpALevelGapAndWallJumpUpAOneColumnWell()
+        {
+            // The far Gloop is only reachable across a level two-column ground gap; the penned one only up a
+            // one-column well with no ladder. Both are base moves for Moss.
+            foreach (bool mirror in new[] { false, true })
+            {
+                var errors = StageValidator.Validate(new GapAndWell(), mirror);
+                Assert.IsEmpty(errors, string.Join("\n", errors));
+            }
+        }
+
+        [Test]
         public void StagePickerNeverRepeatsInAWorldAndMatchesCalmAndHardCurves()
         {
             for (int seed = 1; seed <= 100; seed++)
@@ -511,6 +523,35 @@ namespace Bubblewright.Tests
                 b.Wick(0f);
                 b.Bubble(BubbleKind.Gloop, StageBuilder.TierS, -12f, 4f, 1);
                 b.Bubble(BubbleKind.Gloop, StageBuilder.TierL, 8f, 9f, 1);
+            }
+        }
+
+        sealed class GapAndWell : StageSpec
+        {
+            public override string Id => "valid_gap_and_well";
+            public override string Name => "Valid Gap And Well";
+            public override int World => 1;
+            public override int Difficulty => 2;
+            public override int MinStageInWorld => 2;
+            public override string Concept => "A level gap to jump and a well to wall-jump up.";
+            public override string[] Rows
+            {
+                get
+                {
+                    var rows = BlankRows();
+                    for (int r = 1; r <= 10; r++) Set(rows, 25, r, '#');
+                    for (int c = 27; c <= 31; c++)
+                        for (int r = 0; r <= 6; r++)
+                            Set(rows, c, r, '#');
+                    return rows;
+                }
+            }
+            public override string Ground => "==========__====================";
+            protected override void Populate(StageBuilder b)
+            {
+                b.WickAtCol(3);
+                b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 19, 9f, 1);
+                b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 29, 10f, 1);
             }
         }
     }

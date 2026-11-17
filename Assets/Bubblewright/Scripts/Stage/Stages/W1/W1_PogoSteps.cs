@@ -2,7 +2,7 @@ using UnityEngine.Scripting;
 
 namespace Bubblewright
 {
-    /// <summary>World 1 difficulty 3. Stairs, a center dais, and floor Pogos.</summary>
+    /// <summary>World 1 difficulty 3. Stairs, a center dais, two-column ground gaps, and floor Pogos.</summary>
     [Preserve]
     public sealed class W1_PogoSteps : StageSpec
     {
@@ -12,7 +12,7 @@ namespace Bubblewright
         public override int Difficulty => 3;
         public override int MinStageInWorld => 3;
         public override string Concept =>
-            "Low stairs rise toward a center dais. Four small Pogos patrol the floor while two huge Gloops hang over the landings.";
+            "A center dais, a two-column gap on each side, and stairs at the edges. Four medium Pogos guard the landings while two huge Gloops bounce overhead.";
 
         public override string[] Rows
         {
@@ -28,17 +28,18 @@ namespace Bubblewright
             }
         }
 
-        public override string Ground => SolidGround;
+        // Gaps on columns 8-9 and 22-23: Moss with Heavy Boots clears two columns from a standing jump.
+        public override string Ground => "========__============__========";
 
         protected override void Populate(StageBuilder b)
         {
             b.WickAtCol(16, 1);
             b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(6), 0.85f, -1, pogo: true);
-            b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(10), 0.85f, -1, pogo: true);
-            b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(21), 0.85f, 1, pogo: true);
+            b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(11), 0.85f, -1, pogo: true);
+            b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(20), 0.85f, 1, pogo: true);
             b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(25), 0.85f, 1, pogo: true);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 8, 9f, -1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 23, 9f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 5, 9f, -1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 26, 9f, 1);
         }
     }
 }
