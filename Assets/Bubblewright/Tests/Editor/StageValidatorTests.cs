@@ -52,6 +52,15 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void GroundGapsAreCappedAtTwoColumnsAndOneOnSand()
+        {
+            Assert.AreEqual(2, StageValidator.MaxGapColumns);
+            Assert.AreEqual(1, StageValidator.MaxSandGapColumns);
+            AssertHas(StageValidator.Validate(new WideGap(), false), "wider than a jump allows (2)");
+            AssertHas(StageValidator.Validate(new TwoColumnSandGap(), false), "wider than sand allows (1)");
+        }
+
+        [Test]
         public void ValidatorRejectsHazardsOutsideTheirWorldAuthoredLuckyAndUnshootablePockets()
         {
             AssertHas(StageValidator.Validate(new IceInLava(), false), "Ice");
@@ -348,6 +357,40 @@ namespace Bubblewright.Tests
                 b.Wick(-12f);
                 b.Bubble(BubbleKind.Sinker, StageBuilder.TierL, -10f, 8f, 1);
                 b.Bubble(BubbleKind.Sinker, StageBuilder.TierL, -7f, 8f, 1);
+            }
+        }
+
+        sealed class WideGap : StageSpec
+        {
+            public override string Id => "invalid_wide_gap";
+            public override string Name => "Invalid Wide Gap";
+            public override int World => 1;
+            public override int Difficulty => 2;
+            public override int MinStageInWorld => 2;
+            public override string Concept => "Three columns of gap on normal ground.";
+            public override string[] Rows => BlankRows();
+            public override string Ground => "==========___===================";
+            protected override void Populate(StageBuilder b)
+            {
+                b.WickAtCol(3);
+                b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 20, 9f, 1);
+            }
+        }
+
+        sealed class TwoColumnSandGap : StageSpec
+        {
+            public override string Id => "invalid_two_column_sand_gap";
+            public override string Name => "Invalid Two Column Sand Gap";
+            public override int World => 3;
+            public override int Difficulty => 2;
+            public override int MinStageInWorld => 2;
+            public override string Concept => "Two columns of gap on sand.";
+            public override string[] Rows => BlankRows();
+            public override string Ground => "==========__====================";
+            protected override void Populate(StageBuilder b)
+            {
+                b.WickAtCol(3);
+                b.BubbleAt(BubbleKind.Sinker, StageBuilder.TierL, 20, 8f, 1);
             }
         }
 
