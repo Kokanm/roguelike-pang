@@ -1119,7 +1119,7 @@ def marks(stage):
                 put(col, row, ch)
                 extra = []
                 for flag in ("pogo", "ceramic", "steel"):
-                    if v.get(flag):
+                    if v.get(flag, flag == "pogo" and name == "FloorClinger"):
                         extra.append(flag)
                 if name == "SteelPogo":
                     extra.append("steel pogo")
@@ -1161,7 +1161,7 @@ def draw(stage) -> str:
         flag = "" if len(row) == COLS else f"   <-- {len(row)} chars"
         lines.append(f"  {r:>2}  {drawn}{flag}")
         if r % STOREY_ROWS == 0 and r > 0:
-            lines.append(f"      {'-' * COLS}  storey {r // STOREY_ROWS} above, {r // STOREY_ROWS - 1} below")
+            lines.append(f"      {'-' * COLS}  storey {r // STOREY_ROWS + 1} above, storey {r // STOREY_ROWS} below")
     if stage.ground is not None:
         flag = "" if len(stage.ground) == COLS else f"   <-- {len(stage.ground)} chars"
         lines.append(f"  gr  {stage.ground}{flag}")

@@ -46,9 +46,19 @@ Over-break check: with every B gone, can Wick still leave every spot, and is eve
 ```
 
 Pick `Difficulty` from the run's slot targets: calm road `[1, 2, 2, 3, 3]`, hard road `[1, 3, 3, 4, 4]` for slots 1
-to 5. So D1 is slot 1 only (`MaxStageInWorld = 1`), D2 suits slots 2-3, D3 slots 2-5, D4 slots 4-5
-(`MinStageInWorld = 4`, hard worlds only, never World 1). Keep the existing per-world mix
-(World 1: 1 D1, 5 D2, 6 D3; Worlds 2-6: 1 D1, 3 D2, 4 D3, 4 D4) and check what that world already has.
+to 5. Set the slot bounds like this:
+
+| Difficulty | World 1 | Worlds 2-6 |
+|---|---|---|
+| D1 | `MaxStageInWorld = 1` (exactly one stage) | `MaxStageInWorld = 1` (exactly one stage) |
+| D2 | `MinStageInWorld = 2` | `MinStageInWorld = 2` |
+| D3 | `MinStageInWorld = 3` (pinned by `StageValidatorTests`) | `MinStageInWorld = 2` (the hard road needs D3 in slots 2-3) |
+| D4 | never | `MinStageInWorld = 4`, or `3` when the world's plan says so |
+
+The pop-rate limit uses the shortest hard clock among `MinStageInWorld..MaxStageInWorld`, so a lower
+`MinStageInWorld` means a tighter limit. Keep the per-world mix (World 1: 1 D1, 5 D2, 6 D3; Worlds 2-6: 1 D1,
+3 D2, 4 D3, 4 D4) and check what that world already has. Put the brief in the stage file as a `<remarks>` block
+under the class `<summary>`, so a reviewer can read it next to the grid.
 
 ## 2. Hard rules (the validator rejects these)
 
@@ -66,16 +76,25 @@ to 5. So D1 is slot 1 only (`MaxStageInWorld = 1`), D2 suits slots 2-3, D3 slots
 * **Wick's start:** on solid footing, not on ice, not inside a tile, and nothing touches him in the first 1.2 s
   standing still (a roof between him and a bubble counts as safe). Any plain Gloop/Trigloop/Lead may become a
   Lucky, so it must be fair either way.
-* **Reach:** Moss with Heavy Boots can reach or shoot straight up at every required enemy. Moves: walk; crouch
-  through 1-row gaps; jump up one row (1.9 u, never two rows) or across within reach; drop; ladders; jump off a
-  wall he stands against; chained wall jumps up a 1-column shaft. No double jump, no crate weapons, no fast hero.
+* **Reach, judged at the start position:** for every required enemy, Moss with Heavy Boots must reach a spot in
+  **the enemy's starting column** from which the enemy is inside his headroom or straight above with no solid or
+  unbroken `B` tile between (breakable ones count as broken once he can shoot them). So a bubble that starts over
+  a solid roof or a tunnel roof fails, even if it would bounce into the open later: start every required enemy
+  over open floor, a slot, or a ledge Wick can stand on. Moves: walk; crouch through 1-row gaps; jump up one row
+  (1.9 u, never two rows) or across within reach; drop; ladders; jump off a wall he stands against; chained wall
+  jumps up a 1-column shaft. A crouched spot (1 row of headroom) cannot jump, so never put a gap or a step inside
+  a crouch tunnel. No double jump, no crate weapons, no fast hero.
 * **No unshootable pockets:** any empty space a bubble or its children can get into is space Wick can reach or
   fire into. Sealed `#` rooms with a bubble inside fail.
 * **Over-break:** breaking every `B` must not strand anything that was reachable or leave Wick in a pit he
   cannot leave. Never make a `B` bridge or floor the only way to a room sealed by `#`.
-* **Storeys:** row `14` (and `28`) is the solid floor of the storey above. A hatch is a `T` in that row with `H`
-  cells below it reaching the floor. Wick only goes up; bubbles never cross a storey line. No enemy within 3 u of
-  where Wick climbs out, and the hatch arrival gets its own 1.2 s fair start.
+* **Storeys:** the top row of a storey (row `13`, and `27`) is its **cap**: an invisible ceiling for Wick across
+  the whole width, except at a **hatch**, which is an `H` ladder cell on the cap row. The hatch is shut while the
+  storey has enemies, opens when it is clear and shuts behind him. Draw the storey above's floor on row `14` (and
+  `28`) as solid with a `T` over each hatch, and run `H` from the hatch down to the floor below, as
+  `W1_BellTower` does: `for (int y = 0; y <= 14; y++) grid[y][c] = y == 14 ? 'T' : 'H';`. So Wick has 13 usable rows
+  on a lower storey. He only goes up; bubbles never cross a storey line. No enemy within 3 u of where Wick climbs
+  out, and the hatch arrival gets its own 1.2 s fair start.
 * **Placed things:** bubbles start clear of tiles and of each other; Clingers have a surface (`mount`) to hold;
   rollers rest on solid ground with a diameter of headroom and never over a gap; spikes sit on open floor, away
   from ladders and from each other.
@@ -90,7 +109,25 @@ to 5. So D1 is slot 1 only (`MaxStageInWorld = 1`), D2 suits slots 2-3, D3 slots
   moves. A gap at the reach limit is a bad gap; give Moss slack.
 * **Puzzle Clingers are patient** (`patient: true` is the default in `b.Clinger` and `b.FloorClinger`); pass
   `patient: false` only when the 4 s timeout is the point. Floor Pogos Wick must jump over should be S (he clears
-  a triggered M by only about 0.2 u). Keep 3 u between a floor Pogo and anywhere he must stand still.
+  a triggered M by only about 0.2 u). Keep 3 u, measured from the Pogo's centre to Wick's centre, between a floor
+  Pogo and anywhere he must stand still (it wakes at 1.95 u for an S, 2.3 u for an M).
+* **How each Clinger behaves** (patient ones wait for the trigger, the storm, or their tile breaking):
+
+  Every round Clinger re-sticks after letting go (not patiently: the 4 s timeout applies from then on).
+
+  | Clinger | Wakes when | Then | Wick kills it by |
+  |---|---|---|---|
+  | Ceiling | Wick is below it, centre within 1.5 u sideways | wobbles 0.4 s, then a Pogo drops straight down; a round one drops moving sideways at 1.75x Gloop speed and sticks to the next surface it touches | shooting it while it hangs, or as it drops |
+  | Floor Pogo (`b.FloorClinger`) | Wick's centre is within 1.5 u + its radius sideways, at any height | wobbles 0.4 s, leaps straight up to the first surface above and hangs there as a ceiling Clinger | jumping over it before it wakes and shooting down, or waking it, stepping back, and shooting it as it hangs or drops |
+  | Floor, not Pogo | Wick is above it, within 1.5 u sideways | jumps a Gloop's bounce height moving sideways fast, sticks to the next surface | shooting down from a ledge, or as it flies |
+  | Left / right wall | Wick is out in front of it, within 1.5 u of its height | pushes straight off the wall, fast, and sticks to the next surface | shooting it while it holds the wall or as it crosses |
+
+  A Clinger only sticks under a platform with at least 2 u of floor clearance below, so a leaping floor Pogo
+  under a low roof goes on up to the next surface that allows that.
+* **Sinkers** keep 75% of each bounce on sand (90% elsewhere), then roll along their surface, turning at walls,
+  gap edges and platform ends, so they never fall off by themselves. A rolling Sinker is low and easy to shoot
+  but blocks a corridor; use it to pace a stage. A Sinker Pogo rests, wobbles and springs back to full height.
+  Sinkers can be ceramic (World 3 on, L or M).
 * **Guests are planned:** name the guest in `Concept` and give it a job in the puzzle.
 * **Readability:** a stage reads at a glance. Use `#` for structure, `B` only where breaking is a choice or the
   puzzle, ladders where the route is not obvious.
@@ -99,8 +136,8 @@ to 5. So D1 is slot 1 only (`MaxStageInWorld = 1`), D2 suits slots 2-3, D3 slots
 ## 4. Write the file
 
 File: `Assets/Bubblewright/Scripts/Stage/Stages/W<world>/W<world>_<PascalName>.cs`. Nothing else to register:
-`StageSpec.All` finds every sealed subclass. Unity makes the `.meta` on import; if you write one, use a fresh
-random 32-hex `guid` and the `MonoImporter` template of the neighbouring `.meta` files.
+`StageSpec.All` finds every sealed subclass. Commit a `.meta` with it: copy a neighbouring stage's `.meta` and put a
+fresh random 32-hex `guid` in it (Unity would make one on import, but the commit must carry it).
 
 Write rows one of two ways. **Literal rows** (good for one storey; keep the ruler and row comments aligned):
 
@@ -197,11 +234,16 @@ unity test . --mode EditMode --filter "Bubblewright.Tests.StageValidatorTests" -
   (`@`), bubbles (`X L M S`, Clingers lower case) and rollers (`r`). **Look at the drawing** and walk the hitless
   plan on it: it is the fastest way to catch a wrong row or a bubble inside a wall.
 * `StageValidatorTests` runs every game rule above on the stage and its mirror. Its messages name the rule.
+* `check_unity_project.py` comes from the `unity-csharp-scripting` skill (listed in `skills-lock.json`). If that
+  folder is missing in your checkout, say so and skip it; it only checks `.meta` files and script references.
 * **No Unity (cloud sessions):** you cannot run the validator. Do not port it to Python; reason with the
   reference tables, walk the brief's hitless plan on the `--show` drawing, and say plainly in your hand-over that
   `StageValidatorTests` (and the full EditMode suite) still need a run on Kokan's laptop.
-* A world's stage count is pinned in `StageValidatorTests` (`W1` has `{D1: 1, D2: 5, D3: 6}`); update the
-  assertion for your world when the plan for that world says so.
+* A world's stage count is pinned in `StageValidatorTests` (`W1` has `{D1: 1, D2: 5, D3: 6}`). Add or change
+  a world's count assertion only when that world's twelve stages are done (the plan's per-world task says so);
+  a single new stage needs no test change.
+* The reach check looks only at each enemy's **starting column** (see Hard rules). Start bubbles over open
+  floor or a slot, as `W1_SlottedBunker` does with its XLs over slots 12 and 20.
 
 When you finish, report: the brief, the file path, the `--show` drawing, and which checks ran and which did not.
 Kokan play-tests every world; whatever he corrects becomes a rule here, so fix the skill, not just the stage.
@@ -216,7 +258,9 @@ Kokan play-tests every world; whatever he corrects becomes a rule here, so fix t
 | Platform 2 rows above where Wick stands, no ladder | One row per jump; add a ladder, a wall-jump wall or a 1-column shaft |
 | Sealed `#` room with a bubble in it | Give it a slot, a `B` wall, or a ladder route |
 | `B` floor that is the only way into a `#` room | Make the `B` a wall Wick chips from outside, or add a second route |
-| Hatch `T` in row 13 | The storey above's floor is row 14; the `T` goes there, `H` below it |
+| No `H` on row 13, or a `T` there | The hatch is the `H` on the cap row 13; the `T` sits above it in row 14 |
+| Bubble starting over a roof or a tunnel | Start it over open floor, a slot or a reachable ledge (the reach check uses its start column) |
+| Gap inside a crouch tunnel | A crouched Wick cannot jump; keep gaps where he stands upright |
 | Bubble placed within a radius of a tile | Check y against the drawing; a bubble's centre needs radius clearance |
 | Long Concept or a list of mechanics | One idea in one or two sentences |
 | Porting the validator to check a stage | Use the tables and the drawing; leave the real check to `StageValidatorTests` |

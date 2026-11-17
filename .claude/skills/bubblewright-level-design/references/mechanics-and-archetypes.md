@@ -168,8 +168,8 @@ It is the judge; `check_stage.py` only checks the shape. Reading this saves re-d
   one-column shafts a row at a time. Spots on different storeys only connect by a ladder through the hatch.
 * **Breaching:** starting with every `B` intact, it breaks each `B` that Wick can shoot (straight up, down in
   the air, or chip sideways from beside it) and grows the reachable set until nothing changes.
-* **Required:** every required enemy is reachable, or straight above a reachable spot with a clear line for
-  the harpoon. With **all** `B` broken, nothing that was reachable is stranded and no reachable spot is a pit
+* **Required:** judged at each enemy's start position and column: Wick reaches a spot in that column with the
+  enemy inside his headroom, or straight above with a clear line for the harpoon. With **all** `B` broken, nothing that was reachable is stranded and no reachable spot is a pit
   he cannot leave.
 * **Pockets:** any empty region a bubble or its children can enter must be one Wick can reach or shoot into.
 * **Fair start:** 1.2 s (72 ticks) with Wick standing still at his start, and again at every hatch arrival.
@@ -206,9 +206,10 @@ Each names the World 1 stage that shows it, where one exists. Combine at most tw
    top and underside) while bubbles bounce over it. Give the loop a diameter of headroom all round, and keep
    Wick's start out of the orbit.
 8. **Storey Tower Climb** (`W1_BellTower`, `W1_ThreeRoofs`). 2 or 3 storeys; each storey is its own fight. Row
-   `14` (and `28`) is the solid floor of the storey above, drawn as a full row of `#`; the hatch is a `T` in that
-   row with `H` ladder cells under it down to the floor below. It opens when the storey below is clear and closes
-   behind him. No enemy within 3 u of where he climbs out.
+   `13` (and `27`) is the storey's cap, an invisible ceiling for Wick except at a hatch: an `H` ladder cell on that
+   row. Row `14` (and `28`) is the floor of the storey above, drawn solid with a `T` over each hatch, and `H` runs
+   from the hatch down to the floor below. The hatch opens when the storey is clear and shuts behind him. No enemy
+   within 3 u of where he climbs out.
 
 Also proven in World 1: **Wall-jump well** (`W1_WellShaft`: a 1-column shaft with a crouch entrance leads to a
 penned bubble), **Stepped terraces** (`W1_TerraceClimb`: each landing has a bubble only shootable from that
