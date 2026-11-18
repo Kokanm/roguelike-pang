@@ -130,7 +130,7 @@ namespace Bubblewright
         {
             FillRect(new Rect(0, 0, Screen.width, Screen.height), WithAlpha(Palette.Ink, UiText.DimAlpha));
             DrawRoadStrip(k, run.World);
-            float w = 96 * k, h = 22 * k, gap = 8 * k;
+            float w = 96 * k, h = ItemsLayout.PauseButtonHeight(k), gap = 8 * k;
             float top, y;
             Rect debugPanelRect = default;
             if (debugPanel)
@@ -142,8 +142,8 @@ namespace Bubblewright
             }
             else
             {
-                top = Screen.height * 0.5f - 40 * k;
-                y = top + 20 * k;
+                top = ItemsLayout.PauseTop(Screen.height, k);
+                y = ItemsLayout.PauseButtonsY(Screen.height, k);
             }
             Centered("PAUSED", top, 14 * k, UiText.Primary);
 
@@ -164,7 +164,11 @@ namespace Bubblewright
             }
 
             if (debugPanel) DrawDebugPanel(debugPanelRect, k);
-            else Centered(touchUi ? "Tap the pause button to resume" : "Esc, P or Start to resume    F2: debug", y + h + 12 * k, 8 * k, UiText.Secondary);
+            else
+            {
+                Centered(touchUi ? "Tap the pause button to resume" : "Esc, P or Start to resume    F2: debug", ItemsLayout.PauseHintY(Screen.height, k), 8 * k, UiText.Secondary);
+                DrawPauseItems(k, touchUi);
+            }
         }
 
         /// <summary>Same look as the upgrade cards: the whole button glows when lit.</summary>

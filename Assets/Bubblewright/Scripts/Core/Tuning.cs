@@ -138,6 +138,10 @@ namespace Bubblewright
         [Tooltip("Seconds the stage-clear banner takes to drop in.")]
         public float bannerDropTime = 0.4f;
 
+        [Header("HUD")]
+        [Tooltip("How see-through the small item icons in the top right corner are during play (0 hidden, 1 solid). The pause screen lists every item in full.")]
+        [Range(0f, 1f)] public float itemStripAlpha = 0.55f;
+
         [Header("Sound (placeholder, generated in code)")]
         [Range(0f, 1f)] public float volume = 0.7f;
         public bool mute;
