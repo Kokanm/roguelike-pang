@@ -50,7 +50,7 @@ namespace Bubblewright
         string TestStageLabel()
         {
             if (testStageIndex < 0 || testStageIndex >= StageSpec.All.Count) return "TEST STAGE";
-            return "TEST STAGE: " + StageSpec.All[testStageIndex].Name.ToUpperInvariant();
+            return "TEST STAGE: " + DebugPanelLayout.StageButtonName(StageSpec.All[testStageIndex].Name);
         }
 
         /// <summary>F3 and the TEST STAGE button: the next authored stage, with no mirror and no Lucky.</summary>

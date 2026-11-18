@@ -56,6 +56,15 @@ namespace Bubblewright
             return new Rect(panel.x + inset, panel.y + inset, Mathf.Max(0f, panel.width - 2f * inset), Mathf.Max(0f, panel.height - 2f * inset));
         }
 
+        /// <summary>Longest stage name the TEST STAGE button shows. Longer names are cut so the button never outgrows its row.</summary>
+        public const int StageNameChars = 14;
+
+        public static string StageButtonName(string name)
+        {
+            name = (name ?? "").ToUpperInvariant();
+            return name.Length <= StageNameChars ? name : name.Substring(0, StageNameChars - 1).TrimEnd() + "~";
+        }
+
         public static float ButtonHeight(int k) => 13f * k;
 
         public static float Gap(int k) => k;
@@ -296,7 +305,7 @@ namespace Bubblewright
         static List<DebugControl> SampleMainPage(int k, SampleStyles styles)
         {
             float U(float units) => units * k;
-            string stage = Widest(styles.button, Names(StageSpec.All, item => item.Name)).ToUpperInvariant();
+            string stage = Widest(styles.button, Names(StageSpec.All, item => StageButtonName(item.Name)));
             string theme = Widest(styles.button, Names(Themes.All, item => item.name)).ToUpperInvariant();
             string debuff = Widest(styles.button, Names(Debuff.All, item => item.Name)).ToUpperInvariant();
             var page = new List<DebugControl>
