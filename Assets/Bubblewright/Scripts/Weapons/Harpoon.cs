@@ -4,7 +4,7 @@ namespace Bubblewright
 {
     /// <summary>
     /// The starting weapon: a barbed steel tip trailing a 1 px twisted steel cable, fired straight up
-    /// from the launcher tip at 20 u/s. The cable stays where it was fired. A bubble touching the cable
+    /// from the launcher tip at Tuning.harpoonSpeed (15 u/s for Wick). The cable stays where it was fired. A bubble touching the cable
     /// or the tip pops. Gone when it pops something or reaches the ceiling or the underside of a platform. One on screen at a time.
     /// Fired with Down in the air it flies straight down instead (FireDown) and stops at the floor or platform below,
     /// breaking a breakable tile it lands on.

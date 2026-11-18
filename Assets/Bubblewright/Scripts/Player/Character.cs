@@ -35,28 +35,28 @@ namespace Bubblewright
             new Character
             {
                 id = "wick", name = "Wick", blurb = "Steady all-rounder.",
-                hearts = 3, runSpeed = 9f, shots = 1, harpoonSpeed = 20f, invulnerableTime = 1.5f,
+                hearts = 3, runSpeed = 9f, shots = 1, harpoonSpeed = 15f, invulnerableTime = 1.5f,
                 body = Palette.Hex(0xFFA53A), bodyDark = Palette.Hex(0xD9782A), bodyLine = Palette.Hex(0xB85A1C),
                 unlockedByFinishingWith = null,
             },
             new Character
             {
                 id = "ember", name = "Ember", blurb = "Fast and fragile.",
-                hearts = 2, runSpeed = 10.5f, shots = 1, harpoonSpeed = 24f, invulnerableTime = 1.2f,
+                hearts = 2, runSpeed = 10.5f, shots = 1, harpoonSpeed = 18f, invulnerableTime = 1.2f,
                 body = Palette.Hex(0xFF8FB3), bodyDark = Palette.Hex(0xD9648C), bodyLine = Palette.Hex(0xA8456A),
                 unlockedByFinishingWith = null,
             },
             new Character
             {
                 id = "moss", name = "Moss", blurb = "Slow and sturdy.",
-                hearts = 4, runSpeed = 7.5f, shots = 1, harpoonSpeed = 18f, invulnerableTime = 2.0f,
+                hearts = 4, runSpeed = 7.5f, shots = 1, harpoonSpeed = 13.5f, invulnerableTime = 2.0f,
                 body = Palette.Hex(0x8FCB6B), bodyDark = Palette.Hex(0x62A04A), bodyLine = Palette.Hex(0x3F7A33),
                 unlockedByFinishingWith = "wick",
             },
             new Character
             {
                 id = "flint", name = "Flint", blurb = "Two cables, slow shots.",
-                hearts = 3, runSpeed = 8.5f, shots = 2, harpoonSpeed = 16f, invulnerableTime = 1.0f,
+                hearts = 3, runSpeed = 8.5f, shots = 2, harpoonSpeed = 12f, invulnerableTime = 1.0f,
                 body = Palette.Hex(0xB9C2E0), bodyDark = Palette.Hex(0x8892B8), bodyLine = Palette.Hex(0x5F688F),
                 unlockedByFinishingWith = "ember",
             },
