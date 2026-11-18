@@ -113,6 +113,18 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void World2HasOneIntroThreeMediumFourHardAndFourHardestStages()
+        {
+            var world = StageSpec.All.Where(s => s.World == 2).ToList();
+            Assert.AreEqual(12, world.Count, string.Join(", ", world.Select(s => s.Id)));
+            Assert.AreEqual(1, world.Count(s => s.Difficulty == 1 && s.MaxStageInWorld == 1));
+            Assert.AreEqual(3, world.Count(s => s.Difficulty == 2 && s.MinStageInWorld >= 2));
+            Assert.AreEqual(4, world.Count(s => s.Difficulty == 3 && s.MinStageInWorld >= 2));
+            Assert.AreEqual(4, world.Count(s => s.Difficulty == 4 && s.MinStageInWorld >= 3));
+            Assert.IsNotNull(StageSpec.ById("w2_clinger_pogo_gauntlet"));
+        }
+
+        [Test]
         public void ValidatorLetsMossJumpALevelGapAndWallJumpUpAOneColumnWell()
         {
             // The far Gloop is only reachable across a level two-column ground gap; the penned one only up a
