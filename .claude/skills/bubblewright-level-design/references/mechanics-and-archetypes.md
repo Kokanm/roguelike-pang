@@ -39,10 +39,10 @@ Heavy Boots and Frayed Cable are hard-world debuffs. Sand multiplies walking by 
 
 | Hero | Run u/s | Heavy Boots | On sand + Heavy Boots | Jump reach, Heavy Boots | Same on sand | Harpoon u/s | Frayed Cable | Cables |
 |---|---|---|---|---|---|---|---|---|
-| Wick | 9 | 7.65 | 5.36 | 4.28 u | 3 u | 20 | 16 | 1 |
-| Ember | 10.5 | 8.93 | 6.25 | 5 u | 3.5 u | 24 | 19.2 | 1 |
-| Moss | 7.5 | 6.38 | 4.46 | 3.57 u | 2.5 u | 18 | 14.4 | 1 |
-| Flint | 8.5 | 7.23 | 5.06 | 4.05 u | 2.83 u | 16 | 12.8 | 2 |
+| Wick | 9 | 7.65 | 5.36 | 4.28 u | 3 u | 15 | 12 | 1 |
+| Ember | 10.5 | 8.93 | 6.25 | 5 u | 3.5 u | 18 | 14.4 | 1 |
+| Moss | 7.5 | 6.38 | 4.46 | 3.57 u | 2.5 u | 13.5 | 10.8 | 1 |
+| Flint | 8.5 | 7.23 | 5.06 | 4.05 u | 2.83 u | 12 | 9.6 | 2 |
 
 ### Bubble tiers
 
