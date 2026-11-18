@@ -604,6 +604,36 @@ namespace Bubblewright
             }
         }
 
+        /// <summary>
+        /// Where the exit door of a cleared stage stands: the right-most spot on Wick's storey that he can walk, climb or
+        /// jump to from his feet, with the same slow-clear reach the checks use (Moss in Heavy Boots). Spots he can stand
+        /// up in beat crouch-only ones, then the right-most, then the lowest. Tiles already broken are gone from the map.
+        /// Falls back to his own feet when nothing is reachable, so the door can never be out of reach.
+        /// </summary>
+        public static Vector2 ExitDoorSpot(int world, StageMap map, Vector2 wickFeet)
+        {
+            if (map == null) return wickFeet;
+            int storey = map.StoreyOf(wickFeet.y + 0.01f);
+            var plan = new StagePlan { map = map, wickPosition = wickFeet, spawns = new List<SpawnSpec>() };
+            var set = Reach(world, plan, EmptyBroken(), storey);
+            int best = -1;
+            for (int i = 0; i < set.nodes.Count; i++)
+            {
+                if (!set.reach[i]) continue;
+                if (best < 0 || BetterExit(set.nodes[i], set.nodes[best])) best = i;
+            }
+            if (best < 0) return wickFeet;
+            var node = set.nodes[best];
+            return new Vector2(StageMap.CenterX(node.Col), node.Feet);
+        }
+
+        static bool BetterExit(Node a, Node b)
+        {
+            if (a.CanJump != b.CanJump) return a.CanJump;
+            if (a.Col != b.Col) return a.Col > b.Col;
+            return a.Feet < b.Feet;
+        }
+
         struct ReachSet
         {
             public List<Node> nodes;
@@ -685,9 +715,11 @@ namespace Bubblewright
             if (!broken.Contains(key)) more.Add(key);
         }
 
-        static ReachSet Reach(int world, StagePlan plan, HashSet<int> broken)
+        /// <summary>onlyStorey >= 0 keeps that storey's spots only and starts from the spot nearest Wick at any distance.</summary>
+        static ReachSet Reach(int world, StagePlan plan, HashSet<int> broken, int onlyStorey = -1)
         {
             var nodes = Stands(plan.map, broken);
+            if (onlyStorey >= 0) nodes.RemoveAll(other => other.Storey != onlyStorey);
             int n = nodes.Count;
             var edges = new List<int>[n];
             for (int i = 0; i < n; i++) edges[i] = new List<int>();
@@ -719,7 +751,7 @@ namespace Bubblewright
                     if (same || ladder || jumpBack || dropBack || shaft) edges[j].Add(i);
                 }
 
-            int start = Closest(nodes, plan.wickPosition);
+            int start = Closest(nodes, plan.wickPosition, onlyStorey >= 0 ? float.MaxValue : 1.5f);
             var forward = new bool[n];
             var backward = new bool[n];
             if (start >= 0)
@@ -882,7 +914,7 @@ namespace Bubblewright
             }
         }
 
-        static int Closest(List<Node> nodes, Vector2 wick)
+        static int Closest(List<Node> nodes, Vector2 wick, float maxSqrDistance = 1.5f)
         {
             int best = -1;
             float bestD = float.MaxValue;
@@ -893,7 +925,7 @@ namespace Bubblewright
                 float d = dx * dx + dy * dy;
                 if (d < bestD) { bestD = d; best = i; }
             }
-            return bestD <= 1.5f ? best : -1;
+            return bestD <= maxSqrDistance ? best : -1;
         }
 
         static bool Supported(StageMap map, Vector2 feet, out string why)

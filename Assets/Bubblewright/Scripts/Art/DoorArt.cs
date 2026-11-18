@@ -2,16 +2,23 @@ using UnityEngine;
 
 namespace Bubblewright
 {
+    /// <summary>What a door shows above its arch: nothing yet (a road door during the boss fight), the calm lantern, or the hard-road warning.</summary>
+    public enum DoorMark { None, Lantern, Hard }
+
     /// <summary>
-    /// The two doors of the road choice (step 14), 30 x 45 px each, painted from the NEXT world's theme: an arched stone
-    /// frame (tileCap rim, tileFill stone, tileShade joints) around a dark opening in skyTop, 1 px ink outline outside.
-    /// The calm door has a small cream lantern above the arch. The hard door has three steel spikes along the top of the
-    /// frame and a lemon warning triangle with an ink exclamation mark above them. Values from docs/design/expansion-art.md.
-    /// The pivot is bottom centre, so a door stands on the floor at its x.
+    /// Stage doors, 30 x 45 px each: the exit door of a cleared stage (in the current world's stone, with the lantern)
+    /// and the two road doors on a boss stage (in the NEXT world's stone). An arched stone frame (tileCap rim, tileFill
+    /// stone, tileShade joints) around a dark opening in skyTop, 1 px ink outline outside. A closed door fills the
+    /// opening with two plank leaves that slide apart as it opens. The calm door has a small cream lantern above the
+    /// arch. The hard door has three steel spikes along the top of the frame and a lemon warning triangle with an ink
+    /// exclamation mark above them. Values from docs/design/expansion-art.md. The pivot is bottom centre, so a door
+    /// stands on the floor at its x.
     /// </summary>
     public static class DoorArt
     {
         public const int Width = 30, Height = 45;
+        /// <summary>Frames of the opening animation: 0 is shut, OpenFrames - 1 is wide open.</summary>
+        public const int OpenFrames = 5;
 
         // Rows trimmed from each side of the outer arch and of the opening, counted from the top row down.
         static readonly int[] OuterCut = { 7, 4, 2, 1 };
@@ -33,7 +40,14 @@ namespace Bubblewright
             return x >= InnerLeft + cut && x <= InnerRight - cut;
         }
 
-        public static PixelCanvas Paint(Theme theme, bool hard)
+        /// <summary>A wide-open road door, calm (lantern) or hard (warning).</summary>
+        public static PixelCanvas Paint(Theme theme, bool hard) => Paint(theme, hard ? DoorMark.Hard : DoorMark.Lantern, 1f);
+
+        /// <summary>
+        /// One door. open is 0 for shut, 1 for wide open: each leaf is half the opening wide when shut and slides into
+        /// the frame as it opens. Leaves are tileShade planks with darker seams and a steel ring on each inner edge.
+        /// </summary>
+        public static PixelCanvas Paint(Theme theme, DoorMark mark, float open)
         {
             var c = new PixelCanvas(Width, Height);
             for (int y = 1; y <= OuterTop; y++)
@@ -48,7 +62,31 @@ namespace Bubblewright
                 }
             }
 
-            if (hard)
+            // The leaves: the left one covers columns InnerLeft.. and the right one ..InnerRight, each shrinking as it opens.
+            int half = (InnerRight - InnerLeft + 1) / 2; // 10
+            int leaf = Mathf.Clamp(Mathf.RoundToInt(half * (1f - Mathf.Clamp01(open))), 0, half);
+            if (leaf > 0)
+            {
+                var plank = theme.tileShade;
+                var seam = Palette.Shade(theme.tileShade, 0.7f);
+                for (int y = 1; y <= InnerTop; y++)
+                    for (int x = InnerLeft; x <= InnerRight; x++)
+                    {
+                        if (!InOpening(x, y)) continue;
+                        int fromEdge = x <= InnerLeft + half - 1 ? x - InnerLeft : InnerRight - x;
+                        if (fromEdge >= leaf) continue;
+                        bool innerEdge = fromEdge == leaf - 1;
+                        c.Set(x, y, innerEdge || fromEdge % 3 == 2 ? seam : plank);
+                    }
+                // A steel ring on each leaf's inner edge, at hand height.
+                if (leaf >= 2)
+                {
+                    c.Set(InnerLeft + leaf - 2, 12, Palette.Steel);
+                    c.Set(InnerRight - leaf + 2, 12, Palette.Steel);
+                }
+            }
+
+            if (mark == DoorMark.Hard)
             {
                 // Three steel spikes on the crown of the frame, left edge light.
                 for (int i = 0; i < 3; i++)
@@ -67,7 +105,7 @@ namespace Bubblewright
                 for (int y = 39; y <= 41; y++) c.Set(14, y, Palette.Ink); // exclamation line
                 c.Set(14, 37, Palette.Ink);                              // and its dot
             }
-            else
+            else if (mark == DoorMark.Lantern)
             {
                 // A small cream lantern on a steel pole: cap, glass with darker side bars, base.
                 var glassShade = Palette.Shade(Palette.Cream, 0.75f);
