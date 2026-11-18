@@ -129,6 +129,13 @@ under the class `<summary>`, so a reviewer can read it next to the grid.
   gap edges and platform ends, so they never fall off by themselves. A rolling Sinker is low and easy to shoot
   but blocks a corridor; use it to pace a stage. A Sinker Pogo rests, wobbles and springs back to full height.
   Sinkers can be ceramic (World 3 on, L or M).
+* **Scorch flames and spikes (World 6):** every landing of an XL, L or M Scorch lights a flame on the one column under
+  it for 1.5 s (6 at most; an S lights none, and nothing lights over a ground gap). Flames on a roof or grate above
+  Wick are harmless, so a roof is how a lava stage gives him shelter. A Scorch Pogo relights its column every bounce:
+  keep it off a column Wick must cross. Spike strips: `b.Spike(col, width, row, phase)`; leave one empty column
+  between strips on the same surface, keep every strip column at least two columns from **any** ladder column on any
+  storey, and keep Wick's start off every strip. Default phases rise 0.8 s apart in the order you place them; pass
+  `phase:` (a cycle is 4.9 s, so 2.4 is about half) when two strips should beat together or opposite.
 * **Where a Sinker can settle** (found while building World 3): a rolling Sinker stops at the edge of every slot,
   hole and step, so its edge never crosses a tile boundary, and a cable fired from the next column misses it by
   half a tile. Wick can only shoot it from the surface it rolls on: he fires in front of it and hops off. So every
