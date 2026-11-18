@@ -96,7 +96,9 @@ under the class `<summary>`, so a reviewer can read it next to the grid.
   out, and the hatch arrival gets its own 1.2 s fair start.
 * **Placed things:** bubbles start clear of tiles and of each other; Clingers have a surface (`mount`) to hold;
   rollers rest on solid ground with a diameter of headroom and never over a gap; spikes sit on open floor, away
-  from ladders and from each other.
+  from ladders and from each other. Every Pogo, floor Clinger Pogos included, sits over ground (not a gap), in a
+  column with no ladder in any row of any storey, and at least `pogoMinSpacing` (2 u) from every other Pogo
+  (`PogoTests.PogosFollowTheirStageRules`).
 
 ## 3. Design rules (the validator cannot see these, Kokan can)
 
@@ -127,6 +129,12 @@ under the class `<summary>`, so a reviewer can read it next to the grid.
   gap edges and platform ends, so they never fall off by themselves. A rolling Sinker is low and easy to shoot
   but blocks a corridor; use it to pace a stage. A Sinker Pogo rests, wobbles and springs back to full height.
   Sinkers can be ceramic (World 3 on, L or M).
+* **Where a Sinker can settle** (found while building World 3): a rolling Sinker stops at the edge of every slot,
+  hole and step, so its edge never crosses a tile boundary, and a cable fired from the next column misses it by
+  half a tile. Wick can only shoot it from the surface it rolls on: he fires in front of it and hops off. So every
+  top a Sinker can land on must be one Wick can stand on and at least 4 wide (5 is comfortable for an L), or `B`
+  he can shoot out from below. Never put Sinkers over a roof, tunnel roof, narrow terrace or 1-wide lip that Wick
+  cannot stand on; run walls to the ceiling instead of leaving a top, and use Gloops where a roof is unreachable.
 * **Guests are planned:** name the guest in `Concept` and give it a job in the puzzle.
 * **Readability:** a stage reads at a glance. Use `#` for structure, `B` only where breaking is a choice or the
   puzzle, ladders where the route is not obvious.
@@ -264,3 +272,4 @@ Kokan play-tests every world; whatever he corrects becomes a rule here, so fix t
 | Long Concept or a list of mechanics | One idea in one or two sentences |
 | Porting the validator to check a stage | Use the tables and the drawing; leave the real check to `StageValidatorTests` |
 | Random shelves "for variety" | Pick an archetype and a structure in the brief |
+| Sinker over a roof, lip or narrow ledge Wick cannot stand on | It will settle and roll there out of reach; see "Where a Sinker can settle" |
