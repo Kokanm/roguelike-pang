@@ -56,7 +56,8 @@ namespace Bubblewright
         public float ladderGrabWidth = 0.6f;
 
         [Header("Harpoon")]
-        public float harpoonSpeed = 20f;
+        [Tooltip("Wick's harpoon climb speed in units per second. The other heroes' speeds are in Character.All.")]
+        public float harpoonSpeed = 15f;
         [Tooltip("Hold fire to shoot again as soon as the last shot is gone.")]
         public bool holdToRefire = true;
 
