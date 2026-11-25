@@ -16,7 +16,7 @@ namespace Bubblewright
         {
             get
             {
-                var rows = BlankRows14();
+                var rows = BlankRows();
                 rows[rows.Length - 1] = "..######................######..";
                 return rows;
             }
@@ -26,8 +26,8 @@ namespace Bubblewright
         protected override void Populate(StageBuilder b)
         {
             b.Wick(0f);
-            b.Bubble(BubbleKind.Gloop, StageBuilder.TierL, -10f, 9f, -1);
-            b.Bubble(BubbleKind.Gloop, StageBuilder.TierL, 6f, 9f, 1);
+            b.Bubble(BubbleKind.Gloop, StageBuilder.TierL, -10f, 11f, -1);
+            b.Bubble(BubbleKind.Gloop, StageBuilder.TierL, 6f, 11f, 1);
         }
     }
 }

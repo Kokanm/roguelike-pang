@@ -50,10 +50,10 @@ Peak is the top of the bubble above the floor it bounces on. Every bubble moves 
 
 | Tier | `StageBuilder` | Diameter | Peak | Lead peak | Bounce time | Lead bounce time | Pops, Gloop | Pops, Trigloop |
 |---|---|---|---|---|---|---|---|---|
-| XL | `TierXL` | 3.5 | 13 | 9.1 | 3 s | 1.8 s | 15 | 40 |
-| L | `TierL` | 2.5 | 11 | 7.7 | 2.6 s | 1.56 s | 7 | 13 |
-| M | `TierM` | 1.6 | 8.5 | 5.95 | 2.2 s | 1.32 s | 3 | 4 |
-| S | `TierS` | 0.9 | 6 | 4.2 | 1.8 s | 1.08 s | 1 | 1 |
+| XL | `TierXL` | 3.5 | 17 | 11.9 | 3.6 s | 2.16 s | 15 | 40 |
+| L | `TierL` | 2.5 | 14 | 9.8 | 3 s | 1.8 s | 7 | 13 |
+| M | `TierM` | 1.6 | 11 | 7.7 | 2.6 s | 1.56 s | 3 | 4 |
+| S | `TierS` | 0.9 | 7.5 | 5.25 | 1.8 s | 1.08 s | 1 | 1 |
 
 ### Bubble kinds
 

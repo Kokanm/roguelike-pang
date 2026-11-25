@@ -34,22 +34,22 @@ MonoBehaviour:
   tiers:
   - name: XL
     diameter: 3.5
-    peakHeight: 13
-    bounceTime: 3
+    peakHeight: 17
+    bounceTime: 3.6
     score: 50
   - name: L
     diameter: 2.5
-    peakHeight: 11
-    bounceTime: 2.6
+    peakHeight: 14
+    bounceTime: 3
     score: 100
   - name: M
     diameter: 1.6
-    peakHeight: 8.5
-    bounceTime: 2.2
+    peakHeight: 11
+    bounceTime: 2.6
     score: 150
   - name: S
     diameter: 0.9
-    peakHeight: 6
+    peakHeight: 7.5
     bounceTime: 1.8
     score: 200
   kinds:
