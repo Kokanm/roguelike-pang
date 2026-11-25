@@ -33,7 +33,7 @@ namespace Bubblewright
             {
                 // Crypt roofs on columns 0-4 and 27-31, rows 0-6. The wells are columns 5 and 26. Each lip (columns 6
                 // and 25) stops one row above the ground, so Wick crouches in, and rises to row 10 as the pen's parapet.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 0, 4, 0, 6, '#');
                 StageSketch.Box(grid, 27, 31, 0, 6, '#');
                 StageSketch.Box(grid, 6, 6, 1, 10, '#');

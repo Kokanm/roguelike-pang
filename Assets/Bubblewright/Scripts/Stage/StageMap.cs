@@ -23,15 +23,21 @@ namespace Bubblewright
     }
 
     /// <summary>
-    /// The 32 x (14 * Storeys) arena tile grid (columns cover x from -16 to +16, rows cover y from 0 to Height)
+    /// The 32 x (18 * Storeys) arena tile grid (columns cover x from -16 to +16, rows cover y from 0 to Height)
     /// and plain-maths queries against it.
     /// </summary>
     public class StageMap
     {
         public const int Cols = 32;
 
-        /// <summary>Rows in one storey: one screen of arena.</summary>
-        public const int StoreyRows = 14;
+        /// <summary>Rows in one storey: one screen of arena (the whole 270 px screen since the ground strip went).</summary>
+        public const int StoreyRows = 18;
+
+        /// <summary>
+        /// Rows per storey before the arena grew from 14 to 18 (2026-11-25). Stages still drawn at this height are
+        /// padded by StageLayout.PadLegacy until each one is redesigned for the full height.
+        /// </summary>
+        public const int LegacyStoreyRows = 14;
         const float HalfWidth = Cols * 0.5f;
 
         /// <summary>How many storeys this map stacks (1 to 3).</summary>

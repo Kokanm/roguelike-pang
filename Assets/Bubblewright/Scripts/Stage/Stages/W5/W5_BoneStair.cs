@@ -32,7 +32,7 @@ namespace Bubblewright
             get
             {
                 // Three one-row steps: row 0 from 5 to 26, row 1 from 9 to 22, row 2 from 13 to 18.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 5, 26, 0, 0, '#');
                 StageSketch.Box(grid, 9, 22, 1, 1, '#');
                 StageSketch.Box(grid, 13, 18, 2, 2, '#');

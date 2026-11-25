@@ -40,7 +40,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 // The diamond: half-width 1, 2, 3, 4, 3, 2, 1 on rows 6 to 12, centred on columns 15 and 16.
                 for (int y = 6; y <= 12; y++)
                 {

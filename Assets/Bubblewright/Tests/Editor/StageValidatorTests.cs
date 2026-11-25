@@ -13,7 +13,7 @@ namespace Bubblewright.Tests
         {
             var plan = new MirrorProbe().Build(true);
             Assert.AreEqual(-4f, plan.wickPosition.x, 0.0001f);
-            Assert.IsTrue(plan.map.IsSolid(31, 13), "the leading # moves to the right end of the top row");
+            Assert.IsTrue(plan.map.IsSolid(31, 13), "the leading # on row 13 moves to the right end");
             Assert.IsFalse(plan.map.IsSolid(0, 13));
             Assert.AreEqual(Surface.Ice, plan.map.GetGround(31));
             Assert.AreEqual(Surface.Normal, plan.map.GetGround(0));

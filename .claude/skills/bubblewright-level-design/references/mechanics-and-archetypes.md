@@ -15,8 +15,8 @@ _Written from `Tuning`, `Character.All`, `Debuff.All` and `StageValidator`. One 
 | What | Value |
 |---|---|
 | Columns | 32 (`0..31`); column `c` is centred at `x = c - 15.5`, so `x = 0` is the line between columns 15 and 16 |
-| Rows per storey | 14; row `0` stands on the ground, `Rows` lists the top row first |
-| Storeys | 1 to 3: rows `0..13`, `14..27`, `28..41` |
+| Rows per storey | 18; row `0` stands on the ground, `Rows` lists the top row first |
+| Storeys | 1 to 3: rows `0..17`, `18..35`, `36..53` |
 
 ### Wick's body and moves (every hero)
 
@@ -206,8 +206,8 @@ Each names the World 1 stage that shows it, where one exists. Combine at most tw
    top and underside) while bubbles bounce over it. Give the loop a diameter of headroom all round, and keep
    Wick's start out of the orbit.
 8. **Storey Tower Climb** (`W1_BellTower`, `W1_ThreeRoofs`). 2 or 3 storeys; each storey is its own fight. Row
-   `13` (and `27`) is the storey's cap, an invisible ceiling for Wick except at a hatch: an `H` ladder cell on that
-   row. Row `14` (and `28`) is the floor of the storey above, drawn solid with a `T` over each hatch, and `H` runs
+   `17` (and `35`) is the storey's cap, an invisible ceiling for Wick except at a hatch: an `H` ladder cell on that
+   row. Row `18` (and `36`) is the floor of the storey above, drawn solid with a `T` over each hatch, and `H` runs
    from the hatch down to the floor below. The hatch opens when the storey is clear and shuts behind him. No enemy
    within 3 u of where he climbs out.
 

@@ -34,7 +34,7 @@ namespace Bubblewright
                 // Plinth one row high on columns 9-22, so Wick stands at row 1 above the floor flames.
                 // Roof on row 5 (columns 10-21) with slots on 13 and 18. The lips on 10 and 21 hang down to row 3,
                 // leaving a two-row mouth: Wick walks out standing, M and S get in, L and XL stay on the roof.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 9, 22, 0, 0, '#');
                 StageSketch.Box(grid, 10, 21, 5, 5, '#');
                 StageSketch.Box(grid, 10, 10, 3, 4, '#');

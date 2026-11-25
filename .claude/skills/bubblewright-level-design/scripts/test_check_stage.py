@@ -54,7 +54,7 @@ def stage(rows=None, ground="SolidGround", body=None, edit=None):
     if body is not None:
         rows_src = SKETCH.replace("BODY", body)
     else:
-        rows_src = literal_rows(rows if rows is not None else ["." * 32] * 14)
+        rows_src = literal_rows(rows if rows is not None else ["." * 32] * 18)
     src = GOOD.replace("ROWS", rows_src).replace("GROUND", ground)
     return edit(src) if edit else src
 
@@ -89,37 +89,48 @@ class CheckStageTests(unittest.TestCase):
         self.assertEqual(0, code, out)
 
     def test_short_and_long_rows_name_the_row_and_draw_the_ruler(self):
-        rows = ["." * 32] * 14
+        rows = ["." * 32] * 18
         rows[3] = "." * 31
         rows[9] = "." * 33
-        out = self.assert_fails(stage(rows), "Row 10 has 31 characters", "Row 4 has 33 characters")
+        out = self.assert_fails(stage(rows), "Row 14 has 31 characters", "Row 8 has 33 characters")
         self.assertIn("01234567890123456789012345678901", out)
         self.assertIn("<-- 31 chars", out)
 
-    def test_row_count_must_be_14_28_or_42_and_match_storeys(self):
+    def test_row_count_must_be_18_36_or_54_and_match_storeys(self):
         self.assert_fails(stage(["." * 32] * 13), "Rows has 13 lines")
-        self.assert_fails(stage(["." * 32] * 28), "Storeys is 1")
+        self.assert_fails(stage(["." * 32] * 17), "Rows has 17 lines")
+        self.assert_fails(stage(["." * 32] * 36), "Storeys is 1")
+
+    def test_legacy_14_row_stage_passes_and_is_counted(self):
+        code, out = self.run_on(stage(["." * 32] * 14))
+        self.assertEqual(0, code, out)
+        self.assertIn("LEGACY: 1 stage(s)", out)
+        src = stage(body="StageSketch.Box(grid, 3, 5, 0, 13, '#');", edit=lambda s: s.replace("StageSketch.Open()", "StageSketch.Open14()"))
+        code, out = self.run_on(src)
+        self.assertEqual(0, code, out)
+        self.assert_fails(stage(body="StageSketch.Box(grid, 3, 5, 0, 14, '#');",
+                                edit=lambda s: s.replace("StageSketch.Open()", "StageSketch.Open14()")), "y1 = 14")
 
     def test_unknown_tile_and_ground_characters(self):
-        rows = ["." * 32] * 14
-        rows[13] = "....=..........................."
+        rows = ["." * 32] * 18
+        rows[17] = "....=..........................."
         self.assert_fails(stage(rows), "'='", "column 4")
         self.assert_fails(stage(ground='"' + "=" * 15 + "#" + "=" * 16 + '"'), "Ground has '#' at column 15")
         self.assert_fails(stage(ground='"' + "=" * 31 + '"'), "Ground has 31 characters")
 
     def test_sketch_writes_must_stay_inside_the_grid(self):
         self.assert_fails(stage(body="StageSketch.Box(grid, 30, 32, 0, 0, '#');"), "c1 = 32")
-        self.assert_fails(stage(body="StageSketch.Box(grid, 3, 5, 0, 14, '#');"), "y1 = 14")
+        self.assert_fails(stage(body="StageSketch.Box(grid, 3, 5, 0, 18, '#');"), "y1 = 18")
         self.assert_fails(stage(body="grid[2][32] = '#';"), "column 32")
         self.assert_fails(stage(body="StageSketch.Box(grid, 3, 5, 0, 1, 'X');"), "'X'")
         self.assert_fails(stage(body="StageSketch.Box(grid, 5, 3, 0, 1, '#');"), "low end first")
 
     def test_loops_and_ternaries_are_followed(self):
-        body = "for (int y = 0; y <= 13; y++) grid[y][4] = y == 13 ? 'T' : 'H';"
+        body = "for (int y = 0; y <= 17; y++) grid[y][4] = y == 17 ? 'T' : 'H';"
         code, out = self.run_on(stage(body=body))
         self.assertEqual(0, code, out)
-        body = "for (int y = 0; y <= 14; y++) { grid[y][4] = 'H'; }"
-        self.assert_fails(stage(body=body), "index 14")
+        body = "for (int y = 0; y <= 18; y++) { grid[y][4] = 'H'; }"
+        self.assert_fails(stage(body=body), "index 18")
 
     def test_metadata_preserve_sealed_and_concept(self):
         self.assert_fails(stage(edit=lambda s: s.replace("[Preserve]", "")), "[Preserve]")
@@ -129,14 +140,14 @@ class CheckStageTests(unittest.TestCase):
 
     def test_placements_must_be_inside_the_arena(self):
         self.assert_fails(stage(edit=lambda s: s.replace("b.WickAtCol(3);", "b.WickAtCol(32);")), "column 32")
-        self.assert_fails(stage(edit=lambda s: s.replace("20, 8f", "20, 15f")), "y = 15.0 is outside 0..14")
+        self.assert_fails(stage(edit=lambda s: s.replace("20, 8f", "20, 19f")), "y = 19.0 is outside 0..18")
         self.assert_fails(stage(edit=lambda s: s.replace("b.WickAtCol(3);", "")), "never places Wick")
 
     def test_two_storey_sketch(self):
-        src = stage(body="StageSketch.Box(grid, 0, 31, 14, 14, '#'); grid[14][4] = 'T';",
+        src = stage(body="StageSketch.Box(grid, 0, 31, 18, 18, '#'); grid[18][4] = 'T';",
                     edit=lambda s: s.replace("StageSketch.Open()", "StageSketch.Open(2)").replace(
                         "public override string Concept", "public override int Storeys => 2;\n        public override string Concept"))
-        code, out = self.run_on(src.replace("b.WickAtCol(3);", "b.WickAtCol(3);\n            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierL, 20, 22f, -1);"))
+        code, out = self.run_on(src.replace("b.WickAtCol(3);", "b.WickAtCol(3);\n            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierL, 20, 26f, -1);"))
         self.assertEqual(0, code, out)
 
 

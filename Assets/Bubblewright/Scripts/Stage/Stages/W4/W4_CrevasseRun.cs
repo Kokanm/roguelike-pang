@@ -27,7 +27,7 @@ namespace Bubblewright
         public override string Concept =>
             "Three crevasses split an icy floor, with grip only at their lips. Frost and Lead XL bounce across while Wick picks a safe edge to stop and shoot.";
 
-        public override string[] Rows => BlankRows();
+        public override string[] Rows => BlankRows14();
 
         //                                   01234567890123456789012345678901
         public override string Ground =>    "IIIIINN__NNIINN__NNIINN__NNIIIII";

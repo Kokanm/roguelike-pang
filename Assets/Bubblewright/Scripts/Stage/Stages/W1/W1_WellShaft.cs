@@ -21,7 +21,7 @@ namespace Bubblewright
                 // The well is column 26. Its left lip (column 25) stops one row above the ground, so Wick crouches in.
                 // The lip rises to row 10 as the pen's parapet: three rows to the ceiling hold the XL, its L children get out.
                 // The block on columns 27-31 is the roof the XL bounces on. No ladder: the way up is chained wall jumps.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 25, 25, 1, 10, '#');
                 StageSketch.Box(grid, 27, 31, 0, 6, '#');
                 return StageSketch.Lines(grid);

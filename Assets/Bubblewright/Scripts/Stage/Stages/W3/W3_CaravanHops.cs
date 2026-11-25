@@ -33,7 +33,7 @@ namespace Bubblewright
         public override string Concept =>
             "A caravan route of narrow sand gaps. Sinker Pogos sink lower each bounce and rest on the landings: hop past while they rest.";
 
-        public override string[] Rows => BlankRows();
+        public override string[] Rows => BlankRows14();
 
         //                                   01234567890123456789012345678901
         public override string Ground => "====_====_====_==_====_====_====";

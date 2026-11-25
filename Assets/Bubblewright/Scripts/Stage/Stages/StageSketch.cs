@@ -6,9 +6,13 @@ namespace Bubblewright
     /// </summary>
     static class StageSketch
     {
-        public static char[][] Open(int storeys = 1)
+        public static char[][] Open(int storeys = 1) => OpenRows(StageMap.StoreyRows * storeys);
+
+        /// <summary>Open at the old 14 rows per storey, for stages not yet redesigned for the 18-row arena.</summary>
+        public static char[][] Open14(int storeys = 1) => OpenRows(StageMap.LegacyStoreyRows * storeys);
+
+        static char[][] OpenRows(int n)
         {
-            int n = StageMap.StoreyRows * storeys;
             var grid = new char[n][];
             for (int y = 0; y < n; y++)
             {

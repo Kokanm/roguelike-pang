@@ -34,7 +34,7 @@ namespace Bubblewright
                 // Furnace blocks on columns 0-4 and 27-31, rows 0-6: their roofs are at row 7.
                 // Flues on columns 5 and 26. The lips on 6 and 25 start one row up (Wick crouches under them) and rise to
                 // row 11 as the pens' parapets, leaving two rows to the ceiling: L stays in, M and S get out.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 0, 4, 0, 6, '#');
                 StageSketch.Box(grid, 6, 6, 1, 11, '#');
                 StageSketch.Box(grid, 25, 25, 1, 11, '#');

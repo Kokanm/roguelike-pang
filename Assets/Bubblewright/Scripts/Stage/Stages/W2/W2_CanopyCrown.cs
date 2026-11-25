@@ -48,7 +48,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open(3);
+                var grid = StageSketch.Open14(3);
                 StageSketch.Box(grid, 0, 31, 14, 14, '#');
                 StageSketch.Box(grid, 0, 31, 28, 28, '#');
                 // Zigzag: up on column 3 to storey 2, up on column 28 to storey 3.

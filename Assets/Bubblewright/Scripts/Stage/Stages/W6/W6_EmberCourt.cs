@@ -29,7 +29,7 @@ namespace Bubblewright
             get
             {
                 // Dais one row high on columns 11-20: Wick hops on and off it. Wings 0-10 and 21-31 are open ground.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 11, 20, 0, 0, '#');
                 return StageSketch.Lines(grid);
             }
