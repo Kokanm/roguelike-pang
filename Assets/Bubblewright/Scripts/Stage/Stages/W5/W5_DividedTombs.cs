@@ -33,7 +33,7 @@ namespace Bubblewright
             {
                 // Walls on columns 10 and 21 up to row 9, with breakable doors on rows 0-1. Gallery ladders on the middle
                 // tomb's side of each wall (columns 11 and 20), topped by a T on row 9 so Wick steps onto the wall top.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 10, 10, 0, 1, 'B');
                 StageSketch.Box(grid, 21, 21, 0, 1, 'B');
                 StageSketch.Box(grid, 10, 10, 2, 9, '#');

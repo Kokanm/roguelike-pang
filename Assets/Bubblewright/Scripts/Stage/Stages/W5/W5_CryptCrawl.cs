@@ -32,7 +32,7 @@ namespace Bubblewright
             {
                 // Tunnel roof on row 1 from column 5 to 26, breakable plugs at 8, 11, 20 and 23.
                 // The divider on columns 15-16 rises to the ceiling and splits the deck into two vaults.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 5, 26, 1, 1, '#');
                 grid[1][8] = 'B';
                 grid[1][11] = 'B';

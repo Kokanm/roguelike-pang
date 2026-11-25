@@ -3,7 +3,8 @@ using UnityEngine;
 namespace Bubblewright
 {
     /// <summary>
-    /// Draws the thumb controls inside the ground strip, as world sprites so they stay pixel perfect.
+    /// Draws the thumb controls see-through over the bottom corners of the play area (Tuning.touchControlsAlpha),
+    /// as world sprites so they stay pixel perfect. There is no ground strip under the floor any more.
     /// Left: move pad hint, plus a knob where the thumb landed and a dot that follows it.
     /// Right: the big mint fire button, with the round jump button 3.5 units to its left. Shown on phones, or on desktop once the mouse has been used as a finger.
     /// While Wick holds a weapon, a third disc (the weapon button) sits 3.5 units left of the jump button, with the
@@ -61,7 +62,11 @@ namespace Bubblewright
         public void Refresh(GameInput input, Tuning t, bool nearLadder = false, float camPanY = 0f)
         {
             bool show = Application.isMobilePlatform || input.TouchUsed;
-            float stripMid = camPanY - t.groundStrip * 0.5f - 0.2f;
+            // Button centres 1.9 units above the bottom of the screen: a 1.4 unit disc with half a unit to spare.
+            float stripMid = camPanY - t.groundStrip + 1.9f;
+            float alpha = Mathf.Clamp(t.touchControlsAlpha, 0.1f, 1f);
+            var faded = new Color(1f, 1f, 1f, alpha);
+            hint.color = knob.color = dot.color = climbUp.color = climbDown.color = fire.color = jump.color = faded;
             float px = 1f / t.pixelsPerUnit;
 
             // Anchor to the visible screen edges (inside the safe area), not the arena, so thumbs reach them.
@@ -99,7 +104,9 @@ namespace Bubblewright
                 bool down = input.TouchWeaponHeld;
                 Vector3 weaponPos = Snap(firePos - new Vector2(7f, 0f), t);
                 weapon.sprite = WeaponArt.Button(heldWeapon, down);
-                weapon.color = weaponAmmo.color = heldDimmed ? DimTint : Color.white;
+                var tint = heldDimmed ? DimTint : Color.white;
+                tint.a = alpha;
+                weapon.color = weaponAmmo.color = tint;
                 weapon.transform.position = weaponPos;
                 weaponAmmo.sprite = heldGauge >= 0f ? GaugeBar(heldGauge) : WeaponArt.Number(heldAmmo);
                 weaponAmmo.transform.position = weaponPos + new Vector3(0f, WeaponArt.ButtonNumberOffsetPixels(down) * px, 0f);

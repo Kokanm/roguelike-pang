@@ -39,7 +39,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 // Waist deck with the plug and the two ladder tops.
                 StageSketch.Box(grid, 0, 31, 5, 5, '#');
                 StageSketch.Box(grid, 14, 17, 5, 5, 'B');

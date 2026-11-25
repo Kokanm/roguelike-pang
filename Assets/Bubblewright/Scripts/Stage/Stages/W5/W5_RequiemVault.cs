@@ -37,7 +37,7 @@ namespace Bubblewright
             {
                 // Left vault: walls on 3 and 12, lid on row 5. Right vault: walls on 19 and 28, lid on row 5. All breakable.
                 // Insides: columns 4-11 and 20-27, rows 0-4. Wick's court is columns 13-18.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 3, 3, 0, 5, 'B');
                 StageSketch.Box(grid, 12, 12, 0, 5, 'B');
                 StageSketch.Box(grid, 4, 11, 5, 5, 'B');

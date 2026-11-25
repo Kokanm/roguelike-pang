@@ -37,7 +37,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open(2);
+                var grid = StageSketch.Open14(2);
                 StageSketch.Box(grid, 0, 31, 14, 14, '#');
                 // Twin ladders on columns 14 and 17, each with its hatch on row 13.
                 for (int y = 0; y <= 14; y++)

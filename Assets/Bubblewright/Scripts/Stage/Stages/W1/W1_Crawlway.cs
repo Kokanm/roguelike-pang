@@ -19,7 +19,7 @@ namespace Bubblewright
             get
             {
                 // Tunnel under row 1 from column 10 to 21, firing slots at 12 and 19, divider wall up to the ceiling on 15 and 16.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 10, 21, 1, 1, '#');
                 grid[1][12] = '.';
                 grid[1][19] = '.';

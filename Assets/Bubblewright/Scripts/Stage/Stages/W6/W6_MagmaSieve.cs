@@ -32,7 +32,7 @@ namespace Bubblewright
             get
             {
                 // Deck on row 6, holes on columns 9-10 and 21-22, ladders on 4 and 27 (as W1_TrigloopSieve).
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 0, 31, 6, 6, '#');
                 StageSketch.Box(grid, 9, 10, 6, 6, '.');
                 StageSketch.Box(grid, 21, 22, 6, 6, '.');

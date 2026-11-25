@@ -44,7 +44,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 // Trunks: inner walls with a 2-row door under them, crowns on row 9, ladders on 1 and 30.
                 StageSketch.Box(grid, 3, 3, 2, 8, '#');
                 StageSketch.Box(grid, 28, 28, 2, 8, '#');

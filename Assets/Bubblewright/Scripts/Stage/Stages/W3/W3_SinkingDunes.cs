@@ -35,7 +35,7 @@ namespace Bubblewright
             get
             {
                 // Two-step dunes against both walls: feet 1 on columns 5-9 and 22-26, feet 2 on columns 0-4 and 27-31.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 0, 9, 0, 0, '#');
                 StageSketch.Box(grid, 0, 4, 1, 1, '#');
                 StageSketch.Box(grid, 22, 31, 0, 0, '#');

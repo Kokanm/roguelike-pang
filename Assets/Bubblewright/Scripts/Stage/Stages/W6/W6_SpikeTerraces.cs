@@ -31,7 +31,7 @@ namespace Bubblewright
             get
             {
                 // Landings: ground 0-7, then rows 0, 1 and 2 as the tops of 8-15, 16-23 and 24-31. One row per hop.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 8, 31, 0, 0, '#');
                 StageSketch.Box(grid, 16, 31, 1, 1, '#');
                 StageSketch.Box(grid, 24, 31, 2, 2, '#');

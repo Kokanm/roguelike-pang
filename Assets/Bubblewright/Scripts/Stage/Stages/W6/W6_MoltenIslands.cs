@@ -27,7 +27,7 @@ namespace Bubblewright
         public override string Concept =>
             "Stepping stones in a lava floor, a spike in the middle of each. Scorch flames catch on stone, never over the lava.";
 
-        public override string[] Rows => BlankRows();
+        public override string[] Rows => BlankRows14();
 
         // Islands of three columns (four in the middle), lava gaps of two: the widest Moss with Heavy Boots clears.
         public override string Ground => "==__===__===__====__===__===__==";

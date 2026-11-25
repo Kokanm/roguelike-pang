@@ -16,10 +16,12 @@ namespace Bubblewright
         public Vector2Int referenceResolution = new Vector2Int(480, 270);
         [Tooltip("Play area width. Walls sit at -width/2 and +width/2.")]
         public float arenaWidth = 32f;
-        [Tooltip("Floor is y = 0, ceiling is y = arenaHeight.")]
-        public float arenaHeight = 14f;
-        [Tooltip("Strip under the floor that holds the thumb controls.")]
-        public float groundStrip = 4f;
+        [Tooltip("Floor is y = 0, ceiling is y = arenaHeight. Must match StageMap.StoreyRows (18): the arena fills the screen.")]
+        public float arenaHeight = 18f;
+        [Tooltip("How much floor shows under y = 0 (units). The old 4 unit thumb strip is gone; this is just the floor's top edge, and the same height of ceiling hides under the HUD.")]
+        public float groundStrip = 0.4f;
+        [Tooltip("How see-through the touch buttons are, now that they sit over the play area (1 solid).")]
+        [Range(0.1f, 1f)] public float touchControlsAlpha = 0.55f;
 
         [Header("Storeys")]
         [Tooltip("How fast the camera pans up to the next storey, in units per second. 56 is about a quarter of a second per storey.")]

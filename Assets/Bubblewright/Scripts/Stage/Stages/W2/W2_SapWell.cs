@@ -42,7 +42,7 @@ namespace Bubblewright
             {
                 // Pen blocks on 0-4 and 27-31 (rows 0-6). Wells on columns 5 and 26. Lips on 6 and 25 start one row up,
                 // so Wick crouches in, and rise to row 10 so the Leads stay in the court.
-                var grid = StageSketch.Open();
+                var grid = StageSketch.Open14();
                 StageSketch.Box(grid, 0, 4, 0, 6, '#');
                 StageSketch.Box(grid, 27, 31, 0, 6, '#');
                 StageSketch.Box(grid, 6, 6, 1, 10, '#');

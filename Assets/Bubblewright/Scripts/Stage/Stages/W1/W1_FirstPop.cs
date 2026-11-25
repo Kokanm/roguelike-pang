@@ -16,7 +16,7 @@ namespace Bubblewright
         {
             get
             {
-                var rows = BlankRows();
+                var rows = BlankRows14();
                 rows[rows.Length - 1] = "..######................######..";
                 return rows;
             }

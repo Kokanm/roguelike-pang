@@ -83,7 +83,7 @@ namespace Bubblewright.Tests
         {
             harpoon.HoldTime = 0f;
             float top = Run(new Vector2(-14f, 1.67f), 2f, out _);
-            Assert.AreEqual(14f, top, 0.05f);
+            Assert.AreEqual((float)StageMap.StoreyRows, top, 0.05f);
             Assert.IsFalse(harpoon.Active);
         }
 
