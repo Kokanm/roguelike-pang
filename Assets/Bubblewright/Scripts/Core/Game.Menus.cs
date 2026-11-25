@@ -32,7 +32,7 @@ namespace Bubblewright
         readonly Rect[] pauseRects = new Rect[4];
         static readonly string[] PauseItems = { "RESUME", "RESTART RUN", "QUIT TO TITLE", "DEBUG" };
 
-        bool CanPause => state == State.Intro || state == State.Play;
+        bool CanPause => state == State.Intro || state == State.Play || state == State.Path;
 
         /// <summary>Handles pausing and the pause menu. True while paused, so the game skips its tick.</summary>
         bool UpdatePause()
