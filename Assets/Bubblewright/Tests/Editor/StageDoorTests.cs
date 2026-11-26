@@ -72,6 +72,38 @@ namespace Bubblewright.Tests
         }
 
         [Test]
+        public void ANarrowPitAgainstTheWallDoesNotTakeTheDoor()
+        {
+            // Lantern Court's right end: a block on columns 27 to 30 leaves a one-column pit at column 31. The wall holds
+            // Wick 0.77 u in, so he cannot get down into it: the door stands on the block instead.
+            var map = StageMap.Flat();
+            for (int c = 27; c <= 30; c++) map.Set(c, 0, new Cell { kind = TileKind.Solid });
+            Assert.IsFalse(StageValidator.WickFitsAt(map, StageMap.Cols - 1, 0f), "the pit is too narrow for him");
+            var spot = StageValidator.ExitDoorSpot(1, map, new Vector2(0f, 0f));
+            Assert.AreEqual(StageMap.CenterX(30), spot.x, 0.001f);
+            Assert.AreEqual(1f, spot.y, 0.001f);
+        }
+
+        [Test]
+        public void EveryStageHasAnExitDoorWickCanWalkInto()
+        {
+            var t = Tuning.I;
+            foreach (var spec in StageSpec.All)
+                foreach (bool mirror in new[] { false, true })
+                {
+                    var plan = spec.Build(mirror);
+                    var spot = StageValidator.ExitDoorSpot(spec.World, plan.map, plan.wickPosition);
+                    string name = $"{spec.Name}{(mirror ? " (mirrored)" : "")}";
+                    int col = StageMap.Col(spot.x);
+                    Assert.IsTrue(StageValidator.WickFitsAt(plan.map, col, spot.y), $"{name}: Wick cannot stand at the door (column {col}, feet {spot.y})");
+                    float doorX = Game.ClampDoorX(spot.x);
+                    float standX = StageValidator.WickStandX(col);
+                    Assert.LessOrEqual(Mathf.Abs(standX - doorX), t.hitbox.x * 0.5f + t.doorEnterHalfWidth,
+                        $"{name}: standing at the door's column does not put him in the doorway");
+                }
+        }
+
+        [Test]
         public void ADoorAtTheEdgeStaysOnTheScreen()
         {
             float half = DoorArt.Width * 0.5f / Tuning.I.pixelsPerUnit;

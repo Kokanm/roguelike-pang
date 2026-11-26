@@ -619,13 +619,29 @@ namespace Bubblewright
             int best = -1;
             for (int i = 0; i < set.nodes.Count; i++)
             {
-                if (!set.reach[i]) continue;
+                if (!set.reach[i] || !WickFitsAt(map, set.nodes[i].Col, set.nodes[i].Feet)) continue;
                 if (best < 0 || BetterExit(set.nodes[i], set.nodes[best])) best = i;
             }
             if (best < 0) return wickFeet;
             var node = set.nodes[best];
             return new Vector2(StageMap.CenterX(node.Col), node.Feet);
         }
+
+        /// <summary>
+        /// Wick can stand on this column's floor: his body, kept inside the arena walls, overlaps no tile. A one-column
+        /// pit against a wall is too narrow (the wall holds him 0.77 u in, so he would overlap the tile beside it), and a
+        /// door there could never be reached (Lantern Court, found 2026-11-26).
+        /// </summary>
+        public static bool WickFitsAt(StageMap map, int col, float feet)
+        {
+            var t = Tuning.I;
+            float x = WickStandX(col);
+            var body = new Rect(x - t.hitbox.x * 0.5f + FootInset, feet + 0.05f, t.hitbox.x - 2f * FootInset, t.hitbox.y - 0.1f);
+            return !map.OverlapsSolid(body);
+        }
+
+        /// <summary>Where Wick stands to be on this column: its centre, held inside the walls.</summary>
+        public static float WickStandX(int col) => Mathf.Clamp(StageMap.CenterX(col), -Tuning.I.WickWallX, Tuning.I.WickWallX);
 
         static bool BetterExit(Node a, Node b)
         {

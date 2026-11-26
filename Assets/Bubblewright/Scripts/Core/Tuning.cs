@@ -464,6 +464,9 @@ namespace Bubblewright
         public int RunLength => worlds * stagesPerWorld;
         public float HalfWidth => arenaWidth * 0.5f;
         public float Pixel => 1f / pixelsPerUnit;
+        /// <summary>Furthest Wick's feet go from the middle: his drawn body (11.5 px each side) stays inside the walls.</summary>
+        public float WickWallX => HalfWidth - WickBodyHalfPixels * Pixel;
+        public const float WickBodyHalfPixels = 11.5f;
 
         public KindSpec Kind(BubbleKind k)
         {
