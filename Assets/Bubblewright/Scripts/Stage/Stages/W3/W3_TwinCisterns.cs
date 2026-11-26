@@ -37,7 +37,7 @@ namespace Bubblewright
             get
             {
                 // Wells on columns 5 and 26, no ladders: the way up is chained wall jumps.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 0, 4, 0, 6, '#');
                 StageSketch.Box(grid, 6, 6, 1, 13, '#');
                 StageSketch.Box(grid, 27, 31, 0, 6, '#');

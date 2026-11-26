@@ -5,7 +5,7 @@ description: Use when creating, editing, reviewing or balancing a Bubblewright s
 
 # Bubblewright level design
 
-Stages are hand-built puzzles: one sealed `StageSpec` class per file, a 32 x 18 grid per storey, and a
+Stages are hand-built puzzles: one sealed `StageSpec` class per file, a 32 x 14 grid per storey, and a
 `Populate` that places Wick and the enemies. `StageValidator` (run by `StageValidatorTests` in Unity) is the
 judge of every game rule. This skill gives you the rules and numbers so you design a stage that passes the first
 time, without re-deriving them from the engine code.
@@ -29,23 +29,6 @@ stages below that are closest to your idea. They were play-tested and approved b
 | `W1/W1_TerraceClimb.cs`, `W1/W1_LanternCourt.cs` | terraces and pads, one bubble per height |
 
 All paths are under `Assets/Bubblewright/Scripts/Stage/Stages/`.
-
-## 0. The 18-row arena and legacy stages
-
-On 2026-11-25 Kokan removed the 4-unit ground strip under the floor: the arena now fills the whole 270 px screen,
-**18 rows per storey** (`StageMap.StoreyRows`), and the touch buttons sit see-through over its bottom corners.
-The 72 stages written before that are **legacy**: they still draw 14 rows per storey with `StageSketch.Open14` /
-`BlankRows14`, and the game pads them (`StageLayout.PadLegacy`): rows 0-12 stay put, the cap moves from row 13
-to row 17 with 4 new rows under it that copy the cap (walls and hatch ladders that reached the ceiling still do),
-and every y in `Populate` moves up 4 per storey below it. So a legacy stage plays exactly as before, with 4 rows
-of empty headroom on top. `check_stage.py` lists the legacy stages at the end of its run.
-
-**Redesigning a legacy stage** (one world per thread): keep its idea, Concept, difficulty and Id, switch to
-`StageSketch.Open` / `BlankRows`, and use the full height: the whole stage, not just a band of sky. Bubble peaks
-did not change (XL 13 u above the floor it bounces on), so the top rows only matter if structure puts something
-there: a deck, a terrace or a raised court higher up, a tower, a ceiling for Clingers. Move every `Populate` y of
-an upper storey up by 4 per storey (the game did that for you while it was legacy). The W1 worked examples below
-are legacy too until World 1 is redone; copy their ideas and style, not their row numbers.
 
 ## 1. Write the Stage Design Brief first
 
@@ -104,11 +87,11 @@ under the class `<summary>`, so a reviewer can read it next to the grid.
   fire into. Sealed `#` rooms with a bubble inside fail.
 * **Over-break:** breaking every `B` must not strand anything that was reachable or leave Wick in a pit he
   cannot leave. Never make a `B` bridge or floor the only way to a room sealed by `#`.
-* **Storeys:** the top row of a storey (row `17`, and `35`) is its **cap**: an invisible ceiling for Wick across
+* **Storeys:** the top row of a storey (row `13`, and `27`) is its **cap**: an invisible ceiling for Wick across
   the whole width, except at a **hatch**, which is an `H` ladder cell on the cap row. The hatch is shut while the
-  storey has enemies, opens when it is clear and shuts behind him. Draw the storey above's floor on row `18` (and
-  `36`) as solid with a `T` over each hatch, and run `H` from the hatch down to the floor below:
-  `for (int y = 0; y <= 18; y++) grid[y][c] = y == 18 ? 'T' : 'H';`. So Wick has 17 usable rows
+  storey has enemies, opens when it is clear and shuts behind him. Draw the storey above's floor on row `14` (and
+  `28`) as solid with a `T` over each hatch, and run `H` from the hatch down to the floor below, as
+  `W1_BellTower` does: `for (int y = 0; y <= 14; y++) grid[y][c] = y == 14 ? 'T' : 'H';`. So Wick has 13 usable rows
   on a lower storey. He only goes up; bubbles never cross a storey line. No enemy within 3 u of where Wick climbs
   out, and the hatch arrival gets its own 1.2 s fair start.
 * **Placed things:** bubbles start clear of tiles and of each other; Clingers have a surface (`mount`) to hold;
@@ -195,8 +178,8 @@ namespace Bubblewright
         //                                   01234567890123456789012345678901
         public override string[] Rows => new[]
         {
-            "................................", // r17 (top)
-            // ... 18 strings per storey, top row first, each exactly 32 characters ...
+            "................................", // r13 (top)
+            // ... 14 strings per storey, top row first, each exactly 32 characters ...
             "................................", // r0 (stands on the ground)
         };
 
@@ -222,8 +205,8 @@ public override string[] Rows
     get
     {
         var grid = StageSketch.Open(2);
-        StageSketch.Box(grid, 0, 31, 18, 18, '#');                  // floor of storey 2
-        for (int y = 0; y <= 18; y++) grid[y][14] = y == 18 ? 'T' : 'H'; // ladder and hatch
+        StageSketch.Box(grid, 0, 31, 14, 14, '#');                  // floor of storey 2
+        for (int y = 0; y <= 14; y++) grid[y][14] = y == 14 ? 'T' : 'H'; // ladder and hatch
         StageSketch.Box(grid, 8, 8, 1, 4, '#');
         return StageSketch.Lines(grid);
     }
@@ -264,7 +247,7 @@ python3 .claude/skills/unity-csharp-scripting/scripts/check_unity_project.py .
 unity test . --mode EditMode --filter "Bubblewright.Tests.StageValidatorTests" --output Temp/validator.xml
 ```
 
-* `check_stage.py` checks only the shape (32 columns, 18/36/54 rows, characters, `[Preserve]`, sealed,
+* `check_stage.py` checks only the shape (32 columns, 14/28/42 rows, characters, `[Preserve]`, sealed,
   `Concept`, writes inside the grid, placements inside the arena). `--show` draws the stage on a ruler with Wick
   (`@`), bubbles (`X L M S`, Clingers lower case) and rollers (`r`). **Look at the drawing** and walk the hitless
   plan on it: it is the fastest way to catch a wrong row or a bubble inside a wall.
@@ -293,8 +276,7 @@ Kokan play-tests every world; whatever he corrects becomes a rule here, so fix t
 | Platform 2 rows above where Wick stands, no ladder | One row per jump; add a ladder, a wall-jump wall or a 1-column shaft |
 | Sealed `#` room with a bubble in it | Give it a slot, a `B` wall, or a ladder route |
 | `B` floor that is the only way into a `#` room | Make the `B` a wall Wick chips from outside, or add a second route |
-| No `H` on row 17, or a `T` there | The hatch is the `H` on the cap row 17; the `T` sits above it in row 18 |
-| A new stage drawn with `StageSketch.Open14` or `BlankRows14` | Those are only for legacy stages; new and redesigned stages use `Open` / `BlankRows` (18 rows) |
+| No `H` on row 13, or a `T` there | The hatch is the `H` on the cap row 13; the `T` sits above it in row 14 |
 | Bubble starting over a roof or a tunnel | Start it over open floor, a slot or a reachable ledge (the reach check uses its start column) |
 | Gap inside a crouch tunnel | A crouched Wick cannot jump; keep gaps where he stands upright |
 | Bubble placed within a radius of a tile | Check y against the drawing; a bubble's centre needs radius clearance |

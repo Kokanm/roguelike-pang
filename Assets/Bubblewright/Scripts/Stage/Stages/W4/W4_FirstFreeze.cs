@@ -22,7 +22,7 @@ namespace Bubblewright
         public override int Difficulty => 1;
         public override int MaxStageInWorld => 1;
         public override string Concept => "Two Frost bubbles bounce over bands of ice and normal ground. Wick starts on the wide normal band in the middle.";
-        public override string[] Rows => BlankRows14();
+        public override string[] Rows => BlankRows();
 
         // Bands: ice 0-3, normal 4-7, ice 8-11, normal 12-19, ice 20-23, normal 24-27, ice 28-31.
         public override string Ground => "IIIINNNNIIII" + "NNNNNNNN" + "IIIINNNNIIII";

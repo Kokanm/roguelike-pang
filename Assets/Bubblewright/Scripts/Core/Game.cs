@@ -14,9 +14,8 @@ namespace Bubblewright
     /// losing every heart ends the run, and the next one starts again from stage 1. Drop it on an empty GameObject, or just press Play in any scene: if no Game
     /// exists one is created automatically.
     ///
-    /// Units: 1 unit = 15 art pixels. Floor at y = 0, ceiling at y = 18, walls at x = -16 and +16.
-    /// The screen shows y = -0.4 to 17.6 (groundStrip): the floor's top edge at the bottom, the HUD over the ceiling.
-    /// The thumb controls sit see-through over the bottom corners of the play area.
+    /// Units: 1 unit = 15 art pixels. Floor at y = 0, ceiling at y = 14, walls at x = -16 and +16.
+    /// The ground strip (thumb controls) is y = -4 to 0.
     /// </summary>
     [DefaultExecutionOrder(-100)]
     public partial class Game : MonoBehaviour
@@ -128,8 +127,7 @@ namespace Bubblewright
         }
 
         /// <summary>
-        /// Orthographic camera framing the 32 x 18 unit screen at 480 x 270: the 18 unit arena, shifted down by
-        /// groundStrip so the floor's top edge shows and the same sliver of ceiling hides under the HUD,
+        /// Orthographic camera framing the 32 x 18 unit screen (arena + ground strip) at 480 x 270,
         /// with URP's Pixel Perfect Camera (upscale render texture) when URP is installed.
         /// Wider or taller screens show extra scenery around it.
         /// </summary>

@@ -36,7 +36,7 @@ namespace Bubblewright
         public override string Concept =>
             "Patient floor Clinger Pogos line the long floor. Hop each one and fire down in mid-air, or wake it, step back and shoot it on the ceiling.";
 
-        public override string[] Rows => BlankRows14();
+        public override string[] Rows => BlankRows();
 
         public override string Ground => SolidGround;
 

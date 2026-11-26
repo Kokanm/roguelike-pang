@@ -93,18 +93,16 @@ namespace Bubblewright
         {
             int want = StageMap.StoreyRows * spec.Storeys;
             if (spec.Storeys < 1 || spec.Storeys > 3) return false;
-            // A legacy stage (14 rows per storey) is judged as the game plays it: padded to 18 rows.
-            var tileRows = spec.TileRows;
-            if (tileRows == null || tileRows.Length != want)
+            if (spec.Rows == null || spec.Rows.Length != want)
             {
-                errors.Add($"Rows must be {want} lines of {StageMap.Cols} characters ({StageMap.StoreyRows} per storey, top row first).");
+                errors.Add($"Rows must be {want} lines of {StageMap.Cols} characters (14 per storey, top row first).");
                 return false;
             }
             bool ok = true;
-            for (int i = 0; i < tileRows.Length; i++)
+            for (int i = 0; i < spec.Rows.Length; i++)
             {
-                string line = tileRows[i];
-                int row = tileRows.Length - 1 - i;
+                string line = spec.Rows[i];
+                int row = spec.Rows.Length - 1 - i;
                 if (line == null || line.Length != StageMap.Cols)
                 {
                     errors.Add($"Row {row} must be {StageMap.Cols} characters.");
@@ -140,7 +138,7 @@ namespace Bubblewright
             var guests = new HashSet<BubbleKind>();
 
             if (spec.Rows != null)
-                foreach (var line in spec.TileRows)
+                foreach (var line in spec.Rows)
                 {
                     if (line == null) continue;
                     if (line.IndexOf('B') >= 0 && !gapsAndBreakables)

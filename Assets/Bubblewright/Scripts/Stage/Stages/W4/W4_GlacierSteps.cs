@@ -32,7 +32,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 // Step k (1-4) covers columns 12 - 3k to 14 - 3k (and the mirror), rows 0 to k - 1; its top tile is ice.
                 for (int k = 1; k <= 4; k++)
                 {

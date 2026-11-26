@@ -33,7 +33,7 @@ namespace Bubblewright
             get
             {
                 // Bridge on row 5 from column 6 to 25, with a ladder up each end. Five rows under it for the M bubbles and the ball.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 6, 25, 5, 5, '#');
                 StageSketch.Box(grid, 6, 6, 0, 4, 'H');
                 StageSketch.Box(grid, 25, 25, 0, 4, 'H');

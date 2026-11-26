@@ -36,7 +36,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open14(2);
+                var grid = StageSketch.Open(2);
                 // Storey 2's floor on row 14, with hatches over the corner ladders on columns 3 and 28.
                 StageSketch.Box(grid, 0, 31, 14, 14, '#');
                 for (int y = 0; y <= 14; y++)

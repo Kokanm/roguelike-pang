@@ -20,7 +20,7 @@ namespace Bubblewright
             {
                 // Deck on row 6, holes on columns 9-10 and 21-22, ladders on 4 and 27. A 2-tile hole lets M and S through
                 // and holds L and XL (FilterGapTests).
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 0, 31, 6, 6, '#');
                 StageSketch.Box(grid, 9, 10, 6, 6, '.');
                 StageSketch.Box(grid, 21, 22, 6, 6, '.');

@@ -33,7 +33,7 @@ namespace Bubblewright
             {
                 // Grate on row 1 from column 4 to 27 with one-tile slots on 7, 11, 20 and 24: M and L never fall through.
                 // The wall on columns 15-16 stands on the grate up to the ceiling, so the duct is the only way across.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 4, 27, 1, 1, '#');
                 grid[1][7] = '.';
                 grid[1][11] = '.';
