@@ -42,7 +42,7 @@ namespace Bubblewright
         /// <summary>True while the wall pose shows: clinging, or the first moment of a wall jump's push-off.</summary>
         public bool InWallPose => clingSide != 0;
         /// <summary>World x where the wall pose's hand and boot meet the wall (only meaningful while InWallPose).</summary>
-        public float WallPoseContactX => transform.position.x + rigOffsetX + clingSide * 11.5f * Px;
+        public float WallPoseContactX => transform.position.x + rigOffsetX + clingSide * Tuning.WickBodyHalfPixels * Px;
         /// <summary>Run upgrade (Updraft): extra jumps he can make in the air before he lands again.</summary>
         public int AirJumps { get; set; }
         public int AirJumpsLeft => airJumpsLeft;
@@ -661,7 +661,7 @@ namespace Bubblewright
         {
             if (pos.y < 0f) return 0;
             float reach = T.wallGrabDistance;
-            float wallX = T.HalfWidth - 11.5f * Px;
+            float wallX = T.WickWallX;
             if (pos.x <= -wallX + reach) { wallSurfaceX = -T.HalfWidth; return -1; }
             if (pos.x >= wallX - reach) { wallSurfaceX = T.HalfWidth; return 1; }
             var box = BodyBox(pos.x, pos.y);
@@ -779,7 +779,7 @@ namespace Bubblewright
             float fallX = pos.x;
             Vector3 p = safeSpot;
             float dir = p.x >= fallX ? 1f : -1f;
-            float wallX = T.HalfWidth - 11.5f * Px;
+            float wallX = T.WickWallX;
             Vector3 candidate = p;
             candidate.x = Mathf.Clamp(p.x + dir * T.gapRespawnInset, -wallX, wallX);
             for (int i = 0; i < 40 && !StandsOnSolid(map, candidate.x, candidate.y); i++)
@@ -822,7 +822,7 @@ namespace Bubblewright
 
         void ResolveHorizontal(StageMap map, float prevX, ref Vector3 pos)
         {
-            float half = T.HalfWidth - 11.5f * Px; // keep the drawn body inside the walls
+            float half = T.WickWallX; // keep the drawn body inside the walls
             if (pos.x < -half) { pos.x = -half; VelocityX = 0f; knockTimer = 0f; }
             if (pos.x > half) { pos.x = half; VelocityX = 0f; knockTimer = 0f; }
 
@@ -1039,7 +1039,7 @@ namespace Bubblewright
 
         void ResolveClimbHorizontal(StageMap map, ref Vector3 pos)
         {
-            float half = T.HalfWidth - 11.5f * Px;
+            float half = T.WickWallX;
             pos.x = Mathf.Clamp(pos.x, -half, half);
 
             float halfBox = T.hitbox.x * 0.5f;
@@ -1263,7 +1263,7 @@ namespace Bubblewright
             rigOffsetX = 0f;
             if (side != 0)
             {
-                float offset = wallX - transform.position.x - side * 11.5f * Px;
+                float offset = wallX - transform.position.x - side * Tuning.WickBodyHalfPixels * Px;
                 rigOffsetX = Mathf.Clamp(Mathf.Round(offset * T.pixelsPerUnit), -WallPoseReachPixels, WallPoseReachPixels) * Px;
                 scale = Vector3.one; // any squash would pull the hand and boot off the wall
                 lean = 0f;

@@ -37,6 +37,8 @@ namespace Bubblewright
             hitBubbles.Clear();
             fx.Clear();
             HideHarpoons();
+            HidePathScene();
+            wick.GapDamageEnabled = true;
             wick.ResetForStage(0f, 0f, T.hearts);
             wick.Waving = true;
             freeze = slowMo = shake = 0f;

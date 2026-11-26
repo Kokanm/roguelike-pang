@@ -179,13 +179,17 @@ namespace Bubblewright
         public int hardRewardCards = 4;
         public int hardRewardPicks = 2;
 
-        [Header("Road choice")]
-        [Tooltip("The two doors stand this far left and right of the middle (units).")]
+        [Header("Doors (exit door and road choice)")]
+        [Tooltip("The two road doors on a boss stage stand this far left and right of the middle (units).")]
         public float pathDoorX = 7f;
-        [Tooltip("Seconds after the screen opens before input counts, so a tap meant for the previous screen cannot pick a door.")]
+        [Tooltip("Seconds after the doors take input before Wick can go through one, so a tap meant for the upgrade pick cannot pick a door.")]
         public float pathInputDelay = 0.35f;
-        [Tooltip("Seconds the screen takes to fade to the ground strip colour once Wick reaches his door.")]
+        [Tooltip("Seconds the screen takes to fade to the ground strip colour once Wick goes through a door.")]
         public float pathFadeTime = 0.3f;
+        [Tooltip("Seconds a door takes to slide open once the stage is clear.")]
+        public float doorOpenTime = 0.5f;
+        [Tooltip("Wick goes through a door when his hitbox overlaps this much of the door's middle, each side of its centre (units).")]
+        public float doorEnterHalfWidth = 0.4f;
 
         [Header("Storm timer")]
         [Tooltip("Seconds on the clock = timeBase + timePerWorld * (world - 1) + timePerStage * (stage in world - 1). The clock runs only while playing, not in the intro.")]
@@ -460,6 +464,9 @@ namespace Bubblewright
         public int RunLength => worlds * stagesPerWorld;
         public float HalfWidth => arenaWidth * 0.5f;
         public float Pixel => 1f / pixelsPerUnit;
+        /// <summary>Furthest Wick's feet go from the middle: his drawn body (11.5 px each side) stays inside the walls.</summary>
+        public float WickWallX => HalfWidth - WickBodyHalfPixels * Pixel;
+        public const float WickBodyHalfPixels = 11.5f;
 
         public KindSpec Kind(BubbleKind k)
         {
