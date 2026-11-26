@@ -41,12 +41,11 @@ and every y in `Populate` moves up 4 per storey below it. So a legacy stage play
 of empty headroom on top. `check_stage.py` lists the legacy stages at the end of its run.
 
 **Redesigning a legacy stage** (one world per thread): keep its idea, Concept, difficulty and Id, switch to
-`StageSketch.Open` / `BlankRows`, and use the full height: the whole stage, not just a band of sky. On the same
-day the bubble peaks grew to fill it (XL 17 u, L 14, M 11, S 7.5 above the floor it bounces on; they were 13, 11,
-8.5 and 6), so every legacy stage's bubbles already reach the new rows. Raise decks, roofs, pens and walls that
-were measured against the old ceiling by about 2 to 4 rows, start bubbles 2 to 3 u higher, and move every
-`Populate` y of an upper storey up by 4 per storey (the game did that for you while it was legacy). World 1 was
-redone first (2026-11-25), so its worked examples below use 18-row storeys; copy their row numbers too.
+`StageSketch.Open` / `BlankRows`, and use the full height: the whole stage, not just a band of sky. Bubble peaks
+did not change (XL 13 u above the floor it bounces on), so the top rows only matter if structure puts something
+there: a deck, a terrace or a raised court higher up, a tower, a ceiling for Clingers. Move every `Populate` y of
+an upper storey up by 4 per storey (the game did that for you while it was legacy). The W1 worked examples below
+are legacy too until World 1 is redone; copy their ideas and style, not their row numbers.
 
 ## 1. Write the Stage Design Brief first
 

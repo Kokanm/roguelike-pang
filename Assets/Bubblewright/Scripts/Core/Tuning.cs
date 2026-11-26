@@ -77,10 +77,10 @@ namespace Bubblewright
         [Tooltip("XL, L, M, S. Peak height is the TOP of the bubble above the floor.")]
         public TierSpec[] tiers =
         {
-            new TierSpec { name = "XL", diameter = 3.5f, peakHeight = 17f,  bounceTime = 3.6f, score = 50 },
-            new TierSpec { name = "L",  diameter = 2.5f, peakHeight = 14f,  bounceTime = 3.0f, score = 100 },
-            new TierSpec { name = "M",  diameter = 1.6f, peakHeight = 11f,  bounceTime = 2.6f, score = 150 },
-            new TierSpec { name = "S",  diameter = 0.9f, peakHeight = 7.5f, bounceTime = 1.8f, score = 200 },
+            new TierSpec { name = "XL", diameter = 3.5f, peakHeight = 13f,  bounceTime = 3.0f, score = 50 },
+            new TierSpec { name = "L",  diameter = 2.5f, peakHeight = 11f,  bounceTime = 2.6f, score = 100 },
+            new TierSpec { name = "M",  diameter = 1.6f, peakHeight = 8.5f, bounceTime = 2.2f, score = 150 },
+            new TierSpec { name = "S",  diameter = 0.9f, peakHeight = 6f,   bounceTime = 1.8f, score = 200 },
         };
         public KindSpec[] kinds =
         {

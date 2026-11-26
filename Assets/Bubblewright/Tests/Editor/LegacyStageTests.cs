@@ -83,18 +83,18 @@ namespace Bubblewright.Tests
         [Test]
         public void ALegacyStageBuildsAtTheNewHeightWithItsThingsMoved()
         {
-            var spec = StageSpec.ById("w4_ice_spire");
+            var spec = StageSpec.ById("w1_three_roofs");
             Assert.NotNull(spec);
             Assert.IsTrue(spec.IsLegacy);
             Assert.AreEqual(14 * spec.Storeys, spec.Rows.Length);
             Assert.AreEqual(StageMap.StoreyRows * spec.Storeys, spec.TileRows.Length);
             var plan = spec.Build();
             Assert.AreEqual(StageMap.StoreyRows * spec.Storeys, plan.map.Rows);
-            // Authored at y = 9, 9 on storey 1 and 22, 22, 25 on storey 2: the upper ones move up 4.
+            // Authored at y = 8, 22 and 36: one bubble per storey.
             var ys = new System.Collections.Generic.List<float>();
             foreach (var s in plan.spawns) ys.Add(s.position.y);
             ys.Sort();
-            CollectionAssert.AreEqual(new[] { 9f, 9f, 26f, 26f, 29f }, ys);
+            CollectionAssert.AreEqual(new[] { 8f, 26f, 44f }, ys);
         }
 
         [Test]

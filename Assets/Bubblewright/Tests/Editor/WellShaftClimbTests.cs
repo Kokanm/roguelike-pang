@@ -39,7 +39,7 @@ namespace Bubblewright.Tests
             float side = mirror ? -1f : 1f;
             int wellCol = mirror ? StageMap.Cols - 1 - 26 : 26;
             float wellX = StageMap.CenterX(wellCol);
-            float roofY = StageMap.CellRect(mirror ? 2 : 29, 8).yMax;
+            float roofY = StageMap.CellRect(mirror ? 2 : 29, 6).yMax;
 
             wick.ResetForStage(wellX - side * 4f, 0f, 3);
             for (int i = 0; i < 6; i++) wick.Tick(0f, 0f, false, Dt, true);
