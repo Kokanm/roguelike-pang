@@ -35,7 +35,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 10, 21, 0, 0, 'N');
                 return StageSketch.Lines(grid);
             }

@@ -30,7 +30,7 @@ namespace Bubblewright
             get
             {
                 // Shelf on row 5 from column 10 to 21, a ladder up each end.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 10, 21, 5, 5, '#');
                 StageSketch.Box(grid, 10, 10, 0, 4, 'H');
                 StageSketch.Box(grid, 21, 21, 0, 4, 'H');

@@ -40,7 +40,7 @@ namespace Bubblewright
             get
             {
                 // Deck on row 6, 2-tile holes on 9-10 and 21-22 (they hold XL and L, FilterGapTests), ladders on 4 and 27.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 0, 31, 6, 6, '#');
                 StageSketch.Box(grid, 9, 10, 6, 6, '.');
                 StageSketch.Box(grid, 21, 22, 6, 6, '.');

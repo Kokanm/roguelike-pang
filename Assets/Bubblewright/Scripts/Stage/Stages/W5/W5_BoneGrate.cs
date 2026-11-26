@@ -33,7 +33,7 @@ namespace Bubblewright
             {
                 // Grate on row 6 with 2-tile holes at 7-8, 15-16 and 23-24 (M and S fall through, L and XL stay up).
                 // Ladders up to the grate at columns 2 and 29.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 0, 31, 6, 6, '#');
                 StageSketch.Box(grid, 7, 8, 6, 6, '.');
                 StageSketch.Box(grid, 15, 16, 6, 6, '.');

@@ -30,7 +30,7 @@ namespace Bubblewright
             get
             {
                 // Reliquary walls on columns 11 and 20 and its roof on row 4, all breakable. Inside: columns 12-19, rows 0-3.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 11, 11, 0, 4, 'B');
                 StageSketch.Box(grid, 20, 20, 0, 4, 'B');
                 StageSketch.Box(grid, 12, 19, 4, 4, 'B');

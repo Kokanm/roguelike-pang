@@ -34,7 +34,7 @@ namespace Bubblewright
             get
             {
                 // Roof on row 4 from column 8 to 23 with one-tile slots at 11 and 20. Walls on 8 and 23 with breakable feet.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 8, 23, 4, 4, '#');
                 grid[4][11] = '.';
                 grid[4][20] = '.';

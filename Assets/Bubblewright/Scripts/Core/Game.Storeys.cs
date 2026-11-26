@@ -31,9 +31,9 @@ namespace Bubblewright
             return next;
         }
 
-        /// <summary>World point of the visible top-left corner of the arena (its top edge hides groundStrip under the HUD) once the camera has panned by panY.</summary>
+        /// <summary>World point of the arena's top-left corner once the camera has panned by panY.</summary>
         public static Vector2 HudAnchorWorld(float panY) =>
-            new Vector2(-Tuning.I.HalfWidth, Tuning.I.arenaHeight - Tuning.I.groundStrip + panY);
+            new Vector2(-Tuning.I.HalfWidth, Tuning.I.arenaHeight + panY);
 
         /// <summary>True when enemies on this storey may move and hurt Wick. Before a stage starts, everything may.</summary>
         public bool IsStoreyAwake(int storey)
@@ -97,7 +97,6 @@ namespace Bubblewright
             SetupBoss();
             waveStorey = plan.waveStorey;
             BeginStoreys(plan.wickPosition.y);
-            SetupDoors();
             SetState(State.Intro);
         }
 
@@ -232,7 +231,7 @@ namespace Bubblewright
         }
 
         /// <summary>
-        /// Covers the sliver under the floor of an upper storey so the storey below does not show there.
+        /// Covers the thumb strip so the storey below does not show behind the controls.
         /// Same 6 px floor cap and strip fill as the stage background.
         /// </summary>
         void RebuildFloorStrip()
@@ -241,9 +240,9 @@ namespace Bubblewright
             var theme = CurrentTheme;
             int ppu = T.pixelsPerUnit;
             int w = Mathf.RoundToInt(FloorStripWidth * ppu);
-            int h = Mathf.Max(7, Mathf.RoundToInt(T.groundStrip * ppu)); // at least the 6 px floor cap and its ink line
+            int h = Mathf.RoundToInt(T.groundStrip * ppu);
             var canvas = new PixelCanvas(w, h);
-            if (h > 7) canvas.Rect(0, 0, w, h - 7, theme.strip);
+            canvas.Rect(0, 0, w, h - 7, theme.strip);
             canvas.Rect(0, h - 6, w, 6, theme.tileCap);
             canvas.Rect(0, h - 1, w, 1, Palette.Shade(theme.tileCap, 0.92f));
             canvas.Rect(0, h - 6, w, 1, Palette.Shade(theme.tileCap, 0.7f));
@@ -277,8 +276,7 @@ namespace Bubblewright
             if (floorStrip == null) RebuildFloorStrip();
             if (floorStrip == null) return;
             floorStrip.enabled = camPanY > 0.01f;
-            float below = floorStrip.sprite != null ? floorStrip.sprite.rect.height / T.pixelsPerUnit : T.groundStrip;
-            floorStrip.transform.localPosition = new Vector3(0f, camPanY - below, 0f);
+            floorStrip.transform.localPosition = new Vector3(0f, camPanY - T.groundStrip, 0f);
         }
 
         void OnDestroy()

@@ -36,7 +36,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open14(2);
+                var grid = StageSketch.Open(2);
                 // Crown floor: ice at both ends, normal in the middle, ladder tops on 15 and 16.
                 StageSketch.Box(grid, 0, 31, 14, 14, '#');
                 StageSketch.Box(grid, 0, 8, 14, 14, 'I');

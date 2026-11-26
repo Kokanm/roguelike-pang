@@ -7,9 +7,7 @@ namespace Bubblewright
     /// <summary>
     /// One hand-built stage. Each stage is a sealed [Preserve] subclass in its own file under Stages/W1 to W6.
     /// All finds those classes itself, the same way WeaponSpec finds weapons, so two stages never share a list.
-    /// Rows are 18 per storey, top row first, 32 characters each. Ground is the floor under row 0.
-    /// A stage still drawn with the old 14-row storeys (IsLegacy) is padded to 18 rows on build, and every y it
-    /// places goes up 4 units per storey below it, so it plays as before with 4 more rows of headroom.
+    /// Rows are 14 per storey, top row first, 32 characters each. Ground is the floor under row 0.
     /// </summary>
     public abstract class StageSpec
     {
@@ -29,30 +27,12 @@ namespace Bubblewright
         public abstract string[] Rows { get; }
         public abstract string Ground { get; }
 
-        /// <summary>True while the stage is still drawn with 14-row storeys and waits for its redesign.</summary>
-        public bool IsLegacy
-        {
-            get
-            {
-                var rows = Rows;
-                return rows != null && StageLayout.IsLegacy(rows.Length, false);
-            }
-        }
-
-        /// <summary>Rows as the game reads them: 18 per storey (a legacy stage padded by StageLayout.PadLegacy).</summary>
-        public string[] TileRows => StageLayout.PadLegacy(Rows, false);
-
         protected abstract void Populate(StageBuilder b);
 
         /// <summary>Open rows of dots, top row first. One shared string would alias every row, so each row is its own.</summary>
-        protected static string[] BlankRows(int storeys = 1) => BlankRowsOf(StageMap.StoreyRows, storeys);
-
-        /// <summary>BlankRows at the old 14 rows per storey, for stages not yet redesigned for the 18-row arena.</summary>
-        protected static string[] BlankRows14(int storeys = 1) => BlankRowsOf(StageMap.LegacyStoreyRows, storeys);
-
-        static string[] BlankRowsOf(int rowsPerStorey, int storeys)
+        protected static string[] BlankRows(int storeys = 1)
         {
-            int n = rowsPerStorey * Mathf.Clamp(storeys, 1, 3);
+            int n = StageMap.StoreyRows * Mathf.Clamp(storeys, 1, 3);
             var rows = new string[n];
             for (int i = 0; i < n; i++) rows[i] = new string('.', StageMap.Cols);
             return rows;
@@ -63,11 +43,10 @@ namespace Bubblewright
         /// <summary>The stage as a plan. mirror flips the grid, the ground and every placed thing left to right.</summary>
         public StagePlan Build(bool mirror = false)
         {
-            string[] tileRows = TileRows;
-            string[] rows = mirror ? Mirror(tileRows) : tileRows;
+            string[] rows = mirror ? Mirror(Rows) : Rows;
             string ground = mirror && Ground != null ? Reverse(Ground) : Ground;
             var map = StageLayout.Parse(rows, ground, World == 3 ? Surface.Sand : Surface.Normal);
-            var builder = new StageBuilder(mirror, IsLegacy);
+            var builder = new StageBuilder(mirror);
             Populate(builder);
             return builder.ToPlan(this, map);
         }
@@ -130,7 +109,6 @@ namespace Bubblewright
         public const int TierXL = 0, TierL = 1, TierM = 2, TierS = 3;
 
         readonly bool mirror;
-        readonly bool legacy;
         Vector2 wick;
         readonly List<SpawnSpec> spawns = new List<SpawnSpec>();
         readonly List<SpawnSpec> steelPogos = new List<SpawnSpec>();
@@ -139,13 +117,9 @@ namespace Bubblewright
         readonly List<List<SpawnSpec>> waves = new List<List<SpawnSpec>>();
         int waveStorey = -1;
 
-        internal StageBuilder(bool mirror, bool legacy = false)
-        {
-            this.mirror = mirror;
-            this.legacy = legacy;
-        }
+        internal StageBuilder(bool mirror) { this.mirror = mirror; }
 
-        public void Wick(float x, float y = 0f) => wick = new Vector2(X(x), Y(y));
+        public void Wick(float x, float y = 0f) => wick = new Vector2(X(x), y);
 
         public void WickAtCol(int col, int row = 0) => Wick(StageMap.CenterX(col), row);
 
@@ -179,7 +153,7 @@ namespace Bubblewright
             {
                 tier = tier,
                 x = X(x),
-                surfaceY = Y(surfaceY),
+                surfaceY = surfaceY,
                 direction = Dir(dir),
                 ceramic = ceramic,
                 steel = steel,
@@ -193,7 +167,7 @@ namespace Bubblewright
             spikes.Add(new StageMap.SpikeStrip
             {
                 col = placed,
-                row = legacy ? StageLayout.LegacyRow(row) : row,
+                row = row,
                 width = width,
                 phase = phase ?? spikes.Count * Tuning.I.spikePhaseStep,
             });
@@ -267,7 +241,7 @@ namespace Bubblewright
             {
                 kind = kind,
                 tier = tier,
-                position = new Vector2(X(x), Y(y)),
+                position = new Vector2(X(x), y),
                 direction = Dir(dir),
                 ceramic = ceramic,
                 pogo = pogo,
@@ -277,9 +251,6 @@ namespace Bubblewright
             };
 
         float X(float x) => mirror ? -x : x;
-
-        /// <summary>A legacy (14-row storey) stage's y, moved to where its storey sits in the 18-row arena.</summary>
-        float Y(float y) => legacy ? StageLayout.LegacyY(y) : y;
         int Dir(int dir) => mirror ? -dir : dir;
 
         ClingerMount MirrorMount(ClingerMount mount)

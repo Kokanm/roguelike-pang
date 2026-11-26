@@ -35,7 +35,7 @@ namespace Bubblewright
             get
             {
                 // Two bone pillars hang from the ceiling on columns 6 and 25, rows 8-13.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 6, 6, 8, 13, '#');
                 StageSketch.Box(grid, 25, 25, 8, 13, '#');
                 return StageSketch.Lines(grid);

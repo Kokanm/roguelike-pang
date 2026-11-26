@@ -8,8 +8,7 @@ properties (literal strings, BlankRows(), or StageSketch.Open/Box/Lines code wit
 grid[y][c] writes) and checks only the shape of the stage:
 
   * every row and the ground are 32 characters
-  * Rows has 18, 36 or 54 lines and matches Storeys (or 14, 28 or 42 for a legacy stage drawn
-    before the arena grew to 18 rows; the game pads those, and the summary counts them)
+  * Rows has 14, 28 or 42 lines and matches Storeys
   * only tile characters  . # N I S B H T  and ground characters  = N I S _
   * StageSketch.Box and grid[y][c] writes stay inside the grid
   * the class is sealed, has [Preserve], a non-empty Concept, Id, Name, World and Difficulty
@@ -31,8 +30,7 @@ import sys
 from pathlib import Path
 
 COLS = 32
-STOREY_ROWS = 18
-LEGACY_STOREY_ROWS = 14  # stages drawn before 2026-11-25; StageLayout.PadLegacy pads them to 18
+STOREY_ROWS = 14
 HALF = COLS / 2
 TILE_CHARS = set(".#NISBHT")
 GROUND_CHARS = set("=NIS_")
@@ -181,8 +179,8 @@ class Return(Exception):
 class Grid:
     """StageSketch grid: grid[y][c], y = 0 is the row on the ground."""
 
-    def __init__(self, storeys, per=STOREY_ROWS):
-        self.rows = [["."] * COLS for _ in range(per * storeys)]
+    def __init__(self, storeys):
+        self.rows = [["."] * COLS for _ in range(STOREY_ROWS * storeys)]
 
 
 class Interp:
@@ -762,11 +760,11 @@ class Context:
     def call(self, path, target, name, args, line):
         positional = [a for a in args if not isinstance(a, Named)]
         named = {a.name: a.value for a in args if isinstance(a, Named)}
-        if path in ("StageSketch.Open", "StageSketch.Open14"):
+        if path in ("StageSketch.Open",):
             storeys = (positional + [named.get("storeys", 1)])[0]
             if storeys not in (1, 2, 3):
-                raise EvalError(f"{path}({storeys}): storeys must be 1, 2 or 3", line)
-            return Grid(storeys, LEGACY_STOREY_ROWS if path.endswith("14") else STOREY_ROWS)
+                raise EvalError(f"StageSketch.Open({storeys}): storeys must be 1, 2 or 3", line)
+            return Grid(storeys)
         if path == "StageSketch.Box":
             grid, c0, c1, y0, y1, ch = positional
             if not isinstance(grid, Grid):
@@ -786,10 +784,9 @@ class Context:
         if path == "StageSketch.Lines":
             grid = positional[0]
             return ["".join(r) for r in reversed(grid.rows)]
-        if path in ("BlankRows", "BlankRows14"):
+        if path == "BlankRows":
             storeys = (positional + [named.get("storeys", 1)])[0]
-            per = LEGACY_STOREY_ROWS if path.endswith("14") else STOREY_ROWS
-            return ["." * COLS for _ in range(per * max(1, min(3, storeys)))]
+            return ["." * COLS for _ in range(STOREY_ROWS * max(1, min(3, storeys)))]
         if path == "StageMap.CenterX":
             return -HALF + positional[0] + 0.5
         if path == "StageMap.Col":
@@ -845,8 +842,6 @@ class Stage:
         self.rows = None
         self.ground = None
         self.placements = []
-        self.per = STOREY_ROWS
-        self.legacy = False
 
     def err(self, line, message):
         self.errors.append((line, message))
@@ -991,13 +986,10 @@ def check_stage(stage: Stage):
         else:
             stage.rows = rows
             count = len(rows)
-            per = LEGACY_STOREY_ROWS if count in (14, 28, 42) else STOREY_ROWS
-            stage.per = per
-            stage.legacy = per == LEGACY_STOREY_ROWS
-            if count not in (18, 36, 54, 14, 28, 42):
-                stage.err(r_line, f"Rows has {count} lines; a stage has 18, 36 or 54 (18 per storey, top row first).")
-            elif count != per * storeys:
-                stage.err(r_line, f"Rows has {count} lines but Storeys is {storeys} ({per * storeys} lines).")
+            if count not in (14, 28, 42):
+                stage.err(r_line, f"Rows has {count} lines; a stage has 14, 28 or 42 (14 per storey, top row first).")
+            elif count != STOREY_ROWS * storeys:
+                stage.err(r_line, f"Rows has {count} lines but Storeys is {storeys} ({STOREY_ROWS * storeys} lines).")
             literal_lines = literal_row_lines(stage, r_line, count)
             for i, row in enumerate(rows):
                 r = count - 1 - i
@@ -1060,7 +1052,7 @@ def check_populate(stage: Stage):
     except EvalError as e:
         stage.warn(e.line, f"Populate could not be read past here ({e}); placements after it are not drawn.")
     stage.placements = ctx.placements
-    height = stage.per * stage.storeys
+    height = STOREY_ROWS * stage.storeys
     wick = 0
     for name, v, line in ctx.placements:
         x = v.get("x")
@@ -1098,7 +1090,7 @@ def marks(stage):
     notes = []
 
     def put(col, row, ch):
-        if 0 <= col < COLS and 0 <= row < stage.per * stage.storeys:
+        if 0 <= col < COLS and 0 <= row < STOREY_ROWS * stage.storeys:
             out[(col, row)] = ch
 
     for name, v, line in stage.placements:
@@ -1168,8 +1160,8 @@ def draw(stage) -> str:
         drawn = "".join(over.get((c, r), ch) for c, ch in enumerate(row.ljust(COLS)[:max(COLS, len(row))]))
         flag = "" if len(row) == COLS else f"   <-- {len(row)} chars"
         lines.append(f"  {r:>2}  {drawn}{flag}")
-        if r % stage.per == 0 and r > 0:
-            lines.append(f"      {'-' * COLS}  storey {r // stage.per + 1} above, storey {r // stage.per} below")
+        if r % STOREY_ROWS == 0 and r > 0:
+            lines.append(f"      {'-' * COLS}  storey {r // STOREY_ROWS + 1} above, storey {r // STOREY_ROWS} below")
     if stage.ground is not None:
         flag = "" if len(stage.ground) == COLS else f"   <-- {len(stage.ground)} chars"
         lines.append(f"  gr  {stage.ground}{flag}")
@@ -1202,7 +1194,6 @@ def main(argv=None):
 
     failed = False
     checked = 0
-    legacy = []
     for f in collect(args.paths):
         if f is None:
             failed = True
@@ -1226,8 +1217,6 @@ def main(argv=None):
             except EvalError as e:
                 st.err(e.line or st.class_line, str(e))
             checked += 1
-            if st.legacy:
-                legacy.append(st.cls)
             for line, msg in sorted(st.errors, key=lambda x: x[0] or 0):
                 print(f"ERROR {f}:{line}: {st.cls}: {msg}")
             for line, msg in st.warnings:
@@ -1241,8 +1230,6 @@ def main(argv=None):
             if st.errors:
                 failed = True
     print(f"{'FAILED' if failed else 'OK'}: {checked} stage(s) checked. Structure only; run StageValidatorTests in Unity for the game rules.")
-    if legacy:
-        print(f"LEGACY: {len(legacy)} stage(s) still drawn with 14-row storeys (padded to 18 by the game): {', '.join(legacy)}")
     return 1 if failed else 0
 
 

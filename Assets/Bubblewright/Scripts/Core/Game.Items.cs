@@ -3,46 +3,11 @@ using UnityEngine;
 namespace Bubblewright
 {
     /// <summary>
-    /// The chosen items, now that the footer is gone. During play: a see-through strip of half-size upgrade icons in
-    /// the top right corner, under the score (the held weapon and its ammo stay next to the hearts). On the pause
-    /// screen: every item with its full icon and name, the weapons with their ammo, and the controls.
-    /// Positions come from ItemsLayout, which the fit tests check.
+    /// The chosen items on the pause screen: every item with its full icon and name, the weapons with their ammo,
+    /// and the controls. Positions come from ItemsLayout, which the fit test checks.
     /// </summary>
     public partial class Game
     {
-        void DrawItemStrip(Vector2 topLeft, Vector2 topRight, float pad, float hudDrop, int k)
-        {
-            if (paused || state == State.Pick || state == State.Path || state == State.Over) return;
-            var items = run.BuildItems();
-            if (items.Count == 0) return;
-
-            float alpha = Mathf.Clamp01(T.itemStripAlpha);
-            if (alpha <= 0f) return;
-            var rects = ItemsLayout.Strip(topRight.x - pad, ItemsLayout.StripTop(topLeft.y, pad, hudDrop, k), items.Count, k);
-
-            // A faint plate behind the row, so the icons read on the brightest skies without hiding the stage.
-            var first = rects[0];
-            var plate = new Rect(first.x - k, first.y - k, rects[rects.Length - 1].xMax - first.x + 2 * k, ItemsLayout.StripHeight(k));
-            FillRect(plate, WithAlpha(Palette.Ink, 0.45f * alpha));
-
-            for (int i = 0; i < items.Count; i++)
-            {
-                var (upgrade, count) = items[i];
-                var r = rects[i];
-                GUI.color = new Color(1f, 1f, 1f, alpha);
-                GUI.DrawTexture(r, PlaceholderArt.I.UpgradeMiniIcon(upgrade.Name));
-                GUI.color = Color.white;
-                // One pip per copy taken, under the icon, only when it is stacked.
-                if (count > 1)
-                {
-                    float pipsW = count * k + (count - 1) * k;
-                    float px = r.center.x - pipsW * 0.5f;
-                    for (int p = 0; p < count; p++)
-                        FillRect(new Rect(Mathf.Round(px + p * 2 * k), r.yMax + k, k, k), WithAlpha(Palette.Cream, alpha));
-                }
-            }
-        }
-
         /// <summary>Under the pause buttons: the ITEMS title, a grid of every item, and the controls at the foot.</summary>
         void DrawPauseItems(int k, bool touchUi)
         {

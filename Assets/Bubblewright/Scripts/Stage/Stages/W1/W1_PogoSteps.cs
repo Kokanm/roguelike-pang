@@ -38,8 +38,8 @@ namespace Bubblewright
             b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(11), 0.85f, -1, pogo: true);
             b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(20), 0.85f, 1, pogo: true);
             b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(25), 0.85f, 1, pogo: true);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 5, 11f, -1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 26, 11f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 5, 9f, -1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 26, 9f, 1);
         }
     }
 }

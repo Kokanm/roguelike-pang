@@ -47,7 +47,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open14(2);
+                var grid = StageSketch.Open(2);
                 // Storey 1: crawl tunnel under row 1 from column 10 to 21, firing slots on 12 and 19, divider wall on 15-16.
                 StageSketch.Box(grid, 10, 21, 1, 1, '#');
                 grid[1][12] = '.';

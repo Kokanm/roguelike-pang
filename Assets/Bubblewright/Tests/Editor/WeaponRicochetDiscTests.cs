@@ -226,11 +226,10 @@ namespace Bubblewright.Tests
         [Test]
         public void ItBouncesOffTheCeilingAndTheFloor()
         {
-            float ceiling = Tuning.I.arenaHeight;
-            var d = Field.Launch(new Vector2(0.5f, ceiling - 2f), new Vector2(0f, Tuning.I.discSpeed));
+            var d = Field.Launch(new Vector2(0.5f, 12f), new Vector2(0f, Tuning.I.discSpeed));
             Fly(10);
             Assert.Less(d.Velocity.y, 0f, "off the ceiling");
-            Fly(Frames(ceiling / Tuning.I.discSpeed));
+            Fly(Frames(14f / Tuning.I.discSpeed));
             Assert.Greater(d.Velocity.y, 0f, "off the floor line");
             Assert.AreEqual(2, d.Bounces);
         }

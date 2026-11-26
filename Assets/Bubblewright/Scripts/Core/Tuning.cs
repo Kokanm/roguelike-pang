@@ -16,12 +16,10 @@ namespace Bubblewright
         public Vector2Int referenceResolution = new Vector2Int(480, 270);
         [Tooltip("Play area width. Walls sit at -width/2 and +width/2.")]
         public float arenaWidth = 32f;
-        [Tooltip("Floor is y = 0, ceiling is y = arenaHeight. Must match StageMap.StoreyRows (18): the arena fills the screen.")]
-        public float arenaHeight = 18f;
-        [Tooltip("How much floor shows under y = 0 (units). The old 4 unit thumb strip is gone; this is just the floor's top edge, and the same height of ceiling hides under the HUD.")]
-        public float groundStrip = 0.4f;
-        [Tooltip("How see-through the touch buttons are, now that they sit over the play area (1 solid).")]
-        [Range(0.1f, 1f)] public float touchControlsAlpha = 0.55f;
+        [Tooltip("Floor is y = 0, ceiling is y = arenaHeight.")]
+        public float arenaHeight = 14f;
+        [Tooltip("Strip under the floor that holds the thumb controls.")]
+        public float groundStrip = 4f;
 
         [Header("Storeys")]
         [Tooltip("How fast the camera pans up to the next storey, in units per second. 56 is about a quarter of a second per storey.")]
@@ -58,8 +56,7 @@ namespace Bubblewright
         public float ladderGrabWidth = 0.6f;
 
         [Header("Harpoon")]
-        [Tooltip("Wick's harpoon climb speed in units per second. The other heroes' speeds are in Character.All.")]
-        public float harpoonSpeed = 15f;
+        public float harpoonSpeed = 20f;
         [Tooltip("Hold fire to shoot again as soon as the last shot is gone.")]
         public bool holdToRefire = true;
 
@@ -77,10 +74,10 @@ namespace Bubblewright
         [Tooltip("XL, L, M, S. Peak height is the TOP of the bubble above the floor.")]
         public TierSpec[] tiers =
         {
-            new TierSpec { name = "XL", diameter = 3.5f, peakHeight = 17f,  bounceTime = 3.6f, score = 50 },
-            new TierSpec { name = "L",  diameter = 2.5f, peakHeight = 14f,  bounceTime = 3.0f, score = 100 },
-            new TierSpec { name = "M",  diameter = 1.6f, peakHeight = 11f,  bounceTime = 2.6f, score = 150 },
-            new TierSpec { name = "S",  diameter = 0.9f, peakHeight = 7.5f, bounceTime = 1.8f, score = 200 },
+            new TierSpec { name = "XL", diameter = 3.5f, peakHeight = 13f,  bounceTime = 3.0f, score = 50 },
+            new TierSpec { name = "L",  diameter = 2.5f, peakHeight = 11f,  bounceTime = 2.6f, score = 100 },
+            new TierSpec { name = "M",  diameter = 1.6f, peakHeight = 8.5f, bounceTime = 2.2f, score = 150 },
+            new TierSpec { name = "S",  diameter = 0.9f, peakHeight = 6f,   bounceTime = 1.8f, score = 200 },
         };
         public KindSpec[] kinds =
         {
@@ -141,10 +138,6 @@ namespace Bubblewright
         [Tooltip("Seconds the stage-clear banner takes to drop in.")]
         public float bannerDropTime = 0.4f;
 
-        [Header("HUD")]
-        [Tooltip("How see-through the small item icons in the top right corner are during play (0 hidden, 1 solid). The pause screen lists every item in full.")]
-        [Range(0f, 1f)] public float itemStripAlpha = 0.55f;
-
         [Header("Sound (placeholder, generated in code)")]
         [Range(0f, 1f)] public float volume = 0.7f;
         public bool mute;
@@ -186,17 +179,13 @@ namespace Bubblewright
         public int hardRewardCards = 4;
         public int hardRewardPicks = 2;
 
-        [Header("Doors (exit door and road choice)")]
-        [Tooltip("The two road doors on a boss stage stand this far left and right of the middle (units).")]
+        [Header("Road choice")]
+        [Tooltip("The two doors stand this far left and right of the middle (units).")]
         public float pathDoorX = 7f;
-        [Tooltip("Seconds after the doors take input before Wick can go through one, so a tap meant for the upgrade pick cannot pick a door.")]
+        [Tooltip("Seconds after the screen opens before input counts, so a tap meant for the previous screen cannot pick a door.")]
         public float pathInputDelay = 0.35f;
-        [Tooltip("Seconds the screen takes to fade to the ground strip colour once Wick goes through a door.")]
+        [Tooltip("Seconds the screen takes to fade to the ground strip colour once Wick reaches his door.")]
         public float pathFadeTime = 0.3f;
-        [Tooltip("Seconds a door takes to slide open once the stage is clear.")]
-        public float doorOpenTime = 0.5f;
-        [Tooltip("Wick goes through a door when his hitbox overlaps this much of the door's middle, each side of its centre (units).")]
-        public float doorEnterHalfWidth = 0.4f;
 
         [Header("Storm timer")]
         [Tooltip("Seconds on the clock = timeBase + timePerWorld * (world - 1) + timePerStage * (stage in world - 1). The clock runs only while playing, not in the intro.")]

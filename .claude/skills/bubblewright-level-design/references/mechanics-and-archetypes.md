@@ -15,8 +15,8 @@ _Written from `Tuning`, `Character.All`, `Debuff.All` and `StageValidator`. One 
 | What | Value |
 |---|---|
 | Columns | 32 (`0..31`); column `c` is centred at `x = c - 15.5`, so `x = 0` is the line between columns 15 and 16 |
-| Rows per storey | 18; row `0` stands on the ground, `Rows` lists the top row first |
-| Storeys | 1 to 3: rows `0..17`, `18..35`, `36..53` |
+| Rows per storey | 14; row `0` stands on the ground, `Rows` lists the top row first |
+| Storeys | 1 to 3: rows `0..13`, `14..27`, `28..41` |
 
 ### Wick's body and moves (every hero)
 
@@ -39,10 +39,10 @@ Heavy Boots and Frayed Cable are hard-world debuffs. Sand multiplies walking by 
 
 | Hero | Run u/s | Heavy Boots | On sand + Heavy Boots | Jump reach, Heavy Boots | Same on sand | Harpoon u/s | Frayed Cable | Cables |
 |---|---|---|---|---|---|---|---|---|
-| Wick | 9 | 7.65 | 5.36 | 4.28 u | 3 u | 15 | 12 | 1 |
-| Ember | 10.5 | 8.93 | 6.25 | 5 u | 3.5 u | 18 | 14.4 | 1 |
-| Moss | 7.5 | 6.38 | 4.46 | 3.57 u | 2.5 u | 13.5 | 10.8 | 1 |
-| Flint | 8.5 | 7.23 | 5.06 | 4.05 u | 2.83 u | 12 | 9.6 | 2 |
+| Wick | 9 | 7.65 | 5.36 | 4.28 u | 3 u | 20 | 16 | 1 |
+| Ember | 10.5 | 8.93 | 6.25 | 5 u | 3.5 u | 24 | 19.2 | 1 |
+| Moss | 7.5 | 6.38 | 4.46 | 3.57 u | 2.5 u | 18 | 14.4 | 1 |
+| Flint | 8.5 | 7.23 | 5.06 | 4.05 u | 2.83 u | 16 | 12.8 | 2 |
 
 ### Bubble tiers
 
@@ -50,10 +50,10 @@ Peak is the top of the bubble above the floor it bounces on. Every bubble moves 
 
 | Tier | `StageBuilder` | Diameter | Peak | Lead peak | Bounce time | Lead bounce time | Pops, Gloop | Pops, Trigloop |
 |---|---|---|---|---|---|---|---|---|
-| XL | `TierXL` | 3.5 | 17 | 11.9 | 3.6 s | 2.16 s | 15 | 40 |
-| L | `TierL` | 2.5 | 14 | 9.8 | 3 s | 1.8 s | 7 | 13 |
-| M | `TierM` | 1.6 | 11 | 7.7 | 2.6 s | 1.56 s | 3 | 4 |
-| S | `TierS` | 0.9 | 7.5 | 5.25 | 1.8 s | 1.08 s | 1 | 1 |
+| XL | `TierXL` | 3.5 | 13 | 9.1 | 3 s | 1.8 s | 15 | 40 |
+| L | `TierL` | 2.5 | 11 | 7.7 | 2.6 s | 1.56 s | 7 | 13 |
+| M | `TierM` | 1.6 | 8.5 | 5.95 | 2.2 s | 1.32 s | 3 | 4 |
+| S | `TierS` | 0.9 | 6 | 4.2 | 1.8 s | 1.08 s | 1 | 1 |
 
 ### Bubble kinds
 
@@ -206,8 +206,8 @@ Each names the World 1 stage that shows it, where one exists. Combine at most tw
    top and underside) while bubbles bounce over it. Give the loop a diameter of headroom all round, and keep
    Wick's start out of the orbit.
 8. **Storey Tower Climb** (`W1_BellTower`, `W1_ThreeRoofs`). 2 or 3 storeys; each storey is its own fight. Row
-   `17` (and `35`) is the storey's cap, an invisible ceiling for Wick except at a hatch: an `H` ladder cell on that
-   row. Row `18` (and `36`) is the floor of the storey above, drawn solid with a `T` over each hatch, and `H` runs
+   `13` (and `27`) is the storey's cap, an invisible ceiling for Wick except at a hatch: an `H` ladder cell on that
+   row. Row `14` (and `28`) is the floor of the storey above, drawn solid with a `T` over each hatch, and `H` runs
    from the hatch down to the floor below. The hatch opens when the storey is clear and shuts behind him. No enemy
    within 3 u of where he climbs out.
 

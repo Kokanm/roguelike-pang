@@ -14,9 +14,8 @@ namespace Bubblewright
     /// losing every heart ends the run, and the next one starts again from stage 1. Drop it on an empty GameObject, or just press Play in any scene: if no Game
     /// exists one is created automatically.
     ///
-    /// Units: 1 unit = 15 art pixels. Floor at y = 0, ceiling at y = 18, walls at x = -16 and +16.
-    /// The screen shows y = -0.4 to 17.6 (groundStrip): the floor's top edge at the bottom, the HUD over the ceiling.
-    /// The thumb controls sit see-through over the bottom corners of the play area.
+    /// Units: 1 unit = 15 art pixels. Floor at y = 0, ceiling at y = 14, walls at x = -16 and +16.
+    /// The ground strip (thumb controls) is y = -4 to 0.
     /// </summary>
     [DefaultExecutionOrder(-100)]
     public partial class Game : MonoBehaviour
@@ -128,8 +127,7 @@ namespace Bubblewright
         }
 
         /// <summary>
-        /// Orthographic camera framing the 32 x 18 unit screen at 480 x 270: the 18 unit arena, shifted down by
-        /// groundStrip so the floor's top edge shows and the same sliver of ceiling hides under the HUD,
+        /// Orthographic camera framing the 32 x 18 unit screen (arena + ground strip) at 480 x 270,
         /// with URP's Pixel Perfect Camera (upscale render texture) when URP is installed.
         /// Wider or taller screens show extra scenery around it.
         /// </summary>
@@ -479,7 +477,6 @@ namespace Bubblewright
         {
             wick.Tick(0f, 0f, dt, false);
             TickHarpoons(dt);
-            TickDoors(dt);
             if (!turnedForCelebration && slowMo <= 0f)
             {
                 turnedForCelebration = true;
@@ -491,7 +488,6 @@ namespace Bubblewright
                 wick.Celebrate();
                 fx.Confetti(new Vector2(wick.transform.position.x, wick.FeetY + 2.5f), 40);
                 Sfx.Play(Sound.Clear);
-                OpenDoors(); // the exit door appears, or the road doors show their marks, and they slide open behind the banner
             }
             if (stateTime > 1.2f && input.ConfirmPressed)
             {
@@ -543,7 +539,6 @@ namespace Bubblewright
         void TickPick(float dt)
         {
             wick.Tick(0f, 0f, dt, false);
-            TickDoors(dt);
             int dir = input.Move > 0f ? 1 : input.Move < 0f ? -1 : 0;
             bool moved = dir != 0 && dir != lastMoveDir;
             lastMoveDir = dir;
@@ -791,10 +786,15 @@ namespace Bubblewright
             string cheats = DebugSummary();
             if (cheats != null) Label(cheats, topLeft.x + pad, topLeft.y + pad + (hardDebuff != null ? 26 : 16) * k + hudDrop, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
 
-            // No footer: the chosen items sit see-through in the top right corner, and in full on the pause screen
-            // (Game.Items.cs), where the desktop controls are listed too.
-            DrawItemStrip(topLeft, topRight, pad, hudDrop, k);
             bool touchUi = Application.isMobilePlatform || input.TouchUsed;
+            // The pause screen lists the items and controls in full (Game.Items.cs), so the footer hides while paused.
+            if (!touchUi && !paused)
+            {
+                Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, camPanY - T.groundStrip * 0.5f));
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   I/U: weapon   Pad: stick/d-pad + A, B/Y jump, RT/RB weapon   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   9: weapon crate   F1: hitboxes   F3: next stage",
+                    strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
+                Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
+            }
             string best = newBest ? $"NEW BEST {bestScore}" : $"BEST {bestScore}";
 
             switch (state)

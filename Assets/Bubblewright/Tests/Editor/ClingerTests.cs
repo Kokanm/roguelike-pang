@@ -62,7 +62,7 @@ namespace Bubblewright.Tests
         public void AttachesToTheArenaCeilingAndStaysStillWhenWickIsFarAway()
         {
             var b = Spawn(2, new Vector2(5f, 9f));
-            Assert.AreEqual(StageMap.StoreyRows - b.Radius, b.Position.y, 0.001f);
+            Assert.AreEqual(14f - b.Radius, b.Position.y, 0.001f);
             Assert.AreEqual(ClingerBehavior.State.Stuck, Of(b).Current);
             var start = b.Position;
             Run(b, Tuning.I.clingerMaxStickTime - 0.5f);
@@ -77,7 +77,7 @@ namespace Bubblewright.Tests
             var m = Spawn(2, new Vector2(5.5f, 7f));
             Assert.AreEqual(9f - m.Radius, m.Position.y, 0.001f);
             var xl = Spawn(0, new Vector2(5.5f, 7f));
-            Assert.AreEqual(StageMap.StoreyRows - xl.Radius, xl.Position.y, 0.001f);
+            Assert.AreEqual(14f - xl.Radius, xl.Position.y, 0.001f);
         }
 
         [Test]
@@ -207,7 +207,7 @@ namespace Bubblewright.Tests
             for (int c = 10; c <= 22; c++) map.Set(c, 4, new Cell { kind = TileKind.Solid });
             SetMap(map);
             var l = Spawn(1, new Vector2(0f, 2f)); // an L under row 4 would leave 1.5 units, less than the clearance
-            Assert.AreEqual(StageMap.StoreyRows - l.Radius, l.Position.y, 0.001f);
+            Assert.AreEqual(14f - l.Radius, l.Position.y, 0.001f);
             var m = Spawn(2, new Vector2(1f, 2f)); // an M leaves 2.4 units, enough
             Assert.AreEqual(4f - m.Radius, m.Position.y, 0.001f);
         }

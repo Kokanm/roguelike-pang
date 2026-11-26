@@ -15,9 +15,8 @@ MonoBehaviour:
   pixelsPerUnit: 15
   referenceResolution: {x: 480, y: 270}
   arenaWidth: 32
-  arenaHeight: 18
-  groundStrip: 0.4
-  touchControlsAlpha: 0.55
+  arenaHeight: 14
+  groundStrip: 4
   runSpeed: 9
   accelTime: 0.08
   stopTime: 0.04
@@ -28,28 +27,28 @@ MonoBehaviour:
   invulnerableTime: 1.5
   knockback: 1
   knockbackTime: 0.15
-  harpoonSpeed: 15
+  harpoonSpeed: 20
   holdToRefire: 1
   bubbleSpeedX: 4
   tiers:
   - name: XL
     diameter: 3.5
-    peakHeight: 17
-    bounceTime: 3.6
+    peakHeight: 13
+    bounceTime: 3
     score: 50
   - name: L
     diameter: 2.5
-    peakHeight: 14
-    bounceTime: 3
+    peakHeight: 11
+    bounceTime: 2.6
     score: 100
   - name: M
     diameter: 1.6
-    peakHeight: 11
-    bounceTime: 2.6
+    peakHeight: 8.5
+    bounceTime: 2.2
     score: 150
   - name: S
     diameter: 0.9
-    peakHeight: 7.5
+    peakHeight: 6
     bounceTime: 1.8
     score: 200
   kinds:

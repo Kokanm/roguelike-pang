@@ -3,15 +3,14 @@ using UnityEngine;
 namespace Bubblewright
 {
     /// <summary>
-    /// Where the chosen items go now that the footer is gone: a small see-through strip of half-size icons in the
-    /// top right corner during play (under the score), and a full list with names on the pause screen.
-    /// Pixels are screen pixels; k is the HUD scale (DebugPanelLayout.Scale). The fit tests use the same numbers.
+    /// Where the chosen items go on the pause screen: a full list with icons and names, with the controls at the foot.
+    /// Pixels are screen pixels; k is the HUD scale (DebugPanelLayout.Scale). The fit test uses the same numbers.
     /// </summary>
     public static class ItemsLayout
     {
-        // ---------------------------------------------------------------- play HUD strip
+        // ---------------------------------------------------------------- pause screen
 
-        /// <summary>Most upgrades the strip can hold: one icon for each upgrade that is listed in the build.</summary>
+        /// <summary>Most upgrades the pause list can hold: one icon for each upgrade that is listed in the build.</summary>
         public static int MaxUpgradeItems
         {
             get
@@ -21,26 +20,6 @@ namespace Bubblewright
                 return n;
             }
         }
-
-        /// <summary>One icon cell of the strip: the icon, a 1 px gap, then stack pips (one per copy taken) under it.</summary>
-        public static float StripCell(int k) => (PlaceholderArt.UpgradeMiniIconSize + 1) * k;
-
-        public static float StripHeight(int k) => (PlaceholderArt.UpgradeMiniIconSize + 3) * k;
-
-        /// <summary>Icon rects, right-aligned to <paramref name="right"/>, first item leftmost.</summary>
-        public static Rect[] Strip(float right, float top, int count, int k)
-        {
-            var rects = new Rect[Mathf.Max(0, count)];
-            float cell = StripCell(k), size = PlaceholderArt.UpgradeMiniIconSize * k;
-            float x0 = right - count * cell + k;
-            for (int i = 0; i < rects.Length; i++) rects[i] = new Rect(x0 + i * cell, top, size, size);
-            return rects;
-        }
-
-        /// <summary>The strip's row: under the score, the same row the HARD ROAD label uses on the left.</summary>
-        public static float StripTop(float hudTop, float pad, float hudDrop, int k) => hudTop + pad + 16 * k + hudDrop;
-
-        // ---------------------------------------------------------------- pause screen
 
         public static float PauseTop(float screenHeight, int k) => screenHeight * 0.5f - 40 * k;
         public static float PauseButtonsY(float screenHeight, int k) => PauseTop(screenHeight, k) + 20 * k;
@@ -90,8 +69,8 @@ namespace Bubblewright
         }
 
         /// <summary>
-        /// Null when, with every upgrade taken and both weapon slots full, the strip stays in the right half of the
-        /// arena and the pause list fits between its title and the controls lines. The edit-mode test calls this.
+        /// Null when, with every upgrade taken and both weapon slots full, the pause list fits between its title and
+        /// the controls lines. The edit-mode test calls this.
         /// </summary>
         public static string ValidateSamples()
         {
@@ -101,20 +80,6 @@ namespace Bubblewright
             foreach (var s in screens)
             {
                 int k = DebugPanelLayout.Scale(s.x, s.y);
-                float arenaW = Tuning.I.referenceResolution.x * k;
-                float arenaLeft = (s.x - arenaW) * 0.5f, arenaRight = arenaLeft + arenaW;
-                float pad = 6 * k;
-
-                var strip = Strip(arenaRight - pad, StripTop(0f, pad, 0f, k), upgrades, k);
-                if (strip.Length > 0)
-                {
-                    float centre = s.x * 0.5f;
-                    if (strip[0].xMin < centre + 40 * k)
-                        return $"Item strip starts at x {strip[0].xMin:0}, too close to the timer in the middle ({centre:0}) at {s.x}x{s.y}.";
-                    if (strip[strip.Length - 1].xMax > arenaRight + 0.5f)
-                        return $"Item strip ends past the arena edge at {s.x}x{s.y}.";
-                }
-
                 var grid = PauseGrid(s.x, PauseGridTop(s.y, k), all, k);
                 float bottom = PauseControlsY(s.y, k) - 2 * k;
                 foreach (var r in grid)

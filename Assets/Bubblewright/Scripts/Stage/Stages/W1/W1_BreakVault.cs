@@ -31,8 +31,8 @@ namespace Bubblewright
         protected override void Populate(StageBuilder b)
         {
             b.WickAtCol(7);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 3, 11f, -1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 28, 11f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 3, 9f, -1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 28, 9f, 1);
             b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierL, 14, 2.5f, -1);
             b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierL, 17, 2.5f, 1);
         }

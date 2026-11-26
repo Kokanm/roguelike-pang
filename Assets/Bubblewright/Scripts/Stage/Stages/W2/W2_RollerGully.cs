@@ -36,7 +36,7 @@ namespace Bubblewright
         public override string Concept =>
             "Two-column gullies pen a pearl roller in each outer lane. Hop a gully between its passes to shoot it, while two huge Gloops bounce overhead.";
 
-        public override string[] Rows => BlankRows14();
+        public override string[] Rows => BlankRows();
 
         // Gaps on columns 9-10 and 21-22.
         public override string Ground => "=========__==========__=========";

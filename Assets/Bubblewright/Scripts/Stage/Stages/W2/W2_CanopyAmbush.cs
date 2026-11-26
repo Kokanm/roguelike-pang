@@ -39,7 +39,7 @@ namespace Bubblewright
             get
             {
                 // Two boughs on row 7. Their undersides are 7 u above the floor, so an L Clinger hangs low enough for a quick shot.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 4, 9, 7, 7, '#');
                 StageSketch.Box(grid, 22, 27, 7, 7, '#');
                 return StageSketch.Lines(grid);

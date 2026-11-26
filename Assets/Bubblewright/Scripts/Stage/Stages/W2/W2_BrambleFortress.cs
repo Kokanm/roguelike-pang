@@ -43,7 +43,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 9, 22, 4, 4, '#');   // bunker roof
                 grid[4][11] = '.';                          // firing slots
                 grid[4][14] = '.';

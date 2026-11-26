@@ -31,20 +31,20 @@ namespace Bubblewright.Tests
             var one = StageMap.Flat();
             Assert.AreEqual(1, one.Storeys);
             Assert.AreEqual(StageMap.StoreyRows, one.Rows);
-            Assert.AreEqual(18f, one.Height, 1e-5f);
+            Assert.AreEqual(14f, one.Height, 1e-5f);
             Assert.AreEqual(0, one.StoreyOf(20f), "clamped to its only storey");
 
             var three = StageMap.Flat(3);
             Assert.AreEqual(3, three.Storeys);
-            Assert.AreEqual(54, three.Rows);
-            Assert.AreEqual(54f, three.Height, 1e-5f);
+            Assert.AreEqual(42, three.Rows);
+            Assert.AreEqual(42f, three.Height, 1e-5f);
             Assert.AreEqual(0, three.StoreyOf(-1f));
-            Assert.AreEqual(0, three.StoreyOf(17.9f));
-            Assert.AreEqual(1, three.StoreyOf(18f));
-            Assert.AreEqual(2, three.StoreyOf(53f));
+            Assert.AreEqual(0, three.StoreyOf(13.9f));
+            Assert.AreEqual(1, three.StoreyOf(14f));
+            Assert.AreEqual(2, three.StoreyOf(41f));
             Assert.AreEqual(2, three.StoreyOf(99f));
-            Assert.AreEqual(TileKind.Empty, three.Get(0, 53).kind);
-            Assert.AreEqual(TileKind.Solid, three.Get(0, 54).kind);
+            Assert.AreEqual(TileKind.Empty, three.Get(0, 41).kind);
+            Assert.AreEqual(TileKind.Solid, three.Get(0, 42).kind);
         }
 
         [Test]
@@ -152,7 +152,7 @@ namespace Bubblewright.Tests
             Assert.AreEqual(4, hitRow);
 
             float sky = map.CeilingAbove(-14f, 1f, out int skyRow);
-            Assert.AreEqual(18f, sky, 1e-5f, "a legacy 14-row map is padded to the 18-row storey");
+            Assert.AreEqual(14f, sky, 1e-5f);
             Assert.AreEqual(map.Rows, skyRow);
         }
 
@@ -170,7 +170,7 @@ namespace Bubblewright.Tests
             Assert.IsTrue(map.OverlapsSolid(new Rect(-16.1f, 1f, 1f, 1f)));
             Assert.IsTrue(map.OverlapsSolid(new Rect(15.2f, 1f, 1f, 1f)));
             Assert.IsTrue(map.OverlapsSolid(new Rect(0f, -0.1f, 1f, 1f)));
-            Assert.IsTrue(map.OverlapsSolid(new Rect(0f, 17.5f, 1f, 1f)));
+            Assert.IsTrue(map.OverlapsSolid(new Rect(0f, 13.5f, 1f, 1f)));
 
             Assert.AreEqual(Surface.Sand, map.SurfaceUnder(StageMap.CenterX(3), 0f));
             Assert.AreEqual(Surface.Sand, map.SurfaceUnder(StageMap.CenterX(3), 0.005f));

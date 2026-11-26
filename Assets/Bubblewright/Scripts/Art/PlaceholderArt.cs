@@ -279,45 +279,6 @@ namespace Bubblewright
 
         public const int UpgradeIconSize = 18;
 
-        /// <summary>Half size of an upgrade icon, for the see-through item strip on the play HUD.</summary>
-        public const int UpgradeMiniIconSize = UpgradeIconSize / 2;
-
-        readonly System.Collections.Generic.Dictionary<string, Texture2D> upgradeMiniIcons = new System.Collections.Generic.Dictionary<string, Texture2D>();
-
-        /// <summary>
-        /// The upgrade's icon at half size (9 x 9). Each 2 x 2 block becomes one pixel: the block's most opaque colour
-        /// that is not the ink outline, so the shape keeps its colours instead of turning muddy. Built once, then cached.
-        /// </summary>
-        public Texture2D UpgradeMiniIcon(string name)
-        {
-            if (upgradeMiniIcons.TryGetValue(name, out var tex) && tex != null) return tex;
-            var big = BuildUpgradeIcon(name);
-            var c = new PixelCanvas(UpgradeMiniIconSize, UpgradeMiniIconSize);
-            Color32 ink = Palette.Ink;
-            for (int y = 0; y < UpgradeMiniIconSize; y++)
-                for (int x = 0; x < UpgradeMiniIconSize; x++)
-                {
-                    Color32 best = Palette.Clear;
-                    bool bestIsInk = true;
-                    for (int dy = 0; dy < 2; dy++)
-                        for (int dx = 0; dx < 2; dx++)
-                        {
-                            var p = big.Get(2 * x + dx, 2 * y + dy);
-                            if (p.a == 0) continue;
-                            bool isInk = p.r == ink.r && p.g == ink.g && p.b == ink.b;
-                            if (best.a == 0 || (bestIsInk && !isInk) || (bestIsInk == isInk && p.a > best.a))
-                            {
-                                best = p;
-                                bestIsInk = isInk;
-                            }
-                        }
-                    c.Set(x, y, best);
-                }
-            tex = c.ToTexture("MiniIcon " + name);
-            upgradeMiniIcons[name] = tex;
-            return tex;
-        }
-
         static PixelCanvas BuildUpgradeIcon(string name)
         {
             var c = new PixelCanvas(UpgradeIconSize, UpgradeIconSize);
@@ -914,24 +875,6 @@ namespace Bubblewright
                 doors[i, h] = DoorArt.Paint(Themes.All[i], hard).ToSprite($"Door {Themes.All[i].name}{(hard ? " hard" : " calm")}",
                     new Vector2(DoorArt.Width * 0.5f, 0f), ppu);
             return doors[i, h];
-        }
-
-        readonly Sprite[,,] doorFrames = new Sprite[Themes.All.Length, 3, DoorArt.OpenFrames];
-
-        /// <summary>
-        /// A stage door in a theme's stone with a mark (none, lantern, hard) at one frame of its opening, 0 = shut,
-        /// DoorArt.OpenFrames - 1 = wide open. 30 x 45 px, pivot bottom centre. Built on first use, then cached.
-        /// </summary>
-        public Sprite DoorFrame(Theme theme, DoorMark mark, int frame)
-        {
-            int i = System.Array.IndexOf(Themes.All, theme);
-            if (i < 0) i = 0;
-            int m = (int)mark;
-            int f = Mathf.Clamp(frame, 0, DoorArt.OpenFrames - 1);
-            if (doorFrames[i, m, f] == null || doorFrames[i, m, f].texture == null)
-                doorFrames[i, m, f] = DoorArt.Paint(Themes.All[i], mark, f / (float)(DoorArt.OpenFrames - 1))
-                    .ToSprite($"Door {Themes.All[i].name} {mark} {f}", new Vector2(DoorArt.Width * 0.5f, 0f), ppu);
-            return doorFrames[i, m, f];
         }
 
         // ---------------------------------------------------------------- Scorch flame (13 x 10 body, two frames)

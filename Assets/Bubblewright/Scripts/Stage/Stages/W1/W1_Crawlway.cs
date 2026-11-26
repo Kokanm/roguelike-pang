@@ -23,7 +23,7 @@ namespace Bubblewright
                 StageSketch.Box(grid, 10, 21, 1, 1, '#');
                 grid[1][12] = '.';
                 grid[1][19] = '.';
-                StageSketch.Box(grid, 15, 16, 2, 17, '#');
+                StageSketch.Box(grid, 15, 16, 2, 13, '#');
                 return StageSketch.Lines(grid);
             }
         }
@@ -33,8 +33,8 @@ namespace Bubblewright
         protected override void Populate(StageBuilder b)
         {
             b.WickAtCol(8);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 3, 11f, -1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 28, 11f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 3, 9f, -1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 28, 9f, 1);
         }
     }
 }
