@@ -37,7 +37,9 @@ Rules for all art: 480 x 270 game pixels, 15 px per tile, 1 px ink outline (`1A1
 
 ## Doors (step 14), 30 x 45 px each
 
-Arched frame in the next world's `tileCap` with `tileFill` stone and `tileShade` joints, ink outline, opening in `skyTop`. Calm door: small cream lantern above the arch. Hard door: 9 x 8 px lemon warning triangle with an ink exclamation mark above the arch, and three small steel spikes along the top of the frame. Two doors at x = -7 and x = +7, Wick between them facing the camera.
+Arched frame in the next world's `tileCap` with `tileFill` stone and `tileShade` joints, ink outline, opening in `skyTop`. Calm door: small cream lantern above the arch. Hard door: 9 x 8 px lemon warning triangle with an ink exclamation mark above the arch, and three small steel spikes along the top of the frame. Two doors at x = -7 and x = +7 on the boss stage itself, standing behind the tiles through the fight.
+
+Shut doors (added 2026-11-18): the opening is filled by two plank leaves in `tileShade`, every third column and the inner edge in `tileShade` at 70%, a 1 px steel ring one pixel in from each inner edge at hand height. The leaves slide apart into the frame over 5 frames (`DoorArt.OpenFrames`, `Tuning.doorOpenTime`). During a boss fight both road doors are shut and carry no mark; when the boss falls the lantern and the warning appear and the doors open. The exit door of an ordinary stage is the calm door (lantern) in the current world's stone; it appears shut on the right-most spot Wick can reach on his storey when the stage is clear, then opens.
 
 ## Characters (step 16), 23 x 30 px, same hitbox for all
 
