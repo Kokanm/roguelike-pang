@@ -787,7 +787,8 @@ namespace Bubblewright
             if (cheats != null) Label(cheats, topLeft.x + pad, topLeft.y + pad + (hardDebuff != null ? 26 : 16) * k + hudDrop, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
 
             bool touchUi = Application.isMobilePlatform || input.TouchUsed;
-            if (!touchUi)
+            // The pause screen lists the items and controls in full (Game.Items.cs), so the footer hides while paused.
+            if (!touchUi && !paused)
             {
                 Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, camPanY - T.groundStrip * 0.5f));
                 Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   I/U: weapon   Pad: stick/d-pad + A, B/Y jump, RT/RB weapon   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   9: weapon crate   F1: hitboxes   F3: next stage",
