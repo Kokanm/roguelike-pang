@@ -156,24 +156,16 @@ namespace Bubblewright
             taken.Add(u);
         }
 
-        /// <summary>The upgrades taken so far, each once with how many times, in Upgrade.All order. Heals are not items.</summary>
-        public List<(Upgrade upgrade, int count)> BuildItems()
-        {
-            var items = new List<(Upgrade, int)>();
-            foreach (var u in Upgrade.All)
-            {
-                if (u.Max == 0) continue;
-                int n = TimesTaken(u);
-                if (n > 0) items.Add((u, n));
-            }
-            return items;
-        }
-
         /// <summary>"Twin Cable, Swift Boots x2". Heals are not part of the build.</summary>
         public string BuildSummary()
         {
             var parts = new List<string>();
-            foreach (var (u, n) in BuildItems()) parts.Add(n > 1 ? $"{u.Name} x{n}" : u.Name);
+            foreach (var u in Upgrade.All)
+            {
+                if (u.Max == 0) continue;
+                int n = TimesTaken(u);
+                if (n > 0) parts.Add(n > 1 ? $"{u.Name} x{n}" : u.Name);
+            }
             return parts.Count == 0 ? "nothing yet" : string.Join(", ", parts);
         }
 

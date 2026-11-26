@@ -279,45 +279,6 @@ namespace Bubblewright
 
         public const int UpgradeIconSize = 18;
 
-        /// <summary>Half size of an upgrade icon, for the see-through item strip on the play HUD.</summary>
-        public const int UpgradeMiniIconSize = UpgradeIconSize / 2;
-
-        readonly System.Collections.Generic.Dictionary<string, Texture2D> upgradeMiniIcons = new System.Collections.Generic.Dictionary<string, Texture2D>();
-
-        /// <summary>
-        /// The upgrade's icon at half size (9 x 9). Each 2 x 2 block becomes one pixel: the block's most opaque colour
-        /// that is not the ink outline, so the shape keeps its colours instead of turning muddy. Built once, then cached.
-        /// </summary>
-        public Texture2D UpgradeMiniIcon(string name)
-        {
-            if (upgradeMiniIcons.TryGetValue(name, out var tex) && tex != null) return tex;
-            var big = BuildUpgradeIcon(name);
-            var c = new PixelCanvas(UpgradeMiniIconSize, UpgradeMiniIconSize);
-            Color32 ink = Palette.Ink;
-            for (int y = 0; y < UpgradeMiniIconSize; y++)
-                for (int x = 0; x < UpgradeMiniIconSize; x++)
-                {
-                    Color32 best = Palette.Clear;
-                    bool bestIsInk = true;
-                    for (int dy = 0; dy < 2; dy++)
-                        for (int dx = 0; dx < 2; dx++)
-                        {
-                            var p = big.Get(2 * x + dx, 2 * y + dy);
-                            if (p.a == 0) continue;
-                            bool isInk = p.r == ink.r && p.g == ink.g && p.b == ink.b;
-                            if (best.a == 0 || (bestIsInk && !isInk) || (bestIsInk == isInk && p.a > best.a))
-                            {
-                                best = p;
-                                bestIsInk = isInk;
-                            }
-                        }
-                    c.Set(x, y, best);
-                }
-            tex = c.ToTexture("MiniIcon " + name);
-            upgradeMiniIcons[name] = tex;
-            return tex;
-        }
-
         static PixelCanvas BuildUpgradeIcon(string name)
         {
             var c = new PixelCanvas(UpgradeIconSize, UpgradeIconSize);

@@ -786,10 +786,14 @@ namespace Bubblewright
             string cheats = DebugSummary();
             if (cheats != null) Label(cheats, topLeft.x + pad, topLeft.y + pad + (hardDebuff != null ? 26 : 16) * k + hudDrop, UiText.Warning, TextAnchor.UpperLeft, 300 * k);
 
-            // No footer: the chosen items sit see-through in the top right corner, and in full on the pause screen
-            // (Game.Items.cs), where the desktop controls are listed too.
-            DrawItemStrip(topLeft, topRight, pad, hudDrop, k);
             bool touchUi = Application.isMobilePlatform || input.TouchUsed;
+            if (!touchUi)
+            {
+                Vector2 strip = WorldToGui(new Vector2(-T.HalfWidth, camPanY - T.groundStrip * 0.5f));
+                Label("A/D or Left/Right: move   W/S or Up/Down: climb   Space: fire   L/Shift: jump   I/U: weapon   Pad: stick/d-pad + A, B/Y jump, RT/RB weapon   1-4: spawn   5: roller   6: steel   7: ceramic   8: ceramic roller   9: weapon crate   F1: hitboxes   F3: next stage",
+                    strip.x + pad, strip.y - 10 * k, UiText.Secondary, TextAnchor.UpperLeft, Screen.width);
+                Label($"BUILD: {run.BuildSummary()}", strip.x + pad, strip.y + 2 * k, UiText.Primary, TextAnchor.UpperLeft, Screen.width);
+            }
             string best = newBest ? $"NEW BEST {bestScore}" : $"BEST {bestScore}";
 
             switch (state)
