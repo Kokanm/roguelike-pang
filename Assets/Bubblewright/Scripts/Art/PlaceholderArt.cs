@@ -877,6 +877,24 @@ namespace Bubblewright
             return doors[i, h];
         }
 
+        readonly Sprite[,,] doorFrames = new Sprite[Themes.All.Length, 3, DoorArt.OpenFrames];
+
+        /// <summary>
+        /// A stage door in a theme's stone with a mark (none, lantern, hard) at one frame of its opening, 0 = shut,
+        /// DoorArt.OpenFrames - 1 = wide open. 30 x 45 px, pivot bottom centre. Built on first use, then cached.
+        /// </summary>
+        public Sprite DoorFrame(Theme theme, DoorMark mark, int frame)
+        {
+            int i = System.Array.IndexOf(Themes.All, theme);
+            if (i < 0) i = 0;
+            int m = (int)mark;
+            int f = Mathf.Clamp(frame, 0, DoorArt.OpenFrames - 1);
+            if (doorFrames[i, m, f] == null || doorFrames[i, m, f].texture == null)
+                doorFrames[i, m, f] = DoorArt.Paint(Themes.All[i], mark, f / (float)(DoorArt.OpenFrames - 1))
+                    .ToSprite($"Door {Themes.All[i].name} {mark} {f}", new Vector2(DoorArt.Width * 0.5f, 0f), ppu);
+            return doorFrames[i, m, f];
+        }
+
         // ---------------------------------------------------------------- Scorch flame (13 x 10 body, two frames)
 
         /// <summary>Three pointed tongues in the Scorch colour with a paler core and two cream pixels at the base. Pivot: bottom centre.</summary>
