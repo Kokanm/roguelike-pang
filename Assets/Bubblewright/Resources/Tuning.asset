@@ -27,7 +27,7 @@ MonoBehaviour:
   invulnerableTime: 1.5
   knockback: 1
   knockbackTime: 0.15
-  harpoonSpeed: 15
+  harpoonSpeed: 20
   holdToRefire: 1
   bubbleSpeedX: 4
   tiers:

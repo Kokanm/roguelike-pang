@@ -270,9 +270,7 @@ namespace Bubblewright.Tests
             Assert.IsTrue(Press());
             var up = Active();
             foreach (var h in up) h.HoldTime = 0.5f;
-            // From y = 1 to the ceiling at veeAngle is about 15 u of cable; wait a quarter second past that.
-            float reach = (Tuning.I.arenaHeight - 1f) / Mathf.Cos(Tuning.I.veeAngle * Mathf.Deg2Rad) / Tuning.I.harpoonSpeed;
-            Tick(Mathf.CeilToInt((reach + 0.25f) / Dt));
+            Tick(60); // 1 s: both have reached the ceiling (15 u at 20 u/s takes 0.75 s)
             Assert.IsTrue(up[0].Active && up[1].Active, "hooked");
             Tick(30);
             Assert.IsFalse(up[0].Active || up[1].Active, "let go after the hold time");
