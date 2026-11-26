@@ -20,6 +20,18 @@ namespace Bubblewright.Tests
             return false;
         }
 
+        static bool HasColourInOpening(PixelCanvas c, Color32 col)
+        {
+            for (int y = 0; y < c.Height; y++)
+                for (int x = 0; x < c.Width; x++)
+                {
+                    if (!DoorArt.InOpening(x, y)) continue;
+                    var p = c.Get(x, y);
+                    if (p.r == col.r && p.g == col.g && p.b == col.b && p.a > 0) return true;
+                }
+            return false;
+        }
+
         static bool Colour(Color32 p) =>
             p.a > 0 && (p.r != Palette.Ink.r || p.g != Palette.Ink.g || p.b != Palette.Ink.b);
 
@@ -89,9 +101,11 @@ namespace Bubblewright.Tests
             {
                 var shut = DoorArt.Paint(theme, DoorMark.None, 0f);
                 var open = DoorArt.Paint(theme, DoorMark.None, 1f);
-                Assert.IsFalse(HasColour(shut, theme.skyTop), $"{theme.name}: the leaves cover the dark opening");
-                Assert.IsTrue(HasColour(shut, Palette.Steel), $"{theme.name}: ring handles");
-                Assert.IsTrue(HasColour(open, theme.skyTop), $"{theme.name}: open door shows the opening");
+                // Check inside the opening rather than the whole canvas: Rooftops uses Palette.Ink for skyTop,
+                // which also appears on the outer 1 px outline.
+                Assert.IsFalse(HasColourInOpening(shut, theme.skyTop), $"{theme.name}: the leaves cover the dark opening");
+                Assert.IsTrue(HasColourInOpening(shut, Palette.Steel), $"{theme.name}: ring handles");
+                Assert.IsTrue(HasColourInOpening(open, theme.skyTop), $"{theme.name}: open door shows the opening");
             }
         }
 
