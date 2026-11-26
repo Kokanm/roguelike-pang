@@ -19,12 +19,12 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open14(3);
-                StageSketch.Box(grid, 0, 31, 14, 14, '#');
-                StageSketch.Box(grid, 0, 31, 28, 28, '#');
-                for (int y = 0; y <= 28; y++) grid[y][4] = y == 14 || y == 28 ? 'T' : 'H';
-                StageSketch.Box(grid, 20, 31, 16, 16, '#');
-                StageSketch.Box(grid, 20, 31, 30, 30, '#');
+                var grid = StageSketch.Open(3);
+                StageSketch.Box(grid, 0, 31, 18, 18, '#');
+                StageSketch.Box(grid, 0, 31, 36, 36, '#');
+                for (int y = 0; y <= 36; y++) grid[y][4] = y == 18 || y == 36 ? 'T' : 'H';
+                StageSketch.Box(grid, 20, 31, 20, 20, '#');
+                StageSketch.Box(grid, 20, 31, 38, 38, '#');
                 return StageSketch.Lines(grid);
             }
         }
@@ -34,9 +34,9 @@ namespace Bubblewright
         protected override void Populate(StageBuilder b)
         {
             b.WickAtCol(12);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 22, 8f, 1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 16, 22f, 1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 16, 36f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 22, 11f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 16, 30f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 16, 48f, 1);
         }
     }
 }

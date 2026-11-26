@@ -19,11 +19,11 @@ namespace Bubblewright
             get
             {
                 // Tunnel under row 1 from column 10 to 21, firing slots at 12 and 19, divider wall up to the ceiling on 15 and 16.
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 10, 21, 1, 1, '#');
                 grid[1][12] = '.';
                 grid[1][19] = '.';
-                StageSketch.Box(grid, 15, 16, 2, 13, '#');
+                StageSketch.Box(grid, 15, 16, 2, 17, '#');
                 return StageSketch.Lines(grid);
             }
         }
@@ -33,8 +33,8 @@ namespace Bubblewright
         protected override void Populate(StageBuilder b)
         {
             b.WickAtCol(8);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 3, 9f, -1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 28, 9f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 3, 11f, -1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 28, 11f, 1);
         }
     }
 }

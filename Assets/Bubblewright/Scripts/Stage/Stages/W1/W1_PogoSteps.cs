@@ -18,7 +18,7 @@ namespace Bubblewright
         {
             get
             {
-                var grid = StageSketch.Open14();
+                var grid = StageSketch.Open();
                 StageSketch.Box(grid, 2, 3, 0, 0, '#');
                 grid[1][3] = '#';
                 StageSketch.Box(grid, 28, 29, 0, 0, '#');
@@ -38,8 +38,8 @@ namespace Bubblewright
             b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(11), 0.85f, -1, pogo: true);
             b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(20), 0.85f, 1, pogo: true);
             b.Bubble(BubbleKind.Gloop, StageBuilder.TierM, StageMap.CenterX(25), 0.85f, 1, pogo: true);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 5, 9f, -1);
-            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 26, 9f, 1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 5, 11f, -1);
+            b.BubbleAt(BubbleKind.Gloop, StageBuilder.TierXL, 26, 11f, 1);
         }
     }
 }
