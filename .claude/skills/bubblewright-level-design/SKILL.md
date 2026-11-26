@@ -106,10 +106,6 @@ under the class `<summary>`, so a reviewer can read it next to the grid.
 * **Structure:** prefer mirror symmetry about `x = 0` (column 15 | 16), twin chambers, or a rhythm of repeated
   pieces. Asymmetry is fine when it is the point (terraces, a tower), never by accident. The game mirrors stages
   at random (`CanMirror`), so a lopsided idea still reads both ways.
-* **The exit door is placed for you:** when the stage is clear a 2 u wide, 3 u tall door appears on the right-most
-  spot Wick can reach on the storey he is on (`StageValidator.ExitDoorSpot`, standing spots first), and he walks
-  through it to leave. Do not author a door. Do give the top storey a reachable spot with standing headroom near the
-  right wall if you can, so the door reads as "the way on"; a door tucked under a shelf still works.
 * **Touch controls come first:** leave a comfortable margin for every jump, slot and safe lane. No pixel-precise
   moves. A gap at the reach limit is a bad gap; give Moss slack.
 * **Puzzle Clingers are patient** (`patient: true` is the default in `b.Clinger` and `b.FloorClinger`); pass

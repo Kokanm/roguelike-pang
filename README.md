@@ -58,7 +58,7 @@ Timings come from the sheet's animation table and live in `Tuning.asset` under *
 | Fire (hold to keep firing) | Hold anywhere in the right half (the mint button) | Space, J or K | A / Cross or X / Square |
 | Weapon (only while Wick holds one; Down in the air fires down) | Tap the third mint button, left of the jump button, with the weapon icon and ammo | I or U | RT or RB |
 | Jump (also off walls; fire works in the air, Down + fire shoots down) | Tap the round arrow button left of the fire button | L, Left Shift or Right Shift | B / Circle or Y / Triangle |
-| Menu / continue / pick a card or a door | Tap (doors: walk in, or tap one) | Arrows or WASD, then Enter, Space or R (cards: 1-3); doors: walk in, or 1-2 | Left stick or d-pad, then A or Start; doors: walk in |
+| Menu / continue / pick a card or a door | Tap | Arrows or WASD, then Enter, Space or R (cards: 1-3, doors: 1-2) | Left stick or d-pad, then A or Start |
 | Back (character select) | Tap a card to start; no back button | Esc | B / Circle |
 | Pause | Top-right pause button | Esc or P (F2 opens debug) | Start |
 | Toggle test layout (debug) | Debug panel | F3 or debug panel | Debug panel |
@@ -100,9 +100,9 @@ A boss mixes three attacks, each on its own timer (the first aimed shot comes 1.
 
 CINDER TYRANT enrages below half health: its speed and every attack rate go up by 1.3 times. These six are placeholders; the whole table is `BossSpec.ForWorld` in `Scripts/Bosses/BossSpec.cs`, and the shared numbers are in Tuning > Bosses. On a boss stage the debug panel has **AIMED**, **BOUNCY** and **BALLOON** buttons that fire one attack, and **BOSS -5 HP** takes off five health.
 
-### Exit doors and the left or right road
+### The left or right road
 
-Every ordinary stage ends at a door: when the last bubble pops, a door appears on the right of Wick's storey (the right-most spot he can reach) and slides open during the celebration. After the upgrade pick he walks, climbs or jumps to it (nothing can hurt him now, and he cannot fire) and walks through; the screen fades and the next stage starts, which is when the run is saved. The boss of each world except the last (stages 6, 12, 18, 24 and 30) has two doors instead, standing shut and unmarked in the next world's stone behind the whole fight. When the boss falls they open and show their marks, and after the pick each gets a card. One of them, chosen at random from the run seed, is the hard road for the whole next world: it carries a random debuff (never the one the finished world had), and its card spells out the numbers and the reward. The other door changes nothing. Walk through the one you want, or press 1 (left) or 2 (right), or tap or click a door or its card and Wick runs to it. The final boss has no doors: the run is complete. A row of six squares at the top shows the worlds so far (mint calm, lemon hard, outline not reached, cream bracket on the world in question); it appears on this screen and on the pause screen. The numbers live in `Tuning` under **Doors** and **Hard worlds**. The code is in `Scripts/Core/Game.Path.cs`, the door art in `Scripts/Art/DoorArt.cs`.
+After the upgrade pick that follows each boss except the last one (stages 6, 12, 18, 24 and 30), two doors stand in front of the next world's scenery. One of them, chosen at random from the run seed, is the hard road for the whole next world: it carries a random debuff (never the one the finished world had), and its card spells out the numbers and the reward. The other door changes nothing. Choose with left/right and Enter, Space or pad A, keys 1 (left) and 2 (right), or a tap or click on a door or its card; Wick then runs into the door and the screen fades. A row of six squares at the top shows the worlds so far (mint calm, lemon hard, outline not reached, cream bracket on the world in question); it appears on this screen and on the pause screen. The numbers live in `Tuning` under **Road choice** and **Hard worlds**. The code is in `Scripts/Core/Game.Path.cs`, the door art in `Scripts/Art/DoorArt.cs`.
 
 ### Weapons (framework)
 

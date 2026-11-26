@@ -477,7 +477,6 @@ namespace Bubblewright
         {
             wick.Tick(0f, 0f, dt, false);
             TickHarpoons(dt);
-            TickDoors(dt);
             if (!turnedForCelebration && slowMo <= 0f)
             {
                 turnedForCelebration = true;
@@ -489,7 +488,6 @@ namespace Bubblewright
                 wick.Celebrate();
                 fx.Confetti(new Vector2(wick.transform.position.x, wick.FeetY + 2.5f), 40);
                 Sfx.Play(Sound.Clear);
-                OpenDoors(); // the exit door appears, or the road doors show their marks, and they slide open behind the banner
             }
             if (stateTime > 1.2f && input.ConfirmPressed)
             {
@@ -541,7 +539,6 @@ namespace Bubblewright
         void TickPick(float dt)
         {
             wick.Tick(0f, 0f, dt, false);
-            TickDoors(dt);
             int dir = input.Move > 0f ? 1 : input.Move < 0f ? -1 : 0;
             bool moved = dir != 0 && dir != lastMoveDir;
             lastMoveDir = dir;

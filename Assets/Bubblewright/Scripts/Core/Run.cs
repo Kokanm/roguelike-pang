@@ -71,16 +71,10 @@ namespace Bubblewright
         public bool IsRichPick => IsBossStage && IsHard;
 
         /// <summary>
-        /// Whether this stage ends with the left or right choice: the boss of worlds 1 to 5 shows both road doors during
-        /// the fight and opens them when it falls. Never the last boss and never any other stage.
+        /// Whether the left or right choice comes after this stage: after the boss of worlds 1 to 5, never after the
+        /// last boss and never after any other stage.
         /// </summary>
         public static bool PathFollows(int stage) => IsBossStageNumber(stage) && stage < Tuning.I.RunLength;
-
-        /// <summary>
-        /// Doors Wick leaves a cleared stage through: one exit door on every ordinary stage, the two road doors on the
-        /// boss of worlds 1 to 5, and none after the final boss, where the run is complete.
-        /// </summary>
-        public static int DoorCount(int stage) => PathFollows(stage) ? 2 : IsBossStageNumber(stage) ? 0 : 1;
 
         /// <summary>One of the two doors is the hard road. It carries a debuff for the whole next world.</summary>
         public readonly struct RoadChoice

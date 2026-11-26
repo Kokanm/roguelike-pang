@@ -97,7 +97,6 @@ namespace Bubblewright
             SetupBoss();
             waveStorey = plan.waveStorey;
             BeginStoreys(plan.wickPosition.y);
-            SetupDoors();
             SetState(State.Intro);
         }
 
