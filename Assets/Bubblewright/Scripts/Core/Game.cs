@@ -412,6 +412,7 @@ namespace Bubblewright
 
             spikes?.Tick(dt);
             TickFrost(dt);
+            TickArena(dt);
             Flames?.Tick(Map, dt);
 
             if (!debug.god && !wick.Invulnerable && !wick.Dead)

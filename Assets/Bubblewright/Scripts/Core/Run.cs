@@ -382,6 +382,8 @@ namespace Bubblewright
         }
         /// <summary>Which storey the reinforcement waves belong to. Negative means the top storey.</summary>
         public int waveStorey = -1;
+        /// <summary>True when the plan is a boss arena (a StageSpec with IsBossArena): hatches open by boss phase.</summary>
+        public bool isBossArena;
         /// <summary>The layout's name, for the balance page.</summary>
         public string layoutName;
         /// <summary>The authored stage, when this plan came from a StageSpec.</summary>

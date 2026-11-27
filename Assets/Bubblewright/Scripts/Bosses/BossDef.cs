@@ -19,6 +19,13 @@ namespace Bubblewright
         public abstract Vector2 Size { get; }
         /// <summary>The id of the authored arena StageSpec this boss fights in; null for the plain boss arena.</summary>
         public virtual string ArenaId => null;
+        /// <summary>Where the boss's centre starts in its arena. Null (the legacy boss) skips the validator's start check.</summary>
+        public virtual Vector2? StartSpot => null;
+        /// <summary>
+        /// World points of the cores Wick must be able to hit from the floor or a platform with the base moves.
+        /// The validator checks each one is reachable. Cores a boss brings to Wick (it lands next to him) are not listed.
+        /// </summary>
+        public virtual IReadOnlyList<Vector2> CoreSpots => System.Array.Empty<Vector2>();
         /// <summary>The storm clock of the fight in seconds. Tuning.bossTime unless the boss overrides it.</summary>
         public virtual float Clock => Tuning.I.bossTime;
         /// <summary>The clock on the hard road, which scales it like any stage.</summary>

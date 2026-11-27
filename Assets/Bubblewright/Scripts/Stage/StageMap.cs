@@ -30,11 +30,14 @@ namespace Bubblewright
     {
         public const int Cols = 32;
 
+        /// <summary>Most storeys a map can stack. Only boss arenas use more than <see cref="StageSpec.MaxOrdinaryStoreys"/>.</summary>
+        public const int MaxStoreys = 5;
+
         /// <summary>Rows in one storey: one screen of arena.</summary>
         public const int StoreyRows = 14;
         const float HalfWidth = Cols * 0.5f;
 
-        /// <summary>How many storeys this map stacks (1 to 3).</summary>
+        /// <summary>How many storeys this map stacks (1 to 5; ordinary stages stay at 1 to 3).</summary>
         public int Storeys { get; }
 
         /// <summary>Rows in this map: StoreyRows for each storey.</summary>
@@ -67,7 +70,7 @@ namespace Bubblewright
 
         public StageMap(int storeys = 1)
         {
-            Storeys = Mathf.Clamp(storeys, 1, 3);
+            Storeys = Mathf.Clamp(storeys, 1, MaxStoreys);
             cells = new Cell[Cols, Rows];
             hatchOpen = new bool[Cols, Rows];
         }

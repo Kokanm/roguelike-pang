@@ -397,6 +397,18 @@ namespace Bubblewright
         [Tooltip("How many ground columns each side of Wick's start are kept safe at first.")]
         public int frostSafeHalfWidth = 2;
 
+        [Header("Boss arenas")]
+        [Tooltip("Seconds a balloon pipe flashes before its Gloop comes out.")]
+        public float pipeFlashTime = 0.5f;
+        [Tooltip("Distance from the middle to the top-left and top-right pipes, in units.")]
+        public float pipeOffsetX = 10f;
+        [Tooltip("Units under the storey's ceiling where a pipe's Gloop appears.")]
+        public float pipeDropY = 1.8f;
+        [Tooltip("Height in units Wick is thrown up when a rising hazard (lava) touches him.")]
+        public float hazardThrowHeight = 6f;
+        [Tooltip("Seconds a temporary tile blinks (crumbles) before it is gone.")]
+        public float tempTileWarn = 0.6f;
+
         [Header("Clinger")]
         [Tooltip("A stuck Clinger starts to wobble when Wick crosses the lane straight out from the surface it holds, this close to its centre line (units). Under a ceiling, Wick's centre x; on a floor, Wick's centre x; on a wall, the gap between its centre and Wick's box vertically.")]
         public float clingerTriggerX = 1.5f;

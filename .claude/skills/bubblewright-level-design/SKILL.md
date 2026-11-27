@@ -5,8 +5,8 @@ description: Use when creating, editing, reviewing or balancing a Bubblewright s
 
 # Bubblewright level design
 
-Stages are hand-built puzzles: one sealed `StageSpec` class per file, a 32 x 14 grid per storey, and a
-`Populate` that places Wick and the enemies. `StageValidator` (run by `StageValidatorTests` in Unity) is the
+Stages are hand-built puzzles: one sealed `StageSpec` class per file, a 32 x 14 grid per storey (1 to 3 for a stage, up
+to 5 for a boss arena, see section 6), and a `Populate` that places Wick and the enemies. `StageValidator` (run by `StageValidatorTests` in Unity) is the
 judge of every game rule. This skill gives you the rules and numbers so you design a stage that passes the first
 time, without re-deriving them from the engine code.
 
@@ -247,7 +247,7 @@ python3 .claude/skills/unity-csharp-scripting/scripts/check_unity_project.py .
 unity test . --mode EditMode --filter "Bubblewright.Tests.StageValidatorTests" --output Temp/validator.xml
 ```
 
-* `check_stage.py` checks only the shape (32 columns, 14/28/42 rows, characters, `[Preserve]`, sealed,
+* `check_stage.py` checks only the shape (32 columns, 14/28/42 rows (up to 70 for a boss arena), characters, `[Preserve]`, sealed,
   `Concept`, writes inside the grid, placements inside the arena). `--show` draws the stage on a ruler with Wick
   (`@`), bubbles (`X L M S`, Clingers lower case) and rollers (`r`). **Look at the drawing** and walk the hitless
   plan on it: it is the fastest way to catch a wrong row or a bubble inside a wall.
@@ -265,6 +265,48 @@ unity test . --mode EditMode --filter "Bubblewright.Tests.StageValidatorTests" -
 
 When you finish, report: the brief, the file path, the `--show` drawing, and which checks ran and which did not.
 Kokan play-tests every world; whatever he corrects becomes a rule here, so fix the skill, not just the stage.
+
+## 6. Boss arenas
+
+A boss arena is a `StageSpec` with `IsBossArena => true` under `Stages/Bosses/` (`W<world>_<BossName>.cs`, id
+`w<world>_<snake_name>`). A boss's `BossDef.ArenaId` names it; until a boss has its own, `W1..W6_BossArena` are flat
+placeholders (today's floor). Everything above holds (32 x 14 grid per storey, tiles, `Populate`, the
+`check_stage.py` shape check) except where this section says otherwise. Read the spec's section for your boss first.
+
+| Rule | Ordinary stage | Boss arena |
+|---|---|---|
+| Storeys | 1 to 3 | **1 to 5** (`Rows` 14 to 70 lines; `StageSketch.Open(5)`) |
+| Picked for a slot | yes, by `StagePicker` | never: `StageSpec.All` leaves it out, `StageSpec.BossArenas` and `ById` find it |
+| Enemies | every storey needs a required one; pop band | none: the boss is the enemy. No `b.Bubble`, rollers or waves in `Populate` (a boss's pipe drops Gloops) |
+| Hatch opens when | the storey's bubbles are gone | **a boss phase ends**: the `BossPhase` sets `opensHatch = storey` (0 is the ground storey), `Game.Arena.OpenHatch` does the rest; it still shuts behind Wick, who never goes back down |
+| Difficulty, slot bounds, unlocks, Lucky, guest | enforced | not used; set `Difficulty => 4`. Keep the world's own tiles (sand only in W3, ice only in W4, spikes only in W6) |
+| Mirror | `CanMirror` true by default | `CanMirror => false`: a boss's moves and start spot are authored left to right |
+
+* **Draw hatches like a storey climb** (the `T` over each `H`, as `W1_BellTower`), one per storey, wide apart from the
+  boss's route. The hatch is shut until its phase ends, so Wick fights on that storey until then: give every storey a
+  floor to fight on, a ladder or wall-jump route, and cover from the boss's attacks.
+* **The boss breaks the arena, shots do not.** A boss may break any tile (`BossBreakTile`: solid, breakable, any
+  health) and may add short-lived ice or sand blocks, open the floor, raise lava and change surfaces. Shots still break
+  only `B`. So draw the arena as it starts: what the boss will break is a plan in the boss's file, not `B` tiles.
+  Wick must never be left with no way up or out: leave a ladder or a wall-jump shaft that no boss move breaks.
+* **Arena events** (all on `Game.Arena`, an `ArenaEvents`, undone at the next stage because the map is rebuilt):
+  `BreakTile(c, r)`; `AddTempTile(c, r, kind, surface, life)` (an empty, ladder-free cell, never one Wick stands in;
+  it blinks for the last `tempTileWarn` s, then goes); `OpenFloorGap(c0, c1)` (ground columns, row -1 is the
+  ground); `StartRisingHazard(startY, speed, stopY)` (a lava line that rises and stops; touching it costs a heart and
+  throws Wick up `hazardThrowHeight` units); `SetSurface(c, r, Surface)` (r = -1 for the ground);
+  `FirePipe(PipeSpot, tier, storey)`.
+* **Balloon pipes** sit at `PipeSpot.TopLeft`, `TopRight` or `TopMiddle` (`pipeOffsetX` from the middle), drawn at the
+  top of the storey they name. A pipe flashes `pipeFlashTime` (0.5 s), then drops a Gloop of the tier, heading for the
+  middle. Keep the pipe's column clear of tiles under the ceiling; the Gloop appears `pipeDropY` under it.
+* **Boss numbers live in the boss's `BossDef`:** `StartSpot` (the boss body's centre when the fight starts) and
+  `CoreSpots` (world points of cores Wick must hit from the floor or a platform with the base moves: list the ones
+  that stay put; cores that come down to Wick are not listed).
+* **The validator** (`StageValidator.Validate(spec, false)` finds the `BossDef` whose `ArenaId` is your `Id`) checks:
+  rows and storey count (at most 5), ground gaps, ladders, Wick's footing, **every hatch reachable**, no unshootable
+  pockets, the boss's start body inside the arena and clear of tiles, and **every listed core reachable** with the
+  base moves (Moss with Heavy Boots). `BossArenaTests` runs it on every arena.
+* **Brief for a boss arena:** replace the pop line with: storeys, which phase opens which hatch, what the boss breaks
+  or adds (and where Wick can always stand), the pipes, and the hitless route for each phase.
 
 ## Common mistakes
 

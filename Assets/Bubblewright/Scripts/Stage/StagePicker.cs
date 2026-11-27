@@ -5,7 +5,7 @@ namespace Bubblewright
 {
     /// <summary>
     /// Picks the five stages of a world from StageSpec.All and builds the plan for one stage of a run.
-    /// Boss stages stay the flat arena. A saved run keeps the ids it already rolled.
+    /// A boss stage builds the authored arena of its world's BossDef (never an ordinary slot). A saved run keeps the ids it already rolled.
     /// </summary>
     public static class StagePicker
     {
@@ -81,6 +81,28 @@ namespace Bubblewright
             plan.spawns[index] = chosen;
         }
 
+        /// <summary>Id of a world's placeholder boss arena (today's flat floor), used until its boss has an arena of its own.</summary>
+        public static string PlaceholderArenaId(int world) => $"w{world}_boss_arena";
+
+        /// <summary>
+        /// The arena a boss fights in: the boss arena its BossDef.ArenaId names, or the world's placeholder when it
+        /// names none (or one that does not exist). Null only when even the placeholder is missing.
+        /// </summary>
+        public static StageSpec BossArenaFor(BossDef def)
+        {
+            if (def == null) return null;
+            var named = StageSpec.ById(def.ArenaId);
+            if (named != null && named.IsBossArena) return named;
+            return StageSpec.ById(PlaceholderArenaId(def.World));
+        }
+
+        /// <summary>The plan of a boss's arena; the plain flat floor when there is no arena spec.</summary>
+        public static StagePlan BossPlan(BossDef def)
+        {
+            var arena = BossArenaFor(def);
+            return arena != null ? arena.Build(false) : Arena("Boss");
+        }
+
         public static StagePlan Build(Run run, int stage, int debugOverrideIndex = -1)
         {
             if (debugOverrideIndex >= 0)
@@ -90,7 +112,8 @@ namespace Bubblewright
                 int index = Mathf.Clamp(debugOverrideIndex, 0, all.Count - 1);
                 return all[index].Build(false);
             }
-            if (run == null || Run.IsBossStageNumber(stage)) return Arena("Boss");
+            if (run == null) return Arena("Boss");
+            if (Run.IsBossStageNumber(stage)) return BossPlan(BossDef.ForWorld(Run.WorldOf(stage)));
 
             int world = Run.WorldOf(stage);
             int slot = Run.StageInWorldOf(stage) - 1;

@@ -22,8 +22,18 @@ namespace Bubblewright
         public virtual bool CanMirror => true;
         public virtual float TimeScale => 1f;
         public abstract string Concept { get; }
-        /// <summary>1 to 3 full screens.</summary>
+        /// <summary>1 to 3 full screens; a boss arena may have up to 5 (<see cref="StageMap.MaxStoreys"/>).</summary>
         public virtual int Storeys => 1;
+        /// <summary>
+        /// True for a boss arena: a stage a BossDef fights in. It is never picked for an ordinary slot and is not in
+        /// <see cref="All"/>; find it with <see cref="BossArenas"/> or <see cref="ById"/>. It may have up to 5 storeys,
+        /// has no required enemies, and on a multi-storey arena a hatch opens when a boss phase ends.
+        /// </summary>
+        public virtual bool IsBossArena => false;
+        /// <summary>Most storeys an ordinary stage may have.</summary>
+        public const int MaxOrdinaryStoreys = 3;
+        /// <summary>Most storeys this stage may have: 3 for an ordinary stage, 5 for a boss arena.</summary>
+        public int StoreyCap => IsBossArena ? StageMap.MaxStoreys : MaxOrdinaryStoreys;
         public abstract string[] Rows { get; }
         public abstract string Ground { get; }
 
@@ -32,7 +42,7 @@ namespace Bubblewright
         /// <summary>Open rows of dots, top row first. One shared string would alias every row, so each row is its own.</summary>
         protected static string[] BlankRows(int storeys = 1)
         {
-            int n = StageMap.StoreyRows * Mathf.Clamp(storeys, 1, 3);
+            int n = StageMap.StoreyRows * Mathf.Clamp(storeys, 1, StageMap.MaxStoreys);
             var rows = new string[n];
             for (int i = 0; i < n; i++) rows[i] = new string('.', StageMap.Cols);
             return rows;
@@ -67,26 +77,34 @@ namespace Bubblewright
             return new string(chars);
         }
 
-        static StageSpec[] all;
+        static StageSpec[] all, arenas;
 
-        public static IReadOnlyList<StageSpec> All => all ??= Discover();
+        /// <summary>Every ordinary stage, sorted by world, difficulty and id. Boss arenas are in <see cref="BossArenas"/>.</summary>
+        public static IReadOnlyList<StageSpec> All => all ??= Discover(false);
 
+        /// <summary>Every boss arena (IsBossArena), sorted by world and id.</summary>
+        public static IReadOnlyList<StageSpec> BossArenas => arenas ??= Discover(true);
+
+        /// <summary>An ordinary stage or a boss arena by id, or null.</summary>
         public static StageSpec ById(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
             foreach (var stage in All)
                 if (stage.Id == id) return stage;
+            foreach (var stage in BossArenas)
+                if (stage.Id == id) return stage;
             return null;
         }
 
-        static StageSpec[] Discover()
+        static StageSpec[] Discover(bool bossArenas)
         {
             var list = new List<StageSpec>();
             foreach (var type in typeof(StageSpec).Assembly.GetTypes())
             {
                 if (type.IsAbstract || !type.IsSealed || !typeof(StageSpec).IsAssignableFrom(type)) continue;
                 if (type.GetConstructor(Type.EmptyTypes) == null) continue;
-                list.Add((StageSpec)Activator.CreateInstance(type));
+                var spec = (StageSpec)Activator.CreateInstance(type);
+                if (spec.IsBossArena == bossArenas) list.Add(spec);
             }
             list.Sort((a, b) =>
             {
@@ -200,6 +218,7 @@ namespace Bubblewright
                 concept = spec.Concept,
                 timeScale = spec.TimeScale,
                 guestName = GuestName(spec.World),
+                isBossArena = spec.IsBossArena,
             };
             return plan;
         }

@@ -173,6 +173,11 @@ namespace Bubblewright
             tells?.Clear();
             var result = BossFight.PhaseBreak(bullets, b => Destroy(b.gameObject), run.IsHard, wick.Hearts, run.MaxHearts);
             boss.Phases[phaseIndex].OnBreak(boss);
+            if (arena != null)
+            {
+                arena.OpenHatchOf(boss.Phases[phaseIndex]);
+                RefreshHatches();
+            }
             var drop = new Vector2(Mathf.Clamp(boss.Centre.x, -T.HalfWidth + 2f, T.HalfWidth - 2f), T.arenaHeight - 2f);
             if (result.dropCrate && dropper != null)
             {
