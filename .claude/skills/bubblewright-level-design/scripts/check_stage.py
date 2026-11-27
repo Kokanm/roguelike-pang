@@ -8,7 +8,7 @@ properties (literal strings, BlankRows(), or StageSketch.Open/Box/Lines code wit
 grid[y][c] writes) and checks only the shape of the stage:
 
   * every row and the ground are 32 characters
-  * Rows has 14, 28 or 42 lines and matches Storeys
+  * Rows has 14, 28 or 42 lines (up to 70 for a boss arena, IsBossArena => true) and matches Storeys
   * only tile characters  . # N I S B H T  and ground characters  = N I S _
   * StageSketch.Box and grid[y][c] writes stay inside the grid
   * the class is sealed, has [Preserve], a non-empty Concept, Id, Name, World and Difficulty
@@ -31,6 +31,8 @@ from pathlib import Path
 
 COLS = 32
 STOREY_ROWS = 14
+MAX_STOREYS = 5  # boss arenas only; ordinary stages stay at 3 or fewer
+MAX_ORDINARY_STOREYS = 3
 HALF = COLS / 2
 TILE_CHARS = set(".#NISBHT")
 GROUND_CHARS = set("=NIS_")
@@ -762,8 +764,8 @@ class Context:
         named = {a.name: a.value for a in args if isinstance(a, Named)}
         if path in ("StageSketch.Open",):
             storeys = (positional + [named.get("storeys", 1)])[0]
-            if storeys not in (1, 2, 3):
-                raise EvalError(f"StageSketch.Open({storeys}): storeys must be 1, 2 or 3", line)
+            if storeys not in range(1, MAX_STOREYS + 1):
+                raise EvalError(f"StageSketch.Open({storeys}): storeys must be 1 to {MAX_STOREYS}", line)
             return Grid(storeys)
         if path == "StageSketch.Box":
             grid, c0, c1, y0, y1, ch = positional
@@ -786,7 +788,7 @@ class Context:
             return ["".join(r) for r in reversed(grid.rows)]
         if path == "BlankRows":
             storeys = (positional + [named.get("storeys", 1)])[0]
-            return ["." * COLS for _ in range(STOREY_ROWS * max(1, min(3, storeys)))]
+            return ["." * COLS for _ in range(STOREY_ROWS * max(1, min(MAX_STOREYS, storeys)))]
         if path == "StageMap.CenterX":
             return -HALF + positional[0] + 0.5
         if path == "StageMap.Col":
@@ -960,11 +962,15 @@ def check_stage(stage: Stage):
             stage.err(line0, f"{prop} is missing.")
         elif isinstance(value, int):
             stage.props_numeric[prop] = value
+    arena, _ = simple_value(stage, "IsBossArena")
+    boss_arena = arena is True
+    cap = MAX_STOREYS if boss_arena else MAX_ORDINARY_STOREYS
     storeys, s_line = simple_value(stage, "Storeys")
     if storeys is None:
         storeys = 1
-    if not isinstance(storeys, int) or storeys not in (1, 2, 3):
-        stage.err(s_line or line0, f"Storeys must be 1, 2 or 3, got {storeys!r}.")
+    if not isinstance(storeys, int) or storeys not in range(1, cap + 1):
+        why = "" if boss_arena else " (4 and 5 are for boss arenas: IsBossArena => true)"
+        stage.err(s_line or line0, f"Storeys must be 1 to {cap}, got {storeys!r}{why}.")
         storeys = 1
     stage.props_numeric["Storeys"] = storeys
     stage.storeys = storeys
@@ -986,8 +992,8 @@ def check_stage(stage: Stage):
         else:
             stage.rows = rows
             count = len(rows)
-            if count not in (14, 28, 42):
-                stage.err(r_line, f"Rows has {count} lines; a stage has 14, 28 or 42 (14 per storey, top row first).")
+            if count not in [STOREY_ROWS * n for n in range(1, MAX_STOREYS + 1)]:
+                stage.err(r_line, f"Rows has {count} lines; a stage has 14, 28 or 42 (14 per storey, top row first; a boss arena up to 70).")
             elif count != STOREY_ROWS * storeys:
                 stage.err(r_line, f"Rows has {count} lines but Storeys is {storeys} ({STOREY_ROWS * storeys} lines).")
             literal_lines = literal_row_lines(stage, r_line, count)

@@ -94,6 +94,7 @@ namespace Bubblewright
                 SpawnBubble(s.kind, Mathf.Clamp(s.tier, 0, T.tiers.Length - 1), s.position, 1, 0f, false, false, true, true);
             SpawnRollers(plan);
             SetupWaves(plan);
+            SetupArena(plan);
             SetupBoss();
             waveStorey = plan.waveStorey;
             BeginStoreys(plan.wickPosition.y);
@@ -196,7 +197,7 @@ namespace Bubblewright
             for (int f = 1; f < Map.Storeys; f++)
             {
                 int row = StageMap.StoreyRows * f - 1;
-                bool open = StoreySettled(f - 1) && activeStorey < f;
+                bool open = HatchShouldOpen(bossArena, StoreySettled(f - 1), arena != null && arena.HatchUnlocked(f - 1), activeStorey, f);
                 for (int c = 0; c < StageMap.Cols; c++)
                     Map.SetHatchOpen(c, row, open);
             }

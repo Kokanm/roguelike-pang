@@ -32,6 +32,7 @@ namespace Bubblewright
             ApplyTheme(Themes.ForWorld(1));
             ClearSpikes();
             ClearFlames();
+            ClearArena();
             foreach (var b in bubbles) if (b) Destroy(b.gameObject);
             bubbles.Clear();
             hitBubbles.Clear();

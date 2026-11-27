@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Bubblewright
 {
     /// <summary>
-    /// Reads an ASCII stage diagram (top row first) into a StageMap. A stage is 1, 2 or 3 storeys of 14 rows.
+    /// Reads an ASCII stage diagram (top row first) into a StageMap. A stage is 1 to 5 storeys of 14 rows (ordinary stages stay at 3 or fewer).
     /// Tile characters: '.' empty, '#' solid (the default surface), 'N' solid normal, 'I' solid ice, 'S' solid sand,
     /// 'B' breakable, 'H' empty ladder, 'T' solid ladder. An optional ground string, or one extra row on the end, is
     /// the floor under row 0: '=' solid (the default surface), 'N', 'I', 'S', '_' a gap.
@@ -25,11 +25,11 @@ namespace Bubblewright
                 inlineIndex = tileRows;
                 groundLine = rows[inlineIndex];
             }
-            else if (rows.Length == StageMap.StoreyRows || rows.Length == StageMap.StoreyRows * 2 || rows.Length == StageMap.StoreyRows * 3)
+            else if (rows.Length % StageMap.StoreyRows == 0 && rows.Length / StageMap.StoreyRows <= StageMap.MaxStoreys && rows.Length > 0)
                 tileRows = rows.Length;
             else
                 throw new ArgumentException(
-                    $"Stage row {Mathf.Max(0, rows.Length - 1)} does not fit a map of 1 to 3 storeys ({StageMap.StoreyRows} rows each, plus an optional ground row), got {rows.Length}.",
+                    $"Stage row {Mathf.Max(0, rows.Length - 1)} does not fit a map of 1 to {StageMap.MaxStoreys} storeys ({StageMap.StoreyRows} rows each, plus an optional ground row), got {rows.Length}.",
                     nameof(rows));
 
             var map = StageMap.Flat(tileRows / StageMap.StoreyRows);
@@ -83,7 +83,7 @@ namespace Bubblewright
         }
 
         static bool IsInlineGround(int length) =>
-            length == StageMap.StoreyRows + 1 || length == StageMap.StoreyRows * 2 + 1 || length == StageMap.StoreyRows * 3 + 1;
+            length > 1 && (length - 1) % StageMap.StoreyRows == 0 && (length - 1) / StageMap.StoreyRows <= StageMap.MaxStoreys;
 
         static Surface SurfaceOf(char ch) => ch switch
         {

@@ -13,6 +13,11 @@ namespace Bubblewright
         public string name;
         /// <summary>Health of this phase's bar segment; 0 for a phase won by parts.</summary>
         public int hp;
+        /// <summary>
+        /// The storey whose hatch (the one up out of that storey) opens when this phase ends, or -1 for none. Only boss
+        /// arenas open hatches this way: the storey's bubbles being cleared does nothing there.
+        /// </summary>
+        public int opensHatch = -1;
 
         /// <summary>The phase starts: place the boss, open and close its cores.</summary>
         public virtual void Enter(Boss boss) { }

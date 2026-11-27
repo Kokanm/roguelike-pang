@@ -29,7 +29,13 @@ namespace Bubblewright
             public int Storey;
         }
 
-        public static List<string> Validate(StageSpec spec, bool mirror)
+        public static List<string> Validate(StageSpec spec, bool mirror) => Validate(spec, mirror, null);
+
+        /// <summary>
+        /// A boss arena is judged by its own rules (ValidateBossArena) against the BossDef that fights in it: boss is that
+        /// def, or by default the one whose ArenaId is this arena's Id. An ordinary stage ignores boss.
+        /// </summary>
+        public static List<string> Validate(StageSpec spec, bool mirror, BossDef boss)
         {
             var errors = new List<string>();
             if (spec == null)
@@ -54,6 +60,12 @@ namespace Bubblewright
                 return errors;
             }
 
+            if (spec.IsBossArena)
+            {
+                ValidateBossArena(spec, plan, boss ?? FindBoss(spec), mirror, errors);
+                return errors;
+            }
+
             CheckUnlocks(spec, plan, errors);
             CheckClearance(spec, plan, errors);
             CheckGaps(spec, plan, errors);
@@ -70,6 +82,47 @@ namespace Bubblewright
             return errors;
         }
 
+        static BossDef FindBoss(StageSpec spec)
+        {
+            foreach (var def in BossDef.All)
+                if (def.ArenaId == spec.Id) return def;
+            return null;
+        }
+
+        /// <summary>
+        /// A boss arena has no enemies to count, so only the rules that concern Wick and the boss apply: gaps and ladders,
+        /// footing, every hatch reachable, no pockets, the boss's start spot inside the arena and clear of tiles, and
+        /// every core the def lists reachable from the floor or a platform with the base moves.
+        /// </summary>
+        static void ValidateBossArena(StageSpec spec, StagePlan plan, BossDef boss, bool mirror, List<string> errors)
+        {
+            CheckGaps(spec, plan, errors);
+            CheckLadders(plan, errors);
+            var intact = Reach(spec.World, plan, EmptyBroken());
+            var opened = Breach(spec.World, plan);
+            var allBroken = Reach(spec.World, plan, EveryBreakable(plan.map));
+            CheckSolvable(plan, intact, opened, allBroken, errors);
+            CheckHatches(plan, opened.nodes, opened.reach, errors);
+            CheckPockets(plan, opened.broken, opened.nodes, opened.reach, errors);
+            if (boss == null) return;
+
+            if (boss.StartSpot.HasValue)
+            {
+                var start = boss.StartSpot.Value;
+                if (mirror) start.x = -start.x;
+                var body = new Rect(start.x - boss.Size.x * 0.5f, start.y - boss.Size.y * 0.5f, boss.Size.x, boss.Size.y);
+                if (plan.map.OverlapsSolid(body))
+                    errors.Add($"The boss's start spot {start} puts its {boss.Size.x} x {boss.Size.y} body outside the arena or inside a tile.");
+            }
+            foreach (var core in boss.CoreSpots)
+            {
+                var spot = mirror ? new Vector2(-core.x, core.y) : core;
+                var probe = new SpawnSpec { position = spot };
+                if (!CanHit(plan.map, opened, probe, opened.broken))
+                    errors.Add($"Wick cannot reach or shoot the boss's core at {spot} from the floor or a platform with the base moves.");
+            }
+        }
+
         static void CheckMeta(StageSpec spec, List<string> errors)
         {
             if (string.IsNullOrWhiteSpace(spec.Id)) errors.Add("Id is empty.");
@@ -77,7 +130,7 @@ namespace Bubblewright
             if (string.IsNullOrWhiteSpace(spec.Concept)) errors.Add("Concept is empty.");
             if (spec.World < 1 || spec.World > 6) errors.Add($"World {spec.World} is outside 1 to 6.");
             if (spec.Difficulty < 1 || spec.Difficulty > 4) errors.Add($"Difficulty {spec.Difficulty} is outside 1 to 4.");
-            if (spec.Storeys < 1 || spec.Storeys > 3) errors.Add($"Storeys {spec.Storeys} is outside 1 to 3.");
+            if (spec.Storeys < 1 || spec.Storeys > spec.StoreyCap) errors.Add($"Storeys {spec.Storeys} is outside 1 to {spec.StoreyCap}.");
             if (spec.MinStageInWorld < 1 || spec.MaxStageInWorld > 5 || spec.MinStageInWorld > spec.MaxStageInWorld)
                 errors.Add($"Stage slot bounds {spec.MinStageInWorld} to {spec.MaxStageInWorld} are not inside 1 to 5.");
 
@@ -92,7 +145,7 @@ namespace Bubblewright
         static bool RowsArePlayable(StageSpec spec, List<string> errors)
         {
             int want = StageMap.StoreyRows * spec.Storeys;
-            if (spec.Storeys < 1 || spec.Storeys > 3) return false;
+            if (spec.Storeys < 1 || spec.Storeys > spec.StoreyCap) return false;
             if (spec.Rows == null || spec.Rows.Length != want)
             {
                 errors.Add($"Rows must be {want} lines of {StageMap.Cols} characters (14 per storey, top row first).");
