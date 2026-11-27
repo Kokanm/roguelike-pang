@@ -314,13 +314,16 @@ namespace Bubblewright
                 }
             }
             var boss = world.LiveBoss;
-            if (boss != null && h.Hits(boss.Body))
+            if (boss == null) return;
+            foreach (var part in boss.Parts)
             {
-                var body = boss.Body;
+                var body = part.World(boss);
+                if (!h.Hits(body)) continue;
                 var cable = h.CableRect;
                 var at = new Vector2(Mathf.Clamp(cable.center.x, body.xMin, body.xMax), Mathf.Clamp(h.TipRect.center.y, body.yMin, body.yMax));
                 h.Hide();
-                world.WeaponHitBoss(Tuning.I.lampBossDamage, at);
+                world.WeaponHitBoss(Tuning.I.lampBossDamage, at, body);
+                return;
             }
         }
 

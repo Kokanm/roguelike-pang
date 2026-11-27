@@ -34,7 +34,10 @@ namespace Bubblewright
         void SetupBoss()
         {
             if (!run.IsBossStage) return;
-            boss = Boss.Create(world, BossSpec.ForWorld(run.World), run.World, CurrentTheme, run.IsHard);
+            boss = Boss.Create(world, BossDef.ForWorld(run.World), CurrentTheme, run.IsHard);
+            boss.OnHurt = BossHurt;
+            boss.OnClink = BossClink;
+            boss.OnPhaseBreak = BossPhaseBreak;
             boss.OnShoot = FireBullet;
             boss.OnBouncy = FireBouncy;
             boss.OnBalloon = ReleaseBalloon;
@@ -78,7 +81,7 @@ namespace Bubblewright
             boss.Tick(dt, WickCentre, true, BossSpeedScale, bubbles.Count);
             TickBullets(dt);
 
-            BossFight.HarpoonHits(boss, harpoons, DamageBoss);
+            BossFight.HarpoonHits(boss, harpoons);
 
             if (BossFight.StageCleared(boss, bubbles.Count))
             {
@@ -115,21 +118,46 @@ namespace Bubblewright
             }
         }
 
-        /// <summary>The one way anything hurts the boss: harpoons today, other weapons later.</summary>
-        void DamageBoss(int amount, Vector2 at)
+        /// <summary>An open core took damage (BossFight.Hit calls this through Boss.OnHurt): hit-stop, sound and a sparkle.</summary>
+        void BossHurt(int amount, Vector2 at)
         {
-            if (boss == null || boss.Hp <= 0) return;
-            boss.Damage(amount);
             freeze = Mathf.Max(freeze, T.bossHitStopFrames / 60f);
             Sfx.Play(Sound.Pop, 0.6f, 0.9f);
             fx.Sparkle(at, Palette.Cream);
         }
 
+        /// <summary>A shot or harpoon clinked off armour or a closed core: a steel spark, a short high sound, a tiny freeze.</summary>
+        void BossClink(Vector2 at)
+        {
+            freeze = Mathf.Max(freeze, T.bossClinkStopFrames / 60f);
+            Sfx.Play(Sound.Bounce, 2.2f, 0.5f);
+            fx.Sparkle(at, Palette.SteelLight);
+        }
+
+        /// <summary>
+        /// A phase ended and the boss is about to stagger: every boss bullet clears, the phase makes its arena change,
+        /// a weapon crate falls, and on the calm road a heart does too when Wick is below his maximum.
+        /// </summary>
+        void BossPhaseBreak(int phaseIndex)
+        {
+            var result = BossFight.PhaseBreak(bullets, b => Destroy(b.gameObject), run.IsHard, wick.Hearts, run.MaxHearts);
+            boss.Phases[phaseIndex].OnBreak(boss);
+            var drop = new Vector2(Mathf.Clamp(boss.Centre.x, -T.HalfWidth + 2f, T.HalfWidth - 2f), T.arenaHeight - 2f);
+            if (result.dropCrate && dropper != null)
+            {
+                var spec = dropper.RollGuaranteed();
+                if (spec != null) SpawnCrate(spec, drop);
+            }
+            if (result.dropHeart) pickups.Add(Pickup.Create(world, drop + Vector2.right * 2f));
+            hitBubbles.Clear();
+            shake = Mathf.Max(shake, T.shakeTime);
+            Sfx.Play(Sound.Hurt, 0.5f, 0.8f);
+        }
+
         /// <summary>Bullets vanish, leftover bubbles pop without children, the boss shakes and sheds debris.</summary>
         void BeginBossDefeat()
         {
-            foreach (var b in bullets) if (b) Destroy(b.gameObject);
-            bullets.Clear();
+            BossFight.ClearBullets(bullets, b => Destroy(b.gameObject));
             HideHarpoons();
 
             // A bubble still swelling in the hit-stop is in the bubble list too, so it pops without children as well.
@@ -178,23 +206,45 @@ namespace Bubblewright
             float left = topLeft.x + pad, width = topRight.x - topLeft.x - 2 * pad;
             float barY = topLeft.y + 5 * k; // just under the timer's 2 px track
             var track = new Rect(left, barY, width, 4 * k);
-            FillRect(track, WithAlpha(Palette.Ink, UiText.TimerTrackAlpha));
-            float frac = boss.MaxHp > 0 ? Mathf.Clamp01(boss.Hp / (float)boss.MaxHp) : 0f;
-            float w = Mathf.Round(width * frac);
-            if (w > 0f)
+            // One segment per phase with a 2 px gap; the current one drains, spent ones are empty.
+            foreach (var seg in BossFight.BarSegments(boss, width, 2 * k))
             {
-                FillRect(new Rect(track.x, track.y, w, track.height), CurrentTheme.tileCap);
-                FillRect(new Rect(track.x + Mathf.Max(0f, w - k), track.y, Mathf.Min(k, w), track.height), Palette.Cream);
+                float sx = Mathf.Round(left + seg.x), sw = Mathf.Round(seg.width);
+                FillRect(new Rect(sx, track.y, sw, track.height), WithAlpha(Palette.Ink, UiText.TimerTrackAlpha));
+                float w = Mathf.Round(sw * seg.fill);
+                if (w <= 0f) continue;
+                FillRect(new Rect(sx, track.y, w, track.height), CurrentTheme.tileCap);
+                FillRect(new Rect(sx + Mathf.Max(0f, w - k), track.y, Mathf.Min(k, w), track.height), Palette.Cream);
             }
+            DrawBossPartBars(k);
             // The name and the health sit on the row under the bar, over the sky; the timer text shares that row in the middle.
             float textY = barY + 5 * k;
-            Label(boss.Spec.name, left, textY, UiText.Primary, TextAnchor.UpperLeft, 160 * k);
+            Label(boss.Name, left, textY, UiText.Primary, TextAnchor.UpperLeft, 160 * k);
             Label($"{boss.Hp}/{boss.MaxHp}", left + width - 160 * k, textY, UiText.Primary, TextAnchor.UpperRight, 160 * k);
+        }
+
+        /// <summary>A small bar over each part that has health of its own (arms, bellows, valves).</summary>
+        void DrawBossPartBars(int k)
+        {
+            foreach (var part in boss.Parts)
+            {
+                if (!part.HasHealth || part.Broken) continue;
+                var r = part.World(boss);
+                var at = WorldToGui(new Vector2(r.center.x, r.yMax));
+                float w = 16 * k;
+                var track = new Rect(Mathf.Round(at.x - w * 0.5f), Mathf.Round(at.y - 5 * k), w, 2 * k);
+                FillRect(track, WithAlpha(Palette.Ink, UiText.TimerTrackAlpha));
+                FillRect(new Rect(track.x, track.y, Mathf.Round(w * part.Hp / part.MaxHp), track.height), CurrentTheme.tileCap);
+            }
         }
 
         void DrawBossHitboxes()
         {
-            if (boss != null) DrawWorldRect(boss.Body, Palette.Coral);
+            if (boss != null)
+            {
+                DrawWorldRect(boss.Body, Palette.Coral);
+                foreach (var part in boss.Parts) DrawWorldRect(part.World(boss), part.IsCore ? Palette.Cream : Palette.SteelLight);
+            }
             foreach (var b in bullets)
                 DrawWorldRect(new Rect(b.Position.x - b.Radius, b.Position.y - b.Radius, b.Radius * 2f, b.Radius * 2f), Palette.Cream);
         }
@@ -204,6 +254,19 @@ namespace Bubblewright
         void DebugBossAimed() { if (DebugBossReady) boss.FireAimed(WickCentre); }
         void DebugBossBouncy() { if (DebugBossReady) boss.FireBouncy(WickCentre); }
         void DebugBossBalloon() { if (DebugBossReady) boss.ReleaseBalloon(); }
+
+        void DebugBossNextPhase()
+        {
+            if (DebugBossReady && !boss.Staggering) boss.Damage(boss.PhaseHp);
+        }
+
+        bool debugCoresOpen;
+        void DebugBossOpenCores()
+        {
+            if (!DebugBossReady) return;
+            debugCoresOpen = !debugCoresOpen;
+            boss.SetCoresOpen(debugCoresOpen);
+        }
 
         void DebugBossDamage(int amount)
         {

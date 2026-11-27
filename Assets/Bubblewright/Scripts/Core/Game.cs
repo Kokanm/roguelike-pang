@@ -456,7 +456,7 @@ namespace Bubblewright
 
         // ------------------------------------------------------------------ storm timer
 
-        float StageTimeLimit => run.IsBossStage ? StagePicker.BossTime(run.IsHard) : StagePicker.StageTime(run.Stage, run.IsHard) * stageTimeScale;
+        float StageTimeLimit => run.IsBossStage ? StagePicker.BossTime(run.World, run.IsHard) : StagePicker.StageTime(run.Stage, run.IsHard) * stageTimeScale;
 
         /// <summary>The storm speeds every bubble up by playing their motion faster; their arcs stay the same shape.</summary>
         float BubbleDt(float dt) => storm ? dt * T.stormSpeed : dt;
@@ -806,7 +806,7 @@ namespace Bubblewright
                     Plate(Screen.height * 0.32f - 6 * k, (run.IsHard ? 62 : 52) * k, k);
                     Centered($"WORLD {run.World}", Screen.height * 0.32f, 16 * k, UiText.Primary);
                     Centered(run.WorldName.ToUpperInvariant(), Screen.height * 0.32f + 20 * k, 8 * k, UiText.Accent);
-                    Centered(boss.Spec.name, Screen.height * 0.32f + 32 * k, 12 * k, UiText.Primary);
+                    Centered(boss.Name, Screen.height * 0.32f + 32 * k, 12 * k, UiText.Primary);
                     if (run.IsHard) Centered($"HARD ROAD  ·  {run.CurrentDebuff.Text}", Screen.height * 0.32f + 46 * k, 8 * k, UiText.Warning);
                     break;
                 case State.Intro when run.StageInWorld == 1 && !paused:

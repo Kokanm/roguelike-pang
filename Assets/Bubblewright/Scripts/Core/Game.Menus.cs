@@ -300,9 +300,17 @@ namespace Bubblewright
             if (boss != null)
             {
                 AddDebugInline("BOSS", k, true, 40);
-                AddDebugButton("AIMED", k, false, DebugBossAimed, minUnits: 60);
-                AddDebugButton("BOUNCY", k, false, DebugBossBouncy, minUnits: 60);
-                AddDebugButton("BALLOON", k, false, DebugBossBalloon, minUnits: 70);
+                if (boss.Spec != null) // the legacy boss
+                {
+                    AddDebugButton("AIMED", k, false, DebugBossAimed, minUnits: 60);
+                    AddDebugButton("BOUNCY", k, false, DebugBossBouncy, minUnits: 60);
+                    AddDebugButton("BALLOON", k, false, DebugBossBalloon, minUnits: 70);
+                }
+                else
+                {
+                    AddDebugButton("NEXT PHASE", k, false, DebugBossNextPhase, minUnits: 80);
+                    AddDebugButton("OPEN CORES", k, false, DebugBossOpenCores, minUnits: 80);
+                }
             }
 
             AddDebugToggle("SPIKES", k, true, debug.spikes, SetDebugSpikes, 90);
@@ -384,7 +392,7 @@ namespace Bubblewright
             ClearRollers();
             waves = null;
             HideWaveMarkers();
-            if (boss != null && boss.Hp > 0) boss.Damage(boss.Hp);
+            if (boss != null && boss.Hp > 0) boss.Kill();
             if (state == State.Intro)
             {
                 wick.Waving = false;

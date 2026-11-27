@@ -60,6 +60,18 @@ namespace Bubblewright
             return spec;
         }
 
+        /// <summary>
+        /// A weapon for a crate that always drops (a boss's phase break): the same tier and weapon draw as Roll, but
+        /// with no chance, no cap per stage and no limit of one crate on screen.
+        /// </summary>
+        public WeaponSpec RollGuaranteed()
+        {
+            rng.NextDouble(); // keep the same two draws per roll as Roll
+            var spec = Pick(rng.NextDouble());
+            if (spec != null) Dropped++;
+            return spec;
+        }
+
         /// <summary>A weapon for a draw in [0, 1): a tier by weight among the open tiers that hold a weapon, then a weapon in it.</summary>
         WeaponSpec Pick(double draw)
         {
