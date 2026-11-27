@@ -13,11 +13,14 @@ namespace Bubblewright
         Boss boss;
         readonly List<Bullet> bullets = new List<Bullet>();
         bool bossBurst;   // the final burst has happened and the clear flow is next
+        Tells tells;      // boss tells and delayed shots; ticks with the boss so hit-stop, slow motion and pause freeze it
 
         void ClearBoss()
         {
             foreach (var b in bullets) if (b) Destroy(b.gameObject);
             bullets.Clear();
+            tells?.Clear();
+            tells = null;
             if (boss != null)
             {
                 boss.gameObject.SetActive(false);
@@ -41,7 +44,33 @@ namespace Bubblewright
             boss.OnShoot = FireBullet;
             boss.OnBouncy = FireBouncy;
             boss.OnBalloon = ReleaseBalloon;
+            tells = new Tells(world);
         }
+
+        /// <summary>Fires one pattern launch now, or after its delay (the later shots of a burst).</summary>
+        void FireLaunch(Launch launch)
+        {
+            if (launch.delay > 0f && tells != null)
+            {
+                float delay = launch.delay;
+                launch.delay = 0f;
+                tells.After(delay, () => FireLaunch(launch));
+                return;
+            }
+            bullets.Add(Bullet.Create(world, launch, CurrentTheme));
+        }
+
+        void FirePattern(Launch[] launches)
+        {
+            foreach (var l in launches) FireLaunch(l);
+        }
+
+        /// <summary>
+        /// A telegraphed attack: shows the tell over area now and runs attack when it ends, at least bossTellMin
+        /// seconds later. Bosses call this for every pattern that has a tell.
+        /// </summary>
+        float Telegraph(TellKind kind, Rect area, float lead, System.Action attack) =>
+            tells != null ? tells.Add(kind, area, lead, attack) : 0f;
 
         void FireBouncy(Vector2 from, int dirX, int bounces)
         {
@@ -79,6 +108,7 @@ namespace Bubblewright
             }
 
             boss.Tick(dt, WickCentre, true, BossSpeedScale, bubbles.Count);
+            tells?.Tick(dt * BossSpeedScale);
             TickBullets(dt);
 
             BossFight.HarpoonHits(boss, harpoons);
@@ -103,7 +133,7 @@ namespace Bubblewright
             for (int i = bullets.Count - 1; i >= 0; i--)
             {
                 var b = bullets[i];
-                b.Tick(dt * scale);
+                b.Tick(dt * scale, WickCentre);
                 if (!b.Dead && !wick.Dead && b.CanHurt && b.Overlaps(wick.Hitbox))
                 {
                     b.Dead = true;
@@ -140,6 +170,7 @@ namespace Bubblewright
         /// </summary>
         void BossPhaseBreak(int phaseIndex)
         {
+            tells?.Clear();
             var result = BossFight.PhaseBreak(bullets, b => Destroy(b.gameObject), run.IsHard, wick.Hearts, run.MaxHearts);
             boss.Phases[phaseIndex].OnBreak(boss);
             var drop = new Vector2(Mathf.Clamp(boss.Centre.x, -T.HalfWidth + 2f, T.HalfWidth - 2f), T.arenaHeight - 2f);
@@ -158,6 +189,7 @@ namespace Bubblewright
         void BeginBossDefeat()
         {
             BossFight.ClearBullets(bullets, b => Destroy(b.gameObject));
+            tells?.Clear();
             HideHarpoons();
 
             // A bubble still swelling in the hit-stop is in the bubble list too, so it pops without children as well.

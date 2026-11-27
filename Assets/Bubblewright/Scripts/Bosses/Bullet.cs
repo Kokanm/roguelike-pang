@@ -50,6 +50,32 @@ namespace Bubblewright
             return b;
         }
 
+        /// <summary>A bullet of any kind from a pattern's launch (position, velocity, kind and the kind's own numbers).</summary>
+        public static Bullet Create(Transform parent, Launch launch, Theme theme)
+        {
+            var art = PlaceholderArt.I;
+            Sprite sprite;
+            switch (launch.kind)
+            {
+                case BulletKind.Wave: sprite = art.WaveFor(theme); break;
+                case BulletKind.Shell: sprite = art.ShellFor(theme); break;
+                case BulletKind.Missile: sprite = art.MissileFor(theme); break;
+                case BulletKind.Stream: sprite = art.StreamFor(theme); break;
+                case BulletKind.Bouncy: sprite = art.BouncyBulletFor(theme); break;
+                default: sprite = art.BulletFor(theme); break;
+            }
+            var b = Make(parent, launch.kind + " Bullet", launch.position, sprite);
+            b.State = Flight.FromLaunch(launch);
+            b.facing = launch.kind == BulletKind.Missile;
+            b.flip = launch.kind == BulletKind.Wave && launch.velocity.x < 0f;
+            if (launch.kind == BulletKind.Stream)
+                b.baseScale = new Vector3(1f, b.State.columnHeight * Tuning.I.pixelsPerUnit / 8f, 1f); // the 8 px sprite stretched to the column
+            return b;
+        }
+
+        bool facing, flip;
+        Vector3 baseScale = Vector3.one;
+
         static Bullet Make(Transform parent, string name, Vector2 position, Sprite sprite)
         {
             var go = new GameObject(name);
@@ -81,17 +107,19 @@ namespace Bubblewright
             return Mathf.Sqrt(2f * t.bouncyGravity * rise);
         }
 
-        public void Tick(float dt)
+        public void Tick(float dt, Vector2? wick = null)
         {
             State.position = transform.position;
-            if (State.Step(dt))
+            if (State.Step(dt, wick))
             {
                 squash = SquashTime;
                 Sfx.Play(Sound.Bounce, 1.5f, 0.25f);
             }
             transform.position = State.position;
             if (squash > 0f) squash -= dt;
-            transform.localScale = squash > 0f ? new Vector3(1.25f, 0.75f, 1f) : Vector3.one;
+            transform.localScale = squash > 0f ? new Vector3(1.25f, 0.75f, 1f) : baseScale;
+            if (flip) transform.localScale = new Vector3(-baseScale.x, baseScale.y, 1f);
+            if (facing) transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(State.velocity.y, State.velocity.x) * Mathf.Rad2Deg);
         }
 
         public bool Overlaps(Rect rect) => State.Overlaps(rect);
@@ -104,6 +132,40 @@ namespace Bubblewright
             public float radius;
             public bool bouncy, sinking;
             public int bouncesLeft, floorTouches;
+            public BulletKind kind;
+            /// <summary>Seconds left (missile, stream). A wave or shell ends on the map instead.</summary>
+            public float life;
+            /// <summary>Degrees per second a missile may turn toward Wick.</summary>
+            public float turnRate;
+            /// <summary>The y of the surface a wave rides on, and the height of a stream's column above position.y.</summary>
+            public float surfaceY, columnHeight;
+            public bool done;
+            public Action<Vector2> onLand;
+
+            public static Flight FromLaunch(Launch l)
+            {
+                var t = Tuning.I;
+                float ppu = t.pixelsPerUnit;
+                switch (l.kind)
+                {
+                    case BulletKind.Bouncy:
+                        return BouncyFrom(l.position, l.velocity.x >= 0f ? 1 : -1, Mathf.RoundToInt(l.life));
+                    case BulletKind.Wave:
+                    {
+                        float r = t.bossWaveRadiusPixels / ppu;
+                        return new Flight { kind = l.kind, position = new Vector2(l.position.x, l.surfaceY + r), velocity = l.velocity, radius = r, surfaceY = l.surfaceY };
+                    }
+                    case BulletKind.Shell:
+                        return new Flight { kind = l.kind, position = l.position, velocity = l.velocity, radius = t.bossShellRadiusPixels / ppu, onLand = l.onLand };
+                    case BulletKind.Missile:
+                        return new Flight { kind = l.kind, position = l.position, velocity = l.velocity, radius = t.bossMissileRadiusPixels / ppu, life = l.life, turnRate = l.turnRate };
+                    case BulletKind.Stream:
+                        return new Flight { kind = l.kind, position = l.position, velocity = l.velocity, radius = t.bossStreamHalfWidthPixels / ppu, life = l.life, columnHeight = StageMap.StoreyRows };
+                    default:
+                        var f = Aimed(l.position, l.velocity);
+                        return f;
+                }
+            }
 
             public static Flight Aimed(Vector2 position, Vector2 velocity) => new Flight
             {
@@ -131,7 +193,10 @@ namespace Bubblewright
             {
                 get
                 {
+                    if (done) return true;
                     if (bouncy) return position.y <= -1f;
+                    if (kind == BulletKind.Wave || kind == BulletKind.Shell || kind == BulletKind.Missile || kind == BulletKind.Stream)
+                        return false;
                     float half = Tuning.I.HalfWidth;
                     return position.y - radius <= 0f || position.y - radius > Tuning.I.arenaHeight ||
                            position.x + radius < -half || position.x - radius > half;
@@ -139,8 +204,16 @@ namespace Bubblewright
             }
 
             /// <summary>Moves the bullet by dt. Returns true when a bouncy bullet bounced on the floor in this step.</summary>
-            public bool Step(float dt)
+            public bool Step(float dt, Vector2? wick = null)
             {
+                if (done) return false;
+                switch (kind)
+                {
+                    case BulletKind.Wave: StepWave(dt); return false;
+                    case BulletKind.Shell: StepShell(dt); return false;
+                    case BulletKind.Missile: StepMissile(dt, wick); return false;
+                    case BulletKind.Stream: StepStream(dt); return false;
+                }
                 if (!bouncy)
                 {
                     position += velocity * dt;
@@ -170,8 +243,85 @@ namespace Bubblewright
                 return true;
             }
 
+            /// <summary>True when a wave at x (its leading edge) on surfaceY would be stopped: a wall in front, or no ground under it.</summary>
+            public static bool WaveBlocked(StageMap map, float frontX, float surfaceY, float radius)
+            {
+                int c = StageMap.Col(frontX);
+                if (c < 0 || c >= StageMap.Cols) return true;
+                if (map.IsSolid(c, StageMap.Row(surfaceY + radius))) return true; // a wall
+                int below = StageMap.Row(surfaceY - 0.01f);
+                if (below < 0) return map.IsGap(c);   // the floor: gone over a gap
+                return !map.IsSolid(c, below);        // a platform: gone past its edge
+            }
+
+            void StepWave(float dt)
+            {
+                var map = Game.Map;
+                float dir = velocity.x >= 0f ? 1f : -1f;
+                float next = position.x + velocity.x * dt;
+                if (map != null && WaveBlocked(map, next + dir * radius, surfaceY, radius)) { done = true; return; }
+                position.x = next;
+            }
+
+            void StepShell(float dt)
+            {
+                var t = Tuning.I;
+                position.x += velocity.x * dt;
+                position.y += velocity.y * dt - 0.5f * t.bossShellGravity * dt * dt;
+                velocity.y -= t.bossShellGravity * dt;
+                var map = Game.Map;
+                bool hitTile = velocity.y < 0f && map != null &&
+                               map.OverlapsSolid(new Rect(position.x - radius, position.y - radius, radius * 2f, radius * 2f));
+                if (position.y - radius > 0f && !hitTile)
+                {
+                    float half = t.HalfWidth;
+                    if (position.x < -half || position.x > half) done = true;
+                    return;
+                }
+                if (position.y - radius <= 0f) position.y = radius;
+                done = true;
+                var cb = onLand;
+                onLand = null;
+                cb?.Invoke(position);
+            }
+
+            void StepMissile(float dt, Vector2? wick)
+            {
+                life -= dt;
+                if (life <= 0f) { done = true; return; }
+                float speed = velocity.magnitude;
+                if (wick.HasValue && turnRate > 0f)
+                {
+                    Vector2 to = wick.Value - position;
+                    if (to.sqrMagnitude > 1e-6f)
+                    {
+                        float now = Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg;
+                        float want = Mathf.Atan2(to.y, to.x) * Mathf.Rad2Deg;
+                        float turn = Mathf.Clamp(Mathf.DeltaAngle(now, want), -turnRate * dt, turnRate * dt);
+                        float a = (now + turn) * Mathf.Deg2Rad;
+                        velocity = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * speed;
+                    }
+                }
+                position += velocity * dt;
+                var map = Game.Map;
+                float half = Tuning.I.HalfWidth;
+                if (position.x < -half || position.x > half || position.y < 0f ||
+                    (map != null && map.OverlapsSolid(new Rect(position.x - radius, position.y - radius, radius * 2f, radius * 2f))))
+                    done = true;
+            }
+
+            void StepStream(float dt)
+            {
+                life -= dt;
+                position += velocity * dt;
+                if (life <= 0f) done = true;
+            }
+
             public bool Overlaps(Rect rect)
             {
+                if (kind == BulletKind.Stream)
+                    return rect.xMax > position.x - radius && rect.xMin < position.x + radius &&
+                           rect.yMax > position.y && rect.yMin < position.y + columnHeight;
                 float cx = Mathf.Clamp(position.x, rect.xMin, rect.xMax);
                 float cy = Mathf.Clamp(position.y, rect.yMin, rect.yMax);
                 float dx = position.x - cx, dy = position.y - cy;

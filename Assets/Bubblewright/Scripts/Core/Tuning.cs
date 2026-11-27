@@ -255,6 +255,29 @@ namespace Bubblewright
         public float bulletSpeed = 7f;
         [Tooltip("Radius of a bullet's hit circle, in pixels.")]
         public int bulletRadiusPixels = 3;
+        [Tooltip("Every boss attack is shown by a tell (edge glow, dust column, lit lane, red shadow) at least this many seconds before it lands.")]
+        public float bossTellMin = 0.5f;
+        [Tooltip("A curtain with a lane shows its lit lane this many seconds before it falls (never less than bossTellMin).")]
+        public float bossCurtainTell = 0.6f;
+        [Tooltip("Speed of a ground wave along its surface, in units per second.")]
+        public float bossWaveSpeed = 6f;
+        [Tooltip("Radius of a ground wave's hit circle, in pixels (the wave is 4 px tall at its crest).")]
+        public int bossWaveRadiusPixels = 2;
+        [Tooltip("Speed of the bullets of a curtain, in units per second, falling.")]
+        public float bossCurtainSpeed = 5f;
+        [Tooltip("Gravity on an arcing shell, in units per second squared.")]
+        public float bossShellGravity = 22f;
+        [Tooltip("An arcing shell flies at least this many seconds, and covers about this many units per second sideways.")]
+        public float bossShellMinTime = 0.7f;
+        public float bossShellSpeedX = 7f;
+        [Tooltip("Radius of an arcing shell's hit circle, in pixels (the sprite is a 9 px shell).")]
+        public int bossShellRadiusPixels = 4;
+        [Tooltip("Speed of a homing missile, in units per second. Slow enough to outrun.")]
+        public float bossMissileSpeed = 4f;
+        [Tooltip("Radius of a homing missile's hit circle, in pixels.")]
+        public int bossMissileRadiusPixels = 3;
+        [Tooltip("Half width of a sweep stream's column, in pixels.")]
+        public int bossStreamHalfWidthPixels = 4;
         [Tooltip("During the storm the boss and its bullets move this much faster.")]
         public float bossStormScale = 1.4f;
         [Tooltip("Freeze when a harpoon hits the boss, in frames at 60 per second.")]

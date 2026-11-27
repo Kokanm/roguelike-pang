@@ -1040,6 +1040,10 @@ namespace Bubblewright
         readonly Dictionary<string, BossSprites> bossCache = new Dictionary<string, BossSprites>();
         readonly Dictionary<string, Sprite> bulletCache = new Dictionary<string, Sprite>();
         readonly Dictionary<string, Sprite> bouncyCache = new Dictionary<string, Sprite>();
+        readonly Dictionary<string, Sprite> waveCache = new Dictionary<string, Sprite>();
+        readonly Dictionary<string, Sprite> shellCache = new Dictionary<string, Sprite>();
+        readonly Dictionary<string, Sprite> missileCache = new Dictionary<string, Sprite>();
+        readonly Dictionary<string, Sprite> streamCache = new Dictionary<string, Sprite>();
 
         /// <summary>Height in pixels of the band at the bottom of a boss that blinks as the tell.</summary>
         public const int BossTellBand = 4;
@@ -1234,6 +1238,69 @@ namespace Bubblewright
             c.Outline(Palette.Ink);
             var sprite = c.ToSprite($"Bullet_{theme.name}", new Vector2(3.5f, 3.5f), ppu);
             bulletCache[theme.name] = sprite;
+            return sprite;
+        }
+
+        /// <summary>
+        /// A ground wave: a 9 x 5 px crest, tall in the middle and thin at the ends, in the theme's accent with a cream
+        /// core, 1 px ink outline. Faces right (Game flips it); the pivot is the middle of its base, so the wave rides on its surface.
+        /// </summary>
+        public Sprite WaveFor(Theme theme)
+        {
+            if (waveCache.TryGetValue(theme.name, out var cached) && cached != null && cached.texture != null) return cached;
+            var c = new PixelCanvas(11, 7);
+            int[] heights = { 1, 2, 3, 4, 4, 3, 2, 1 }; // a rounded crest, 8 px wide, up to 4 px tall
+            for (int x = 0; x < heights.Length; x++) c.Rect(1 + x, 1, 1, heights[x], theme.accent);
+            c.Rect(3, 1, 4, 2, Palette.Cream);
+            c.Outline(Palette.Ink);
+            var sprite = c.ToSprite($"BossWave_{theme.name}", new Vector2(5.5f, 3f), ppu);
+            waveCache[theme.name] = sprite;
+            return sprite;
+        }
+
+        /// <summary>An arcing shell: a 9 px steel ball with a cream core and a 1 px accent ring, ink outline.</summary>
+        public Sprite ShellFor(Theme theme)
+        {
+            if (shellCache.TryGetValue(theme.name, out var cached) && cached != null && cached.texture != null) return cached;
+            var c = new PixelCanvas(9, 9);
+            c.Circle(4.5f, 4.5f, 3.5f, Palette.Steel);
+            c.Circle(4.5f, 4.5f, 2.5f, theme.accent);
+            c.Circle(4.5f, 4.5f, 1.5f, Palette.Cream);
+            c.Rect(2, 6, 2, 1, Palette.SteelLight); // a glint
+            c.Outline(Palette.Ink);
+            var sprite = c.ToSprite($"BossShell_{theme.name}", new Vector2(4.5f, 4.5f), ppu);
+            shellCache[theme.name] = sprite;
+            return sprite;
+        }
+
+        /// <summary>A homing missile pointing right: a 9 x 5 px steel body, a cream nose and an accent tail fin, ink outline. Game turns it along its flight.</summary>
+        public Sprite MissileFor(Theme theme)
+        {
+            if (missileCache.TryGetValue(theme.name, out var cached) && cached != null && cached.texture != null) return cached;
+            var c = new PixelCanvas(11, 7);
+            c.Rect(2, 2, 6, 3, Palette.Steel);
+            c.Rect(8, 2, 1, 3, Palette.Cream);
+            c.Set(9, 3, Palette.Cream);
+            c.Rect(1, 1, 2, 5, theme.accent); // tail fin
+            c.Rect(3, 4, 3, 1, Palette.SteelLight);
+            c.Outline(Palette.Ink);
+            var sprite = c.ToSprite($"BossMissile_{theme.name}", new Vector2(5.5f, 3.5f), ppu);
+            missileCache[theme.name] = sprite;
+            return sprite;
+        }
+
+        /// <summary>
+        /// A stream column: 8 x 8 px of the theme's accent with a cream core. Game stretches it to the column's height,
+        /// so the pivot is the middle of its bottom edge. Not outlined: it is a beam.
+        /// </summary>
+        public Sprite StreamFor(Theme theme)
+        {
+            if (streamCache.TryGetValue(theme.name, out var cached) && cached != null && cached.texture != null) return cached;
+            var c = new PixelCanvas(8, 8);
+            c.Rect(0, 0, 8, 8, theme.accent);
+            c.Rect(2, 0, 4, 8, Palette.Cream);
+            var sprite = c.ToSprite($"BossStream_{theme.name}", new Vector2(4f, 0f), ppu);
+            streamCache[theme.name] = sprite;
             return sprite;
         }
 
