@@ -23,6 +23,8 @@ namespace Bubblewright
         public BossDef Def { get; private set; }
         /// <summary>The legacy spec; null for a boss that is not the LegacyBoss.</summary>
         public BossSpec Spec => (Def as LegacyBoss)?.Spec;
+        /// <summary>The world's look the boss was made with (painters and markers use it).</summary>
+        public Theme Theme { get; private set; }
         public string Name => Def.Name;
         public Vector2 Size => Def.Size;
 
@@ -51,6 +53,18 @@ namespace Bubblewright
 
         public IReadOnlyList<BossPart> Parts => parts;
 
+        /// <summary>What the boss's phases may ask of the stage (patterns, tells, the arena). Game sets it; null in a bare test.</summary>
+        public IBossStage Stage { get; set; }
+        /// <summary>
+        /// True while the boss is out of sight (inside a chimney): it is not drawn, no weapon touches it and it does not
+        /// hurt Wick.
+        /// </summary>
+        public bool Hidden { get; set; }
+        /// <summary>Which sprite set is drawn, for a boss with more than one pose (BossSprites.Pose). 0 is the normal one.</summary>
+        public int Pose { get; set; }
+        /// <summary>Draws the sprite mirrored, for a boss that faces left.</summary>
+        public bool Flip { get; set; }
+
         /// <summary>The boss lost a phase and is about to stagger: Game clears bullets, changes the arena and drops a crate. Gets the old phase's index.</summary>
         public System.Action<int> OnPhaseBreak;
         /// <summary>A weapon clinked off armour or a closed core at this point.</summary>
@@ -73,6 +87,8 @@ namespace Bubblewright
         /// <summary>Which way it moves: +1 right, -1 left.</summary>
         public int Direction { get; private set; } = 1;
         public bool Entered => entrance >= EntranceTime;
+        /// <summary>How far through the stage intro the boss is, 0 to 1.</summary>
+        public float EntranceProgress => Mathf.Clamp01(entrance / EntranceTime);
 
         /// <summary>The rectangle Wick's body touches. What a weapon can hurt is decided by the parts.</summary>
         public Rect Body => new Rect(x - Size.x * 0.5f, y - Size.y * 0.5f, Size.x, Size.y);
@@ -91,6 +107,8 @@ namespace Bubblewright
         PlaceholderArt.BossSprites sprites;
         SpriteRenderer body, tell;
         float x, y;
+        readonly Dictionary<string, SpriteRenderer> markers = new Dictionary<string, SpriteRenderer>();
+        readonly Dictionary<string, Vector2> markerAt = new Dictionary<string, Vector2>();
         float entrance, bob;
         float aimedTimer, bouncyTimer, balloonTimer; // seconds until each attack next fires
         int burstLeft;                                // aimed shots still to fire in the current burst
@@ -110,6 +128,7 @@ namespace Bubblewright
             go.transform.SetParent(parent, false);
             var boss = go.AddComponent<Boss>();
             boss.Def = def;
+            boss.Theme = theme;
             boss.Hard = hard;
             boss.phases = def.CreatePhases(hard);
             boss.MaxHp = 0;
@@ -222,9 +241,57 @@ namespace Bubblewright
         /// <summary>The first part (in the order they were added) that the area overlaps, or null.</summary>
         public BossPart FirstPartTouching(Rect area)
         {
+            if (Hidden) return null;
             foreach (var p in parts)
                 if (p.World(this).Overlaps(area)) return p;
             return null;
+        }
+
+        /// <summary>
+        /// True when Wick's box (or anything else that hurts by touching) meets the boss: its parts for a boss that sets
+        /// ContactFromParts, otherwise its whole body. Never while it is hidden.
+        /// </summary>
+        public bool ContactWith(Rect box)
+        {
+            if (Hidden) return false;
+            return Def.ContactFromParts ? FirstPartTouching(box) != null : Body.Overlaps(box);
+        }
+
+        /// <summary>True when any core is open right now (the sprite shows its open face).</summary>
+        public bool AnyCoreOpen
+        {
+            get
+            {
+                foreach (var p in parts) if (p.IsCore && p.Open && !p.Broken) return true;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// A loose sprite that belongs to the boss's fight but stands at a world point, not on the boss (the pots Sootjack
+        /// comes out of). Created on first use; Visible shows or hides it.
+        /// </summary>
+        public void SetMarker(string name, Sprite sprite, Vector2 at, bool visible)
+        {
+            if (!markers.TryGetValue(name, out var sr) || sr == null)
+            {
+                var go = new GameObject("Marker " + name);
+                go.transform.SetParent(transform, false);
+                sr = go.AddComponent<SpriteRenderer>();
+                Sorting.Apply(sr, Layer.Bubbles, 10); // behind the boss, in front of the stage
+                Game.ApplySpriteMaterial(sr);
+                markers[name] = sr;
+            }
+            sr.sprite = sprite;
+            markerAt[name] = at;
+            sr.transform.position = new Vector3(at.x, at.y, 0f);
+            sr.enabled = visible;
+        }
+
+        /// <summary>Shows or hides a marker made with SetMarker.</summary>
+        public void ShowMarker(string name, bool visible)
+        {
+            if (markers.TryGetValue(name, out var sr) && sr != null) sr.enabled = visible;
         }
 
         /// <summary>True when the area touches any part.</summary>
@@ -276,6 +343,7 @@ namespace Bubblewright
         public void Hide()
         {
             body.enabled = tell.enabled = false;
+            foreach (var m in markers.Values) if (m != null) m.enabled = false;
         }
 
         /// <summary>
@@ -303,8 +371,13 @@ namespace Bubblewright
                 entrance = Mathf.Min(EntranceTime, entrance + dt);
                 float k = Mathf.Clamp01(entrance / EntranceTime);
                 float ease = 1f - (1f - k) * (1f - k);
-                y = Mathf.Lerp(StartY, T.bossY, ease);
-                if (Entered) y = T.bossY;
+                var own = Def.EntrancePosition(this, ease);
+                if (own.HasValue) { x = own.Value.x; y = own.Value.y; }
+                else
+                {
+                    y = Mathf.Lerp(StartY, T.bossY, ease);
+                    if (Entered) y = T.bossY;
+                }
                 UpdateVisual();
                 return; // no sideways move and no shots until it has slid in
             }
@@ -474,8 +547,16 @@ namespace Bubblewright
             var p = new Vector2(Mathf.Round((x + shakeOffset.x) / px) * px, Mathf.Round((y + shakeOffset.y) / px) * px);
             transform.position = new Vector3(p.x, p.y, 0f);
             bool flashing = flash > 0f || (Dying && Mathf.FloorToInt(DyingTime * 16f) % 2 == 0);
-            body.sprite = flashing ? sprites.flash : Open ? sprites.open : sprites.body;
-            tell.enabled = !flashing && TellOn;
+            var set = sprites.Pose(Pose);
+            body.sprite = flashing ? set.flash : Open || AnyCoreOpen ? set.open : set.body;
+            body.flipX = Flip;
+            body.enabled = !Hidden;
+            // Markers are children, so they follow the boss unless they are put back on their own spot.
+            foreach (var m in markers)
+                if (m.Value != null && markerAt.TryGetValue(m.Key, out var at)) m.Value.transform.position = new Vector3(at.x, at.y, 0f);
+            tell.sprite = set.tell;
+            tell.flipX = Flip;
+            tell.enabled = !Hidden && !flashing && TellOn;
         }
     }
 }

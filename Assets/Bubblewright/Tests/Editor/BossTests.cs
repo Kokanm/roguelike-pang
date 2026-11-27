@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
@@ -348,12 +349,14 @@ namespace Bubblewright.Tests
                 Assert.IsTrue(Run.IsBossStageNumber(stage));
                 var plan = StagePicker.Build(new Run(world) { Stage = stage }, stage);
                 Assert.AreEqual(0, plan.spawns.Count, $"world {world}");
-                for (int c = 0; c < StageMap.Cols; c++)
-                    for (int r = 0; r < plan.map.Rows; r++)
-                        Assert.IsFalse(plan.map.IsSolid(c, r), $"world {world}: boss stages have no platforms ({c},{r})");
+                if (BossDef.ForWorld(world) is LegacyBoss) // a world with a new boss has an arena of its own
+                    for (int c = 0; c < StageMap.Cols; c++)
+                        for (int r = 0; r < plan.map.Rows; r++)
+                            Assert.IsFalse(plan.map.IsSolid(c, r), $"world {world}: boss stages have no platforms ({c},{r})");
             }
-            Assert.AreEqual(120f, StagePicker.BossTime(1), 1e-4f, "the legacy bosses keep today's clock");
-            Assert.AreEqual(120f * Tuning.I.hardTimeScale, StagePicker.BossTime(1, true), 1e-4f);
+            int legacyWorld = Enumerable.Range(1, 6).First(w => BossDef.ForWorld(w) is LegacyBoss);
+            Assert.AreEqual(120f, StagePicker.BossTime(legacyWorld), 1e-4f, "the legacy bosses keep today's clock");
+            Assert.AreEqual(120f * Tuning.I.hardTimeScale, StagePicker.BossTime(legacyWorld, true), 1e-4f);
         }
 
         [Test]

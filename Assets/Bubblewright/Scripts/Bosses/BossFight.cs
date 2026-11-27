@@ -68,7 +68,7 @@ namespace Bubblewright
         /// </summary>
         public static int HarpoonHits(Boss boss, IList<Harpoon> harpoons, Action<int, Vector2> damage = null)
         {
-            if (boss == null || boss.Hp <= 0) return 0;
+            if (boss == null || boss.Hp <= 0 || boss.Hidden) return 0; // a boss in a chimney is not there to hit
             int hits = 0;
             foreach (var h in harpoons)
             {

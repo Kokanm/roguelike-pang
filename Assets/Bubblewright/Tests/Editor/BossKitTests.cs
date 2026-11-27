@@ -275,7 +275,8 @@ namespace Bubblewright.Tests
                 Assert.AreEqual(BossSpec.HpForWorld(world), boss.Hp);
                 Assert.AreEqual(1, boss.Parts.Count);
                 Assert.IsTrue(boss.Parts[0].IsCore && boss.Parts[0].Open, "the whole body is one open core");
-                Assert.AreEqual(Tuning.I.legacyBossTime, StagePicker.BossTime(world), 1e-4f);
+                if (BossDef.ForWorld(world) is LegacyBoss) // a world with a new boss has its own clock
+                    Assert.AreEqual(Tuning.I.legacyBossTime, StagePicker.BossTime(world), 1e-4f);
             }
         }
 

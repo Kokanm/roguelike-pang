@@ -45,6 +45,27 @@ namespace Bubblewright
             boss.OnBouncy = FireBouncy;
             boss.OnBalloon = ReleaseBalloon;
             tells = new Tells(world);
+            boss.Stage = new BossStageHost(this);
+        }
+
+        /// <summary>The stage as a boss's phases see it (IBossStage): the map and arena events, Wick, patterns, tells and shakes.</summary>
+        sealed class BossStageHost : IBossStage
+        {
+            readonly Game game;
+            public BossStageHost(Game game) { this.game = game; }
+            public StageMap Map => Game.Map;
+            public ArenaEvents Arena => Game.Arena;
+            public Rect WickBox => game.wick.Hitbox;
+            public int BubblesAlive => game.bubbles.Count;
+            public void Fire(Launch[] launches) => game.FirePattern(launches);
+            public float Telegraph(TellKind kind, Rect area, float lead, System.Action attack) => game.Telegraph(kind, area, lead, attack);
+
+            public void Impact(Vector2 at, float strength)
+            {
+                game.shake = Mathf.Max(game.shake, game.T.shakeTime * strength);
+                game.fx.Debris(at, CurrentTheme.tileFill, CurrentTheme.tileCap, Mathf.RoundToInt(6 * strength));
+                Sfx.Play(Sound.Hurt, 0.5f, 0.6f);
+            }
         }
 
         /// <summary>Fires one pattern launch now, or after its delay (the later shots of a burst).</summary>
@@ -121,7 +142,7 @@ namespace Bubblewright
 
             if (!debug.god && !wick.Invulnerable && !wick.Dead)
             {
-                if (wick.Hitbox.Overlaps(boss.Body))
+                if (boss.ContactWith(wick.Hitbox))
                     HurtWick(boss.Centre.x, T.bossContactDamage);
             }
             return false;
