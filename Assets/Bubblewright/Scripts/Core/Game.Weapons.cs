@@ -37,7 +37,6 @@ namespace Bubblewright
                 {
                     OnHitBubble = Hit,
                     OnHitRoller = HitRoller,
-                    OnDamageBoss = DamageBoss,
                     OnHitTile = HitTile,
                     OnSteel = at =>
                     {

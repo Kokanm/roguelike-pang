@@ -1,0 +1,76 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Bubblewright
+{
+    /// <summary>
+    /// One boss. Each boss is a sealed [Preserve] subclass in its own file under Bosses/Defs/W1 to W6, found by
+    /// reflection like StageSpec and WeaponSpec, so two bosses never share a list. A def names the world, the boss,
+    /// the arena stage, its phases and the fight's clock, and builds the boss's parts. A world with no def of its own
+    /// yet gets the LegacyBoss adapter.
+    /// </summary>
+    public abstract class BossDef
+    {
+        /// <summary>World 1 to 6.</summary>
+        public abstract int World { get; }
+        public abstract string Name { get; }
+        /// <summary>Body size in units; the boss's start box. Parts decide what a weapon can hurt.</summary>
+        public abstract Vector2 Size { get; }
+        /// <summary>The id of the authored arena StageSpec this boss fights in; null for the plain boss arena.</summary>
+        public virtual string ArenaId => null;
+        /// <summary>The storm clock of the fight in seconds. Tuning.bossTime unless the boss overrides it.</summary>
+        public virtual float Clock => Tuning.I.bossTime;
+        /// <summary>The clock on the hard road, which scales it like any stage.</summary>
+        public float ClockFor(bool hard) => hard ? Clock * Tuning.I.hardTimeScale : Clock;
+        /// <summary>True when hard road health scales each phase segment by Tuning.hardBossHpScale.</summary>
+        public virtual bool ScalesHardHealth => true;
+
+        /// <summary>The phases in order, each with its health segment. Build fresh ones on every call.</summary>
+        protected abstract BossPhase[] BuildPhases(bool hard);
+
+        /// <summary>Fresh phases for one fight; on the hard road each segment has hardBossHpScale more health.</summary>
+        public BossPhase[] CreatePhases(bool hard)
+        {
+            var phases = BuildPhases(hard);
+            if (hard && ScalesHardHealth)
+                foreach (var p in phases)
+                    if (p.hp > 0) p.hp = Mathf.CeilToInt(p.hp * Tuning.I.hardBossHpScale);
+            return phases;
+        }
+
+        /// <summary>Adds the boss's armour, cores and parts with health.</summary>
+        public virtual void BuildParts(Boss boss, bool hard) { }
+        /// <summary>The hard road's extra moves: each boss adds its own here.</summary>
+        public virtual void ApplyHard(Boss boss) { }
+        /// <summary>The boss's sprites; a boss with its own painter overrides this.</summary>
+        public virtual PlaceholderArt.BossSprites Sprites(Theme theme) =>
+            PlaceholderArt.I.BossFor(theme, new BossSpec { name = Name, size = Size, shape = BossShape.Block });
+
+        static BossDef[] all;
+        /// <summary>Every boss def found in the assembly, by world.</summary>
+        public static IReadOnlyList<BossDef> All => all ??= Discover();
+
+        /// <summary>The new boss of a world, or today's boss (the LegacyBoss adapter) when the world has none yet.</summary>
+        public static BossDef ForWorld(int world)
+        {
+            world = Mathf.Clamp(world, 1, 6);
+            foreach (var def in All)
+                if (def.World == world) return def;
+            return new LegacyBoss(world);
+        }
+
+        static BossDef[] Discover()
+        {
+            var list = new List<BossDef>();
+            foreach (var type in typeof(BossDef).Assembly.GetTypes())
+            {
+                if (type.IsAbstract || !type.IsSealed || !typeof(BossDef).IsAssignableFrom(type) || type == typeof(LegacyBoss)) continue;
+                if (type.GetConstructor(Type.EmptyTypes) == null) continue;
+                list.Add((BossDef)Activator.CreateInstance(type));
+            }
+            list.Sort((a, b) => a.World.CompareTo(b.World));
+            return list.ToArray();
+        }
+    }
+}

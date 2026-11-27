@@ -352,8 +352,8 @@ namespace Bubblewright.Tests
                     for (int r = 0; r < plan.map.Rows; r++)
                         Assert.IsFalse(plan.map.IsSolid(c, r), $"world {world}: boss stages have no platforms ({c},{r})");
             }
-            Assert.AreEqual(120f, StagePicker.BossTime(), 1e-4f);
-            Assert.AreEqual(120f * Tuning.I.hardTimeScale, StagePicker.BossTime(true), 1e-4f);
+            Assert.AreEqual(120f, StagePicker.BossTime(1), 1e-4f, "the legacy bosses keep today's clock");
+            Assert.AreEqual(120f * Tuning.I.hardTimeScale, StagePicker.BossTime(1, true), 1e-4f);
         }
 
         [Test]

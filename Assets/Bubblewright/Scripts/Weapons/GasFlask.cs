@@ -210,7 +210,7 @@ namespace Bubblewright
             foreach (var r in World.Rollers)
                 if (r != null && !r.Popped && r.Overlaps(box) && (map == null || map.InStorey(r.Position.y, f.StartY))) return true;
             var boss = World.LiveBoss;
-            return boss != null && boss.Body.Overlaps(box);
+            return boss != null && boss.Touches(box);
         }
 
         void Show(Flask f)
@@ -294,13 +294,11 @@ namespace Bubblewright
             {
                 float amount = Mathf.Min(t.gasBossDamage * dt, t.gasBossMax - c.BossTaken);
                 c.BossTaken += amount;
-                World.WeaponHitBoss(amount, Closest(boss.Body, c.Centre));
+                World.WeaponHitBoss(amount, boss.ClosestPoint(c.Centre));
             }
         }
 
-        bool BossInside(Cloud c, Boss boss) => Vector2.Distance(Closest(boss.Body, c.Centre), c.Centre) < Tuning.I.gasRadius;
-
-        static Vector2 Closest(Rect r, Vector2 p) => new Vector2(Mathf.Clamp(p.x, r.xMin, r.xMax), Mathf.Clamp(p.y, r.yMin, r.yMax));
+        bool BossInside(Cloud c, Boss boss) => Vector2.Distance(boss.ClosestPoint(c.Centre), c.Centre) < Tuning.I.gasRadius;
 
         /// <summary>A Scorch set it off: everything inside is hit once (steel never), the boss takes what is left of its share.</summary>
         void Detonate(Cloud c)
@@ -319,7 +317,7 @@ namespace Bubblewright
             {
                 float amount = Mathf.Max(0f, Mathf.Min(t.gasBossDamage, t.gasBossMax - c.BossTaken));
                 c.BossTaken += amount;
-                World.WeaponHitBoss(amount, Closest(boss.Body, c.Centre));
+                World.WeaponHitBoss(amount, boss.ClosestPoint(c.Centre));
             }
             OnScorch?.Invoke(c.Centre);
         }

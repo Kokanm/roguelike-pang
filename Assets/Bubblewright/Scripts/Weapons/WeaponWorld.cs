@@ -44,7 +44,7 @@ namespace Bubblewright
         public Action<Bubble> OnHitBubble;
         /// <summary>A rolling balloon that is not steel was hit: Game.HitRoller.</summary>
         public Action<Roller> OnHitRoller;
-        /// <summary>Whole boss damage: Game.DamageBoss.</summary>
+        /// <summary>Optional: called with each whole point of damage an open core takes, instead of Boss.Hurt (tests and tools).</summary>
         public Action<int, Vector2> OnDamageBoss;
         /// <summary>A breakable tile was hit once: Game.HitTile.</summary>
         public Action<int, int> OnHitTile;
@@ -115,15 +115,28 @@ namespace Bubblewright
             return true;
         }
 
-        /// <summary>Adds boss damage, fractions included, and passes on every whole point as it adds up.</summary>
-        public void WeaponHitBoss(float amount, Vector2 at)
+        /// <summary>
+        /// Boss damage from a weapon, through BossFight.Hit like everything else. area is what the weapon touched; the
+        /// first boss part it overlaps decides. Without an area the part nearest to at decides. Armour and closed cores
+        /// clink and take nothing (no fraction is saved either); an open core adds the damage, fractions included, and
+        /// passes on every whole point as it adds up (to OnDamageBoss when a test or tool listens, else Boss.Hurt).
+        /// </summary>
+        public void WeaponHitBoss(float amount, Vector2 at, Rect? area = null)
         {
-            if (amount <= 0f || LiveBoss == null) return;
+            var live = LiveBoss;
+            if (amount <= 0f || live == null) return;
+            var part = area.HasValue ? live.FirstPartTouching(area.Value) : live.NearestPart(at);
+            if (part == null) return;
+            if (BossFight.Probe(live, part) != HitResult.Damage)
+            {
+                BossFight.HitPart(live, part, 0, at); // the clink
+                return;
+            }
             bossCarry += amount;
             int whole = Mathf.FloorToInt(bossCarry + 0.0001f);
             if (whole <= 0) return;
             bossCarry = Mathf.Max(0f, bossCarry - whole);
-            OnDamageBoss?.Invoke(whole, at);
+            BossFight.HitPart(live, part, whole, at, OnDamageBoss);
         }
 
         /// <summary>Hits whatever a query returned with the helpers above. True when it did damage.</summary>
@@ -229,8 +242,18 @@ namespace Bubblewright
             var live = LiveBoss;
             if (live != null)
             {
-                float d = rect(live.Body);
-                if (d >= 0f) into.Add(new WeaponTarget { kind = TargetKind.Boss, boss = live, position = Closest(live.Body, origin), distance = d });
+                // The nearest part the query reaches: weapons hit the boss at a point on that part.
+                float best = -1f;
+                Vector2 bestAt = default;
+                foreach (var part in live.Parts)
+                {
+                    var pr = part.World(live);
+                    float d = rect(pr);
+                    if (d < 0f || (best >= 0f && d >= best)) continue;
+                    best = d;
+                    bestAt = Closest(pr, origin);
+                }
+                if (best >= 0f) into.Add(new WeaponTarget { kind = TargetKind.Boss, boss = live, position = bestAt, distance = best });
             }
             into.Sort((x, y) => x.distance.CompareTo(y.distance));
             return into;
@@ -394,9 +417,9 @@ namespace Bubblewright
                 return true;
             }
             var live = LiveBoss;
-            if (live != null && live.Body.Overlaps(box))
+            if (live != null && live.Touches(box))
             {
-                WeaponHitBoss(s.BossDamage, s.Position);
+                WeaponHitBoss(s.BossDamage, s.Position, box); // armour and closed cores clink: the shot is used up either way
                 return true;
             }
             return false;

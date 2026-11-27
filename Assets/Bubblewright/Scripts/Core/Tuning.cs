@@ -235,8 +235,16 @@ namespace Bubblewright
         [Tooltip("Health of the first boss. Each later world's boss has bossHpPerWorld more.")]
         public int bossBaseHp = 12;
         public int bossHpPerWorld = 4;
-        [Tooltip("Seconds on the storm clock of a boss stage. A hard world still scales it.")]
-        public float bossTime = 120f;
+        [Tooltip("Seconds on the storm clock of a boss stage. A hard world still scales it. A boss can override it (the Crucible Forge has its own).")]
+        public float bossTime = 240f;
+        [Tooltip("Seconds on the storm clock for the six legacy bosses, until each is replaced by a new boss.")]
+        public float legacyBossTime = 120f;
+        [Tooltip("Seconds a boss staggers when a phase ends: nothing moves or fires and nothing hurts it.")]
+        public float bossStaggerTime = 1.5f;
+        [Tooltip("Freeze when a shot or harpoon clinks off boss armour or a closed core, in frames at 60 per second.")]
+        public int bossClinkStopFrames = 1;
+        [Tooltip("A boss sparks and sounds at most this often (seconds) when weapons clink off it, so a stream of shots is not a buzz.")]
+        public float bossClinkInterval = 0.08f;
         [Tooltip("Height of the boss's centre, in units above the floor.")]
         public float bossY = 11f;
         [Tooltip("Seconds the boss shows a cream silhouette after a hit.")]

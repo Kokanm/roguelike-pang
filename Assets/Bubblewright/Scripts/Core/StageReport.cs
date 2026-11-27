@@ -67,7 +67,7 @@ namespace Bubblewright
                     }
                 }
             r.budget = r.boss ? 0f : plan.budget;
-            r.time = r.boss ? StagePicker.BossTime(hard) : StagePicker.StageTime(stage, hard) * plan.timeScale;
+            r.time = r.boss ? StagePicker.BossTime(Run.WorldOf(stage), hard) : StagePicker.StageTime(stage, hard) * plan.timeScale;
             if (plan.spawns != null)
             {
                 foreach (var s in plan.spawns)

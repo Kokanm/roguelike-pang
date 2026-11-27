@@ -21,7 +21,8 @@ namespace Bubblewright
             return hard ? time * t.hardTimeScale : time;
         }
 
-        public static float BossTime(bool hard = false) => hard ? Tuning.I.bossTime * Tuning.I.hardTimeScale : Tuning.I.bossTime;
+        /// <summary>The storm clock of a world's boss fight: its BossDef's clock, scaled on the hard road.</summary>
+        public static float BossTime(int world, bool hard = false) => BossDef.ForWorld(world).ClockFor(hard);
 
         public static float BubbleCost(BubbleKind kind, int tier)
         {

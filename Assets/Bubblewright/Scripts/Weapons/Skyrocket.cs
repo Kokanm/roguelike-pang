@@ -179,7 +179,7 @@ namespace Bubblewright
             foreach (var roller in world.Rollers)
                 if (roller != null && !roller.Popped && roller.Overlaps(box) && (map == null || map.InStorey(roller.Position.y, r.OriginY))) return true;
             var boss = world.LiveBoss;
-            return boss != null && boss.Body.Overlaps(box);
+            return boss != null && boss.Touches(box);
         }
 
         /// <summary>
