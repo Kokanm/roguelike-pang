@@ -54,6 +54,8 @@ Flame on the head, mint cloak clasp and the launcher steel are the same for ever
 
 ## Bosses (steps 17 and 18)
 
+> **Being replaced (2026-11-27).** Kokan approved six new bosses: see `docs/superpowers/specs/2026-11-27-boss-redesign-design.md` and the Boss Sheet artifact (https://claude.ai/artifact/QBqkbCMeTjEgMTZ1xrGXkb). The table below describes the old placeholder bosses, which stay in the game until each world's new boss lands (plan Task 10 removes this section).
+
 Each boss is built from its world's colours: `tileFill` body, `tileCap` band across the top third, `skyTop` visor slit (60% of the width), three rivets in `tileShade`, ink outline. No eyes, no saffron, mint or bubble colours.
 
 | World | Name | Size (tiles) | Health | Shape |
