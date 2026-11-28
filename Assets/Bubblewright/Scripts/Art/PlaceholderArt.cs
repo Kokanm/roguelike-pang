@@ -128,6 +128,8 @@ namespace Bubblewright
             public Sprite Back, Front, BackFlash, FrontFlash, Hand, Launcher, LauncherFlash;
             /// <summary>Back view pressed against a wall on his right (flip for the left): one hand and one boot on the wall.</summary>
             public Sprite Cling, ClingFlash;
+            /// <summary>Back view on a ladder, two alternating hand-over-hand frames (A: left hand and right boot up, B: the reverse).</summary>
+            public Sprite ClimbA, ClimbB, ClimbAFlash, ClimbBFlash;
             /// <summary>Flat Palette.Dusk shape of the front view, for locked cards.</summary>
             public Sprite FrontLocked;
         }
@@ -153,6 +155,8 @@ namespace Bubblewright
             set.Hand = BuildHand(c.body);
             set.Cling = BuildWickCling(c.body, c.bodyDark, c.bodyLine, out Sprite clingFlash);
             set.ClingFlash = clingFlash;
+            set.ClimbA = BuildWickClimb(false, c.body, c.bodyDark, c.bodyLine, out set.ClimbAFlash);
+            set.ClimbB = BuildWickClimb(true, c.body, c.bodyDark, c.bodyLine, out set.ClimbBFlash);
             characterSprites[c.id] = set;
             return set;
         }
@@ -196,6 +200,38 @@ namespace Bubblewright
             var pivot = new Vector2(11.5f, 0f);
             flash = c.Silhouette(Palette.Cream).ToSprite(name + "_Flash", pivot, ppu);
             locked = c.Silhouette(Palette.Dusk).ToSprite(name + "_Locked", pivot, ppu);
+            return c.ToSprite(name, pivot, ppu);
+        }
+
+        /// <summary>
+        /// Ladder climb, back view. Same 23 x 30 canvas and feet pivot as the standing back view; the right arm and the
+        /// launcher stay put, the free left hand alternates reaching up and down and the boots alternate with it.
+        /// </summary>
+        Sprite BuildWickClimb(bool phaseB, Color32 body, Color32 bodyDark, Color32 bodyLine, out Sprite flash)
+        {
+            var c = new PixelCanvas(23, 30);
+            c.Ellipse(11.5f, 11f, 8.5f, 8f, body);
+            c.EllipseOnFilled(11.5f, 2.5f, 10f, 3.5f, bodyDark);
+            c.RectOnFilled(3, 8, 17, 1, bodyLine);
+            // Boots: the raised one is lifted 2 px (the previous step), the other is planted on the rung.
+            int leftBoot = phaseB ? 1 : 3, rightBoot = phaseB ? 3 : 1;
+            c.Rect(6, leftBoot, 5, 3, Palette.Ink);
+            c.Rect(12, rightBoot, 5, 3, Palette.Ink);
+            c.Rect(7, leftBoot + 2, 3, 1, Palette.Deep);
+            c.Rect(13, rightBoot + 2, 3, 1, Palette.Deep);
+            c.Ellipse(11.5f, 19.5f, 6.5f, 5.5f, body);
+            c.Ellipse(11.5f, 24f, 2f, 2.2f, body);
+            c.RectOnFilled(6, 14, 12, 1, bodyDark);
+            c.Rect(11, 26, 1, 2, Palette.Ink);
+            c.RectOnFilled(11, 15, 1, 9, bodyLine); // hood seam
+            // Free left hand on a rung: high in A, low in B.
+            int handY = phaseB ? 12 : 20;
+            c.Rect(2, handY - 2, 2, 2, bodyDark);
+            c.Rect(1, handY, 3, 3, body);
+            c.Outline(Palette.Ink);
+            string name = phaseB ? "Wick_ClimbB" : "Wick_ClimbA";
+            var pivot = new Vector2(11.5f, 0f);
+            flash = c.Silhouette(Palette.Cream).ToSprite(name + "_Flash", pivot, ppu);
             return c.ToSprite(name, pivot, ppu);
         }
 
