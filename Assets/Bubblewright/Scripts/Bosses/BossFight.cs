@@ -156,8 +156,9 @@ namespace Bubblewright
         }
 
         /// <summary>
-        /// The health bar's segments across totalWidth: one per phase, equally wide, gap apart. Segments already spent
-        /// are empty, the current one drains and later ones are full.
+        /// The health bar's segments across totalWidth: one per phase, equally wide, gap apart, the first phase at the
+        /// right end so the whole bar empties from right to left. Segments already spent are empty, the current one
+        /// drains (from its right edge) and later ones are full.
         /// </summary>
         public static List<BarSegment> BarSegments(Boss boss, float totalWidth, float gap)
         {
@@ -168,7 +169,7 @@ namespace Bubblewright
             {
                 float fill = i < boss.PhaseIndex ? 0f : i == boss.PhaseIndex ? boss.Phase.Fill(boss) : 1f;
                 if (boss.Hp <= 0) fill = 0f;
-                list.Add(new BarSegment { x = i * (width + gap), width = width, fill = fill });
+                list.Add(new BarSegment { x = (n - 1 - i) * (width + gap), width = width, fill = fill });
             }
             return list;
         }

@@ -165,12 +165,12 @@ namespace Bubblewright
             boss.AddPart(new BossPart { Name = "pipe", Local = Local(PipeX, StoveTop, PipeW, PipeH, dir) });
             if (pose == WalkPose)
             {
-                boss.AddPart(new BossPart { Name = "stilt back", Local = Local(-FootX - StiltW * 0.5f, -HalfHeight, StiltW, Clearance, dir) });
-                boss.AddPart(new BossPart { Name = "stilt front", Local = Local(FootX - StiltW * 0.5f, -HalfHeight, StiltW, Clearance, dir) });
+                boss.AddPart(new BossPart { Name = "stilt back", Harmless = true, Local = Local(-FootX - StiltW * 0.5f, -HalfHeight, StiltW, Clearance, dir) });
+                boss.AddPart(new BossPart { Name = "stilt front", Harmless = true, Local = Local(FootX - StiltW * 0.5f, -HalfHeight, StiltW, Clearance, dir) });
             }
             else
             {
-                boss.AddPart(new BossPart { Name = "leg", Local = Local(-FootX - StiltW * 0.5f, BellyLocalY - LegH, StiltW, LegH, dir) });
+                boss.AddPart(new BossPart { Name = "leg", Harmless = true, Local = Local(-FootX - StiltW * 0.5f, BellyLocalY - LegH, StiltW, LegH, dir) });
             }
         }
 
@@ -191,19 +191,24 @@ namespace Bubblewright
 
         // ------------------------------------------------------------------ phase 1: stilt walk
 
-        /// <summary>Walks, stomps and coughs; the grate glows after enough coughs.</summary>
+        /// <summary>
+        /// Walks, stomps and coughs; after enough coughs it tires: it sags, its shutter slides back and the grate is open
+        /// while it stands panting, until the time is up or the grate has taken its hits for this opening.
+        /// </summary>
         public sealed class StiltWalk : BossPhase
         {
-            enum State { Stomp, Cough, Walk, Glow }
+            enum State { Stomp, Cough, Walk, Tiring, Tired }
 
             State state = State.Stomp;
             bool told;
-            float timer, walkClock;
+            float timer, clock, smoke;
             int dir = 1;
 
             /// <summary>Coughs since the grate last closed.</summary>
             public int Coughs { get; private set; }
             public int Stomps { get; private set; }
+            /// <summary>True from the moment it tires (shutter sliding) until the grate shuts again.</summary>
+            public bool Tired => state == State.Tiring || state == State.Tired;
 
             static Tuning T => Tuning.I;
             int Needed(Boss boss) => boss.Hard ? T.sootCoughsToOpenHard : T.sootCoughsToOpen;
@@ -224,49 +229,80 @@ namespace Bubblewright
             {
                 var stage = boss.Stage;
                 if (stage == null) return;
-                float clock = dt * speedScale * boss.HardRateScale;
+                float k = dt * speedScale * boss.HardRateScale;
+                clock += dt;
+                Breathe(boss, dt);
                 switch (state)
                 {
                     case State.Stomp:
-                        Stand(boss);
+                        Stand(boss, 0f);
                         if (told) break;
                         told = true;
                         var feet = new Rect(boss.Centre.x - HalfBody, 0f, HalfBody * 2f, 0.8f);
                         stage.Telegraph(TellKind.DustColumn, feet, T.sootStompTell, () => DoStomp(boss));
                         break;
                     case State.Cough:
-                        Stand(boss);
+                        Stand(boss, 0f);
                         if (told) break;
                         told = true;
                         var glow = new Rect(PipeTip(boss).x - 0.5f, PipeTip(boss).y - 0.2f, 1f, 1f);
                         stage.Telegraph(TellKind.EdgeGlow, glow, T.sootCoughTell, () => DoCough(boss));
                         break;
                     case State.Walk:
-                        Move(boss, dt, speedScale, 1f);
-                        timer -= clock;
+                        Move(boss, dt, speedScale);
+                        timer -= k;
                         if (timer <= 0f) { state = State.Stomp; told = false; }
                         break;
-                    case State.Glow:
-                        Move(boss, dt, speedScale, T.sootGlowSpeedScale);
-                        timer -= clock;
-                        if (timer <= 0f) EndGlow(boss);
+                    case State.Tiring:
+                        // It sags and pants while the shutter slides back.
+                        timer -= k;
+                        Stand(boss, -0.25f * Mathf.Clamp01(1f - timer / Mathf.Max(0.01f, T.sootTiredTime)));
+                        if (timer > 0f) break;
+                        boss.Opening = false;
+                        boss.CoreHits = 0;
+                        OpenGrate(boss);
+                        state = State.Tired;
+                        timer = T.sootGrateGlow;
+                        break;
+                    case State.Tired:
+                        timer -= k;
+                        Stand(boss, -0.25f + Mathf.Sin(clock * 9f) * 0.06f);
+                        boss.Tilt = Mathf.Sin(clock * 9f) * 1.5f;
+                        if (timer <= 0f || boss.CoreHits >= T.sootHitsPerOpening) EndTired(boss);
                         break;
                 }
             }
 
-            public override void Exit(Boss boss) => CloseGrate(boss);
-
-            void Stand(Boss boss) => boss.SetPosition(boss.Centre.x, HalfHeight);
-
-            void Move(Boss boss, float dt, float speedScale, float scale)
+            public override void Exit(Boss boss)
             {
-                walkClock += dt;
-                float speed = T.sootWalkSpeed * boss.HardSpeedScale * speedScale * scale;
+                CloseGrate(boss);
+                boss.Opening = false;
+                boss.Tilt = 0f;
+            }
+
+            /// <summary>Rocks from side to side while it stands, and puffs smoke from its pipe.</summary>
+            void Breathe(Boss boss, float dt)
+            {
+                if (state == State.Stomp || state == State.Cough) boss.Tilt = Mathf.Sin(clock * 3f) * 3f;
+                smoke -= dt;
+                if (smoke > 0f) return;
+                smoke = T.sootSmokeEvery;
+                boss.Stage.Puff(PipeTip(boss));
+            }
+
+            void Stand(Boss boss, float sag) => boss.SetPosition(boss.Centre.x, HalfHeight + sag);
+
+            void Move(Boss boss, float dt, float speedScale)
+            {
+                float speed = T.sootWalkSpeed * boss.HardSpeedScale * speedScale;
                 float x = boss.Centre.x + dir * speed * dt;
                 float limit = T.sootWalkLimit;
                 if (x > limit) { x = limit; dir = -1; }
                 else if (x < -limit) { x = -limit; dir = 1; }
-                boss.SetPosition(x, HalfHeight + Mathf.Abs(Mathf.Sin(walkClock * 5f)) * 0.12f);
+                // A stride: it bobs on each step and leans into the walk.
+                float step = Mathf.Sin(clock * 6f);
+                boss.SetPosition(x, HalfHeight + Mathf.Abs(step) * 0.18f);
+                boss.Tilt = -dir * 3f + step * 2f;
             }
 
             /// <summary>A stomp: a wave goes out each way along the roof from the feet; on the hard road a second pair follows.</summary>
@@ -290,33 +326,44 @@ namespace Bubblewright
                 foreach (var w in Patterns.GroundWave(0f, x + FootX, 1)) { var l = w; l.delay = delay; waves.Add(l); }
             }
 
-            /// <summary>A cough: a fan of soot from the pipe at Wick; the grate glows once enough have been coughed.</summary>
+            /// <summary>True when Wick stands under the belly, between the stilts: the soot cannot reach him there.</summary>
+            static bool Under(Boss boss, Rect wick) =>
+                Mathf.Abs(wick.center.x - boss.Centre.x) < FootX - 0.2f && wick.yMax < boss.Centre.y + BellyLocalY;
+
+            /// <summary>
+            /// A cough: a fan of soot from the pipe at Wick; if he is under the belly it goes up and out instead (he is
+            /// safe there). Once enough have been coughed it tires.
+            /// </summary>
             void DoCough(Boss boss)
             {
                 var stage = boss.Stage;
-                stage.Fire(Patterns.Fan(PipeTip(boss), stage.WickBox.center, T.bulletSpeed, T.sootCoughBullets, T.sootCoughSpread));
+                var from = PipeTip(boss);
+                var wick = stage.WickBox;
+                var aim = Under(boss, wick) ? from + new Vector2(dir * 6f, 5f) : wick.center;
+                stage.Fire(Patterns.Fan(from, aim, T.bulletSpeed, T.sootCoughBullets, T.sootCoughSpread));
+                stage.Puff(from);
                 Coughs++;
                 if (Coughs >= Needed(boss))
                 {
-                    OpenGrate(boss);
-                    state = State.Glow;
-                    timer = T.sootGrateGlow;
+                    boss.Opening = true;
+                    state = State.Tiring;
+                    timer = T.sootTiredTime;
                 }
                 else
                 {
                     state = State.Walk;
-                    timer = T.sootWalkTime;
-                    dir = -dir;
+                    timer = T.sootWalkTime; // it patrols: it turns only at the ends of its walk
                 }
             }
 
-            void EndGlow(Boss boss)
+            void EndTired(Boss boss)
             {
                 CloseGrate(boss);
+                boss.Opening = false;
+                boss.Tilt = 0f;
                 Coughs = 0;
                 state = State.Walk;
                 timer = T.sootWalkTime;
-                dir = -dir;
             }
         }
 
@@ -325,11 +372,11 @@ namespace Bubblewright
         /// <summary>Hops between the chimney tops and the high platform; at each perch a curtain with a lane, then the grate.</summary>
         public sealed class ChimneyHop : BossPhase
         {
-            enum State { HopTell, Hop, Settle, LaneTell, Window, Rest }
+            enum State { HopTell, Hop, Settle, LaneTell, Falling, Tiring, Window, Rest }
 
             State state;
             bool told;
-            float timer;
+            float timer, life, smoke;
             int target;
             PerchSpot current;
             Vector2 from, to;
@@ -359,6 +406,10 @@ namespace Bubblewright
                 var stage = boss.Stage;
                 if (stage == null) return;
                 float clock = dt * speedScale * boss.HardRateScale;
+                life += dt;
+                if (state != State.Hop) boss.Tilt = state == State.Window ? Mathf.Sin(life * 9f) * 1.5f : Mathf.Sin(life * 3f) * 2.5f;
+                smoke -= dt;
+                if (smoke <= 0f && !boss.Hidden) { smoke = T.sootSmokeEvery; stage.Puff(PipeTip(boss)); }
                 switch (state)
                 {
                     case State.HopTell:
@@ -374,6 +425,7 @@ namespace Bubblewright
                         float e = Mathf.Clamp01(flight);
                         var at = Vector2.Lerp(from, to, e) + Vector2.up * (T.sootHopPeak * 4f * e * (1f - e));
                         boss.SetPosition(at.x, at.y);
+                        boss.Tilt = (to.x >= from.x ? -1f : 1f) * 8f * (1f - e);
                         if (flight >= 1f) Land(boss);
                         break;
                     case State.Settle:
@@ -385,9 +437,23 @@ namespace Bubblewright
                         told = true;
                         LightLane(boss);
                         break;
+                    case State.Falling:
+                        // A perch where it is not tired yet: only the curtain, then on to the next.
+                        timer -= clock;
+                        if (timer <= 0f) { state = State.Rest; timer = T.sootPerchRest; }
+                        break;
+                    case State.Tiring:
+                        timer -= clock;
+                        if (timer > 0f) break;
+                        boss.Opening = false;
+                        boss.CoreHits = 0;
+                        OpenGrate(boss);
+                        state = State.Window;
+                        timer = T.sootPerchOpen;
+                        break;
                     case State.Window:
                         timer -= clock;
-                        if (timer <= 0f)
+                        if (timer <= 0f || boss.CoreHits >= T.sootHitsPerOpening)
                         {
                             CloseGrate(boss);
                             state = State.Rest;
@@ -401,7 +467,15 @@ namespace Bubblewright
                 }
             }
 
-            public override void Exit(Boss boss) => CloseGrate(boss);
+            public override void Exit(Boss boss)
+            {
+                CloseGrate(boss);
+                boss.Opening = false;
+                boss.Tilt = 0f;
+            }
+
+            /// <summary>True when this perch is one where it is tired and opens: every sootPerchesToTire-th landing.</summary>
+            bool TiredHere => Landings % Mathf.Max(1, T.sootPerchesToTire) == 0;
 
             void StartHop(Boss boss)
             {
@@ -437,7 +511,8 @@ namespace Bubblewright
 
             /// <summary>
             /// Lights the lane under the grate, tells the pipe at the top middle to drop a Gloop, and when the lane's
-            /// tell ends drops the curtain and opens the grate.
+            /// tell ends drops a slow curtain with a gap in every few columns besides the lane. On a perch where it is
+            /// tired the shutter then slides back and the grate opens.
             /// </summary>
             void LightLane(Boss boss)
             {
@@ -447,13 +522,39 @@ namespace Bubblewright
                 var lane = new Rect(StageMap.CellRect(laneCol, 0).xMin, 0f, cols, StageMap.StoreyRows);
                 stage.Telegraph(TellKind.LitLane, lane, T.bossCurtainTell, () =>
                 {
-                    stage.Fire(Patterns.CurtainWithLane(boss.Centre.y, laneCol, cols));
-                    OpenGrate(boss);
-                    state = State.Window;
-                    timer = T.sootPerchOpen;
+                    stage.Fire(Curtain(boss.Centre.y, laneCol, cols));
+                    if (TiredHere)
+                    {
+                        boss.Opening = true;
+                        state = State.Tiring;
+                        timer = T.sootTiredTime;
+                    }
+                    else
+                    {
+                        state = State.Falling;
+                        timer = T.sootPerchOpen * 0.5f;
+                    }
                 });
                 if (stage.BubblesAlive < T.bossMaxBubbles)
                     stage.Arena?.FirePipe(PipeSpot.TopMiddle, T.sootPipeTier, 0);
+            }
+
+            /// <summary>Its curtain: the kit's curtain with a lane, slower, with one more gap in every few columns (none next to the lane).</summary>
+            public static Launch[] Curtain(float storeyY, int laneCol, int laneCols)
+            {
+                var all = Patterns.CurtainWithLane(storeyY, laneCol, laneCols);
+                int every = Mathf.Max(2, T.sootCurtainGapEvery);
+                var kept = new List<Launch>();
+                foreach (var l in all)
+                {
+                    int c = StageMap.Col(l.position.x);
+                    int fromLane = c < laneCol ? laneCol - c : c - (laneCol + laneCols - 1);
+                    if (fromLane % every == 0) continue; // a gap every few columns, counted out from the lane
+                    var slow = l;
+                    slow.velocity = Vector2.down * T.sootCurtainSpeed;
+                    kept.Add(slow);
+                }
+                return kept.ToArray();
             }
         }
 
@@ -468,6 +569,7 @@ namespace Bubblewright
             bool told, nextIsPop = true;
             float timer;
             int ringCount, chargeSide = 1, moveDir;
+            float life;
 
             /// <summary>The pots that are puffing now (on the hard road, the real one and the fake).</summary>
             public List<int> Puffed { get; } = new List<int>();
@@ -511,10 +613,13 @@ namespace Bubblewright
                         StartPuff(boss);
                         break;
                     case State.Hover:
-                        boss.SetPosition(PotX[Emerged], T.sootHoverFeet + HalfHeight);
+                        life += dt;
+                        boss.SetPosition(PotX[Emerged], T.sootHoverFeet + HalfHeight + Mathf.Sin(life * 5f) * 0.1f);
+                        boss.Tilt = Mathf.Sin(life * 9f) * 1.5f;
                         timer -= clock;
-                        if (timer <= 0f)
+                        if (timer <= 0f || boss.CoreHits >= T.sootHitsPerOpening)
                         {
+                            boss.Tilt = 0f;
                             CloseGrate(boss);
                             GoUnder(boss);
                             nextIsPop = false;
@@ -534,6 +639,7 @@ namespace Bubblewright
             public override void Exit(Boss boss)
             {
                 CloseGrate(boss);
+                boss.Tilt = 0f;
                 boss.Hidden = false;
                 Underground = false;
             }
@@ -572,6 +678,8 @@ namespace Bubblewright
                 SetPose(boss, WalkPose, 1);
                 boss.SetPosition(PotX[pot], T.sootHoverFeet + HalfHeight);
                 OpenGrate(boss);
+                boss.CoreHits = 0;
+                boss.Stage.Puff(PipeTip(boss));
                 Emerged = pot;
 
                 int slots = Mathf.Max(4, T.sootRingSlots);
@@ -612,8 +720,11 @@ namespace Bubblewright
             void Charge(Boss boss, float dt, float speedScale)
             {
                 float x = boss.Centre.x + moveDir * T.sootChargeSpeed * boss.HardSpeedScale * speedScale * dt;
-                boss.SetPosition(x, T.sootChargeHeight * 0.5f);
+                life += dt;
+                boss.SetPosition(x, T.sootChargeHeight * 0.5f + Mathf.Abs(Mathf.Sin(life * 14f)) * 0.08f);
+                boss.Tilt = -4f; // leans into the charge (mirrored when it runs left)
                 if (moveDir * x < OffscreenX) return;
+                boss.Tilt = 0f;
                 SetPose(boss, WalkPose, 1);
                 GoUnder(boss);
                 nextIsPop = true;

@@ -64,6 +64,12 @@ namespace Bubblewright
         public int Pose { get; set; }
         /// <summary>Draws the sprite mirrored, for a boss that faces left.</summary>
         public bool Flip { get; set; }
+        /// <summary>Degrees the sprite leans (rocking, panting); only the drawing turns, the parts stay upright.</summary>
+        public float Tilt { get; set; }
+        /// <summary>True while a core is about to open (its shield sliding back): the sprite shows its opening frame.</summary>
+        public bool Opening { get; set; }
+        /// <summary>Hits an open core has taken since a phase last set this to 0 (a boss that shuts after a few hits counts them).</summary>
+        public int CoreHits { get; set; }
 
         /// <summary>The boss lost a phase and is about to stagger: Game clears bullets, changes the arena and drops a crate. Gets the old phase's index.</summary>
         public System.Action<int> OnPhaseBreak;
@@ -207,6 +213,7 @@ namespace Bubblewright
         public void Hurt(int amount, Vector2 at)
         {
             if (Hp <= 0) return;
+            CoreHits++;
             Damage(amount);
             OnHurt?.Invoke(amount, at);
         }
@@ -254,7 +261,10 @@ namespace Bubblewright
         public bool ContactWith(Rect box)
         {
             if (Hidden) return false;
-            return Def.ContactFromParts ? FirstPartTouching(box) != null : Body.Overlaps(box);
+            if (!Def.ContactFromParts) return Body.Overlaps(box);
+            foreach (var p in parts)
+                if (!p.Harmless && p.World(this).Overlaps(box)) return true;
+            return false;
         }
 
         /// <summary>True when any core is open right now (the sprite shows its open face).</summary>
@@ -548,7 +558,8 @@ namespace Bubblewright
             transform.position = new Vector3(p.x, p.y, 0f);
             bool flashing = flash > 0f || (Dying && Mathf.FloorToInt(DyingTime * 16f) % 2 == 0);
             var set = sprites.Pose(Pose);
-            body.sprite = flashing ? set.flash : Open || AnyCoreOpen ? set.open : set.body;
+            body.sprite = flashing ? set.flash : Open || AnyCoreOpen ? set.open : Opening && set.opening != null ? set.opening : set.body;
+            transform.rotation = Quaternion.Euler(0f, 0f, Flip ? -Tilt : Tilt);
             body.flipX = Flip;
             body.enabled = !Hidden;
             // Markers are children, so they follow the boss unless they are put back on their own spot.

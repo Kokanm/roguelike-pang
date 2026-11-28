@@ -1035,6 +1035,8 @@ namespace Bubblewright
         public class BossSprites
         {
             public Sprite body, open, flash, tell;
+            /// <summary>Optional frame between body and open (a shield half slid back); null for a boss without one.</summary>
+            public Sprite opening;
             /// <summary>Other poses of a boss with more than one shape (index 0 is the boss's own sprites). Null for a boss with one.</summary>
             public BossSprites[] poses;
 

@@ -43,6 +43,8 @@ namespace Bubblewright.Tests
             }
 
             public void Impact(Vector2 at, float strength) => Impacts++;
+
+            public void Puff(Vector2 at) { }
         }
 
         [SetUp]
@@ -122,7 +124,7 @@ namespace Bubblewright.Tests
         // ------------------------------------------------------------------ phase 1: stilt walk
 
         [Test]
-        public void TheGrateIsClosedAndClinksUntilThreeCoughsHaveBeenCoughed()
+        public void TheGrateIsShutAndClinksUntilItHasCoughedEnoughToTire()
         {
             var boss = Make();
             var walk = (Sootjack.StiltWalk)boss.Phase;
@@ -146,7 +148,8 @@ namespace Bubblewright.Tests
                 return true;
             });
             Assert.IsTrue(opened, "the grate should open");
-            Assert.AreEqual(3, coughsWhenOpened, "after three coughs and not before");
+            Assert.AreEqual(Tuning.I.sootCoughsToOpen, coughsWhenOpened, "after enough coughs and not before");
+            Assert.GreaterOrEqual(Tuning.I.sootCoughsToOpen, 4, "Kokan's play-test: dodge for a while before it tires");
             Assert.IsTrue(closedHitClinked);
             Assert.AreEqual(hp, boss.Hp, "nothing hurt it while the grate was closed");
 
@@ -156,7 +159,7 @@ namespace Bubblewright.Tests
         }
 
         [Test]
-        public void OnTheHardRoadTheGrateOpensAfterTwoCoughs()
+        public void OnTheHardRoadItTiresOneCoughSooner()
         {
             var boss = Make(hard: true);
             var walk = (Sootjack.StiltWalk)boss.Phase;
@@ -167,7 +170,7 @@ namespace Bubblewright.Tests
                 coughs = walk.Coughs;
                 return true;
             }));
-            Assert.AreEqual(2, coughs);
+            Assert.AreEqual(Tuning.I.sootCoughsToOpen - 1, coughs);
         }
 
         [Test]
@@ -227,10 +230,11 @@ namespace Bubblewright.Tests
             boss.SetPosition(0f, 3.2f);
             Assert.IsFalse(boss.ContactWith(new Rect(-0.5f, 0f, 1f, 1.47f)), "under the belly");
             Assert.IsFalse(boss.ContactWith(new Rect(-1.9f, 0f, 1f, 1.47f)), "still between the stilts");
-            Assert.IsTrue(boss.ContactWith(new Rect(2.6f, 0f, 1f, 1.47f)), "a stilt");
+            Assert.IsFalse(boss.ContactWith(new Rect(2.6f, 0f, 1f, 1.47f)), "Wick walks past a stilt to get under the belly");
+            Assert.IsTrue(boss.ContactWith(new Rect(-4.2f, 1.6f, 1f, 1.47f)), "jumping into the stove hurts");
             Assert.IsTrue(boss.ContactWith(new Rect(-0.5f, 2.4f, 1f, 1.47f)), "the stove");
             boss.Hidden = true;
-            Assert.IsFalse(boss.ContactWith(new Rect(2.6f, 0f, 1f, 1.47f)), "not while it is in a chimney");
+            Assert.IsFalse(boss.ContactWith(new Rect(-0.5f, 2.4f, 1f, 1.47f)), "not while it is in a chimney");
         }
 
         [Test]
@@ -248,6 +252,65 @@ namespace Bubblewright.Tests
             Assert.Greater(max, 1f);
             Assert.LessOrEqual(max, Tuning.I.sootWalkLimit + 1e-3f);
             Assert.GreaterOrEqual(min, -Tuning.I.sootWalkLimit - 1e-3f);
+        }
+
+        [Test]
+        public void TheShutterSlamsShutAfterAFewHitsSoHoldingFireCannotFinishIt()
+        {
+            var boss = Make();
+            Assert.IsTrue(Run(boss, 60f, () => Grate(boss).Open));
+            int hp = boss.Hp;
+            var spot = Grate(boss).World(boss).center;
+            for (int i = 0; i < 10; i++)
+            {
+                BossFight.Hit(boss, Around(spot), 1, spot);
+                Run(boss, 0.1f, () => false);
+            }
+            Assert.AreEqual(hp - Tuning.I.sootHitsPerOpening, boss.Hp, "only so many hits per opening");
+            Assert.IsFalse(Grate(boss).Open, "the shutter is shut again");
+            Assert.Greater(boss.PhaseHp, 0, "the phase is not over in one opening");
+        }
+
+        [Test]
+        public void ItSagsWithTheShutterHalfOpenBeforeTheGrateOpens()
+        {
+            var boss = Make();
+            var walk = (Sootjack.StiltWalk)boss.Phase;
+            Assert.IsTrue(Run(boss, 60f, () => boss.Opening));
+            Assert.IsFalse(Grate(boss).Open, "still shut while the shutter slides");
+            Assert.IsTrue(walk.Tired);
+            Assert.IsTrue(Run(boss, Tuning.I.sootTiredTime + 0.1f, () => Grate(boss).Open));
+            Assert.IsFalse(boss.Opening);
+            Assert.IsNotNull(SootjackArt.For(Themes.ForWorld(1)).Pose(Sootjack.WalkPose).opening, "it has a frame for it");
+        }
+
+        [Test]
+        public void UnderTheBellyTheSootGoesUpAndOutNotAtWick()
+        {
+            var boss = Make();
+            boss.SetPosition(0f, 3.2f);
+            stage.WickBox = new Rect(-0.5f, 0f, 1f, 1.47f);
+            Vector2 Wick() => stage.WickBox.center;
+            bool fired = false;
+            for (float t = 0f; t < 30f && !fired; t += Dt)
+            {
+                stage.WickBox = new Rect(boss.Centre.x - 0.5f, 0f, 1f, 1.47f); // he follows it, under the belly
+                boss.Tick(Dt, Wick(), true);
+                stage.Tells.Tick(Dt);
+                fired = stage.Fired.Any(l => l.kind == BulletKind.Aimed);
+            }
+            Assert.IsTrue(fired);
+            Assert.IsTrue(stage.Fired.Where(l => l.kind == BulletKind.Aimed).All(l => l.velocity.y > 0f), "every soot bullet rises");
+        }
+
+        [Test]
+        public void ItRocksWhileItStands()
+        {
+            var boss = Make();
+            float min = 0f, max = 0f;
+            Run(boss, 3f, () => { min = Mathf.Min(min, boss.Tilt); max = Mathf.Max(max, boss.Tilt); return false; });
+            Assert.Less(min, -1f);
+            Assert.Greater(max, 1f);
         }
 
         [Test]
@@ -300,10 +363,16 @@ namespace Bubblewright.Tests
             Assert.IsTrue(Run(boss, 30f, () => stage.Fired.Any(l => l.kind == BulletKind.Aimed && l.velocity.y < 0f)), "the curtain falls");
             var grate = Grate(boss).World(boss);
             var curtain = stage.Fired.Where(l => l.kind == BulletKind.Aimed).ToList();
-            Assert.Greater(curtain.Count, 20, "a whole row");
+            Assert.Greater(curtain.Count, 12, "a row, with gaps");
+            Assert.Less(curtain.Count, StageMap.Cols - Tuning.I.sootLaneCols, "more gaps than the lane alone");
+            Assert.IsTrue(curtain.All(l => Mathf.Approximately(l.velocity.y, -Tuning.I.sootCurtainSpeed)), "slower than the kit's curtain");
+            Assert.Less(Tuning.I.sootCurtainSpeed, Tuning.I.bossCurtainSpeed);
             Assert.IsTrue(curtain.All(l => l.position.x < grate.xMin || l.position.x > grate.xMax), "no bullet falls through the lane under the grate");
             Assert.IsTrue(stage.Told.Any(t => t.kind == TellKind.LitLane && t.lead >= Tuning.I.bossCurtainTell - 1e-4f), "the lane was lit first");
-            Assert.IsTrue(Run(boss, 10f, () => Grate(boss).Open), "the grate opens");
+            Assert.IsFalse(Grate(boss).Open, "not on its first perch: it is not tired yet");
+            Assert.IsTrue(Run(boss, 30f, () => Grate(boss).Open), "the grate opens on a later perch");
+            Assert.AreEqual(0, hop.Landings % Tuning.I.sootPerchesToTire);
+            grate = Grate(boss).World(boss);
             int col = StageMap.Col(grate.center.x);
             Assert.AreEqual(0f, map.FloorBelow(grate.center.x, grate.yMin), 1e-3f, "open floor under the grate: nothing blocks the harpoon");
             Assert.IsTrue(!map.IsSolid(col, 0));

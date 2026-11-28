@@ -423,12 +423,17 @@ namespace Bubblewright
         [Tooltip("Soot bullets in one cough, and the degrees between them.")]
         public int sootCoughBullets = 3;
         public float sootCoughSpread = 24f;
-        [Tooltip("Coughs before the belly grate opens (phase 1). The hard road needs one fewer.")]
-        public int sootCoughsToOpen = 3;
-        public int sootCoughsToOpenHard = 2;
-        [Tooltip("Seconds the grate stays open after the last cough, and how much slower it walks meanwhile.")]
-        public float sootGrateGlow = 2f;
-        public float sootGlowSpeedScale = 0.6f;
+        [Tooltip("Coughs before it tires and its shutter slides back from the grate (phase 1). The hard road needs one fewer.")]
+        public int sootCoughsToOpen = 4;
+        public int sootCoughsToOpenHard = 3;
+        [Tooltip("Seconds it stands panting with the grate open once it has tired (phase 1).")]
+        public float sootGrateGlow = 2.5f;
+        [Tooltip("Seconds the shutter takes to slide back before the grate opens: it sags and pants first.")]
+        public float sootTiredTime = 0.7f;
+        [Tooltip("Hits the grate takes in one opening before the shutter slams shut again, so holding fire cannot finish it in one go.")]
+        public int sootHitsPerOpening = 3;
+        [Tooltip("Seconds between puffs of smoke from its pipe, for life.")]
+        public float sootSmokeEvery = 0.7f;
         [Tooltip("On the hard road a stomp sends a second pair of waves this many seconds after the first.")]
         public float sootStompEcho = 0.5f;
         [Tooltip("Seconds a hop between perches takes, and how high above the straight line it arcs (phase 2).")]
@@ -443,6 +448,11 @@ namespace Bubblewright
         public float sootPerchRest = 0.6f;
         [Tooltip("Width in columns of the clear lane in the curtain, centred under its grate.")]
         public int sootLaneCols = 5;
+        [Tooltip("Speed of its curtain's bullets (slower than other bosses' curtains), and a gap left in every this many columns besides the lane.")]
+        public float sootCurtainSpeed = 3.2f;
+        public int sootCurtainGapEvery = 3;
+        [Tooltip("Perches it needs before it tires and opens the grate (phase 2); the others are curtain only.")]
+        public int sootPerchesToTire = 2;
         [Tooltip("Seconds a chimney's top tile blinks and crumbles after Sootjack jumps off it (the last tempTileWarn of it blinks).")]
         public float sootChimneyCrumble = 1f;
         [Tooltip("Tier of the Gloop its pipe at the top middle drops each perch (0 XL to 3 S).")]

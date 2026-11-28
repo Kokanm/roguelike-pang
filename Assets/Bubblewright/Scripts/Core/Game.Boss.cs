@@ -66,6 +66,8 @@ namespace Bubblewright
                 game.fx.Debris(at, CurrentTheme.tileFill, CurrentTheme.tileCap, Mathf.RoundToInt(6 * strength));
                 Sfx.Play(Sound.Hurt, 0.5f, 0.6f);
             }
+
+            public void Puff(Vector2 at) => game.fx.Dust(at, 0f);
         }
 
         /// <summary>Fires one pattern launch now, or after its delay (the later shots of a burst).</summary>

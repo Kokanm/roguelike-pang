@@ -31,9 +31,11 @@ namespace Bubblewright
 
         static PlaceholderArt.BossSprites Pose(Theme theme, int pose)
         {
-            var closed = Paint(theme, pose, false);
-            var opened = Paint(theme, pose, true);
+            var closed = Paint(theme, pose, Shut);
+            var opening = Paint(theme, pose, Half);
+            var opened = Paint(theme, pose, Wide);
             closed.Outline(Palette.Ink);
+            opening.Outline(Palette.Ink);
             opened.Outline(Palette.Ink);
             var pivot = new Vector2(OriginX, OriginY);
             string key = $"Sootjack_{theme.name}_{pose}";
@@ -41,6 +43,7 @@ namespace Bubblewright
             {
                 body = closed.ToSprite(key, pivot, Ppu),
                 open = opened.ToSprite(key + "_Open", pivot, Ppu),
+                opening = opening.ToSprite(key + "_Opening", pivot, Ppu),
                 flash = closed.Silhouette(Palette.Cream).ToSprite(key + "_Flash", pivot, Ppu),
                 tell = new PixelCanvas(1, 1).ToSprite(key + "_Tell", Vector2.zero, Ppu),
             };
@@ -60,7 +63,22 @@ namespace Bubblewright
             return cream ? theme.tileCap : a;
         }
 
-        static PixelCanvas Paint(Theme theme, int pose, bool open)
+        // How far the shutter over the grate has slid back: shut, half way (it is tiring), wide open.
+        const int Shut = 0, Half = 1, Wide = 2;
+
+        /// <summary>Rust: a warm brown worked into the world's body colour, darker in the middle of a patch.</summary>
+        static Color32 Rust(Theme theme) => Palette.Mix(theme.tileFill, Palette.Hex(0x8A4B32), 0.7f);
+        static Color32 RustDark(Theme theme) => Palette.Mix(theme.tileShade, Palette.Hex(0x5E2E22), 0.6f);
+
+        /// <summary>A rough patch of rust over pixels that are already painted.</summary>
+        static void RustPatch(PixelCanvas c, Theme theme, float x, float y, float rx, float ry)
+        {
+            c.EllipseOnFilled(Px(x), Py(y), rx * Ppu, ry * Ppu, Rust(theme));
+            c.EllipseOnFilled(Px(x) + 1, Py(y), rx * Ppu * 0.5f, ry * Ppu * 0.5f, RustDark(theme));
+            c.EllipseOnFilled(Px(x + rx * 0.8f), Py(y - ry * 0.6f), 1.5f, 1.5f, Rust(theme)); // a fleck beside it
+        }
+
+        static PixelCanvas Paint(Theme theme, int pose, int shutter)
         {
             var c = new PixelCanvas(W, H);
             float stoveBottom = -0.9f, stoveTop = 2f;
@@ -69,7 +87,7 @@ namespace Bubblewright
                 float h = Tuning.I.sootChargeHeight;
                 stoveBottom = -h * 0.5f;
                 stoveTop = h * 0.5f;
-                PaintSled(c, theme, stoveBottom, stoveTop, open);
+                PaintSled(c, theme, stoveBottom, stoveTop, shutter == Wide);
                 return c;
             }
 
@@ -87,7 +105,7 @@ namespace Bubblewright
 
             // Belly: the grate in the middle, steel skirts either side.
             Fill(c, -Sootjack.HalfBody, Sootjack.BellyLocalY, Sootjack.HalfBody * 2f, Sootjack.BellyH, Palette.SteelDark);
-            PaintGrate(c, theme, open);
+            PaintGrate(c, theme, shutter);
 
             // The stove: body, light band across the top, shade band low down, visor slit, rivets.
             float bodyH = stoveTop - (Sootjack.BellyLocalY + Sootjack.BellyH);
@@ -98,9 +116,16 @@ namespace Bubblewright
             for (int i = -2; i <= 2; i += 2) Fill(c, i * 1.2f - 0.1f, 1.15f, 0.2f, 0.2f, theme.tileShade); // rivets
             for (int i = 0; i < 5; i++) Fill(c, -3.1f + i * 0.2f, 0.0f - 0.05f, 0.08f, 0.5f, theme.tileShade); // vent slats at the side
 
+            // Rust: a few patches on the stove and its legs, for character.
+            RustPatch(c, theme, -2.7f, 1.45f, 0.6f, 0.2f); // a streak along the top band, kept away from the visor so it never reads as an eye
+            RustPatch(c, theme, 1.0f, 1.5f, 0.45f, 0.25f);
+            RustPatch(c, theme, 2.6f, -0.1f, 0.35f, 0.4f);
+            if (pose == Sootjack.WalkPose) RustPatch(c, theme, Sootjack.FootX, -2.2f, 0.25f, 0.45f);
+
             // The pipe, on the right, with a lighter rim.
             Fill(c, 1.6f, stoveTop, 1f, 1.2f, theme.tileShade);
             Fill(c, 1.5f, stoveTop + 1.0f, 1.2f, 0.2f, theme.tileCap);
+            RustPatch(c, theme, 2.1f, stoveTop + 0.4f, 0.25f, 0.2f);
             return c;
         }
 
@@ -111,19 +136,35 @@ namespace Bubblewright
             Fill(c, x - 0.3f, bottom, Sootjack.StiltW + 0.6f, 0.3f, Palette.SteelDark); // the foot
         }
 
-        /// <summary>Closed it is dark slats like the armour; open it is a cream disc inside a ring.</summary>
-        static void PaintGrate(PixelCanvas c, Theme theme, bool open)
+        /// <summary>
+        /// The grate and its shutter. Shut, a riveted steel plate covers the grate (armour). Half, the plate has slid back
+        /// toward the rear and the grate behind glows dimly: it is tiring. Wide, the plate sits over the rear skirt and the
+        /// grate is a cream disc inside a ring: shoot it.
+        /// </summary>
+        static void PaintGrate(PixelCanvas c, Theme theme, int shutter)
         {
             float x = -1.5f, y = Sootjack.BellyLocalY, w = 3f, h = Sootjack.BellyH;
-            if (!open)
+            // The grate itself.
+            if (shutter == Wide)
+            {
+                Fill(c, x, y, w, h, RingColour(theme));
+                c.Rect(Px(x) + 1, Py(y) + 1, Len(w) - 2, Len(h) - 2, Palette.Cream);
+                for (int i = 0; i < 4; i++) Fill(c, x + 0.45f + i * 0.7f, y + 0.12f, 0.08f, h - 0.24f, Palette.SteelLight);
+            }
+            else
             {
                 Fill(c, x, y, w, h, Palette.SteelDark);
-                for (int i = 0; i < 9; i++) Fill(c, x + 0.15f + i * 0.33f, y + 0.06f, 0.12f, h - 0.12f, Palette.Steel);
-                return;
+                var glow = shutter == Half ? Palette.Mix(Palette.SteelDark, Palette.Cream, 0.45f) : Palette.Steel;
+                for (int i = 0; i < 9; i++) Fill(c, x + 0.15f + i * 0.33f, y + 0.06f, 0.12f, h - 0.12f, glow);
             }
-            Fill(c, x, y, w, h, RingColour(theme));
-            c.Rect(Px(x) + 1, Py(y) + 1, Len(w) - 2, Len(h) - 2, Palette.Cream);
-            for (int i = 0; i < 4; i++) Fill(c, x + 0.45f + i * 0.7f, y + 0.12f, 0.08f, h - 0.24f, Palette.SteelLight);
+            // The shutter plate, a little deeper than the belly so it reads as a separate piece of metal.
+            float slide = shutter == Shut ? 0f : shutter == Half ? 1.5f : 2.6f;
+            float px = x - slide, ph = h + 0.15f, py = y - 0.15f;
+            Fill(c, px, py, w, ph, Palette.Steel);
+            Fill(c, px, py, w, 0.1f, Palette.SteelDark);
+            Fill(c, px + w - 0.1f, py, 0.1f, ph, Palette.SteelLight);
+            for (int i = 0; i < 3; i++) Fill(c, px + 0.35f + i * 1.1f, py + 0.22f, 0.12f, 0.12f, Palette.SteelDark); // rivets
+            RustPatch(c, theme, px + 0.7f, py + 0.2f, 0.3f, 0.15f);
         }
 
         /// <summary>The low charging body: a flat iron sled with a closed grate on its roof and a stubby pipe.</summary>

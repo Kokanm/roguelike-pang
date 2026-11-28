@@ -23,5 +23,7 @@ namespace Bubblewright
         float Telegraph(TellKind kind, Rect area, float lead, Action attack);
         /// <summary>A heavy landing or stomp at this point: screen shake, dust and a thud. strength is 1 for a stomp.</summary>
         void Impact(Vector2 at, float strength);
+        /// <summary>A puff of smoke or dust at this point (a pipe breathing, a foot scuffing). Looks only.</summary>
+        void Puff(Vector2 at);
     }
 }
