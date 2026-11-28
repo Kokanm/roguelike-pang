@@ -143,6 +143,16 @@ namespace Bubblewright
                 }
             }
 
+            // Side edges: a 1 px lit rim in tileCap just inside the dark outline on every open side (left, right, underside),
+            // so a platform reads as a slab against any background (the tile fill alone is close to the sky in several worlds).
+            // Skipped on the cap rows so the top surface keeps its own look.
+            if (!breakable)
+            {
+                if (!map.IsSolid(c - 1, r)) Rect(x0 + 1, y0 + 1, 1, 11, theme.tileCap);
+                if (!map.IsSolid(c + 1, r)) Rect(x0 + 13, y0 + 1, 1, 11, theme.tileCap);
+                if (!map.IsSolid(c, r + 1)) Rect(x0 + 1, y0 + 1, TilePixels - 2, 1, theme.tileCap);
+            }
+
             theme.paintTileDetail?.Invoke(pixelCanvas, x0, y0, cell, !map.IsSolid(c, r - 1));
 
             if (cell.kind == TileKind.Breakable && cell.hp == 1)
