@@ -149,7 +149,7 @@ namespace Bubblewright.Tests
         {
             var tex = sprite.texture;
             int x = Mathf.Clamp(Mathf.RoundToInt(sprite.pivot.x), 0, tex.width - 1);
-            int y = Mathf.Clamp(Mathf.RoundToInt(sprite.pivot.y), 0, tex.height - 1);
+            int y = Mathf.Clamp(Mathf.RoundToInt(tex.height * 0.5f), 0, tex.height - 1); // the pivot sits a little below the centre
             Color32 centre = tex.GetPixel(x, y);
             Assert.IsFalse(Same(centre, bodyColor), $"centre pixel is the body colour at ({x}, {y})");
         }
