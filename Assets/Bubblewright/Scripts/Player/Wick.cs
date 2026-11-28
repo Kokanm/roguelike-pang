@@ -19,7 +19,6 @@ namespace Bubblewright
         const float FootSupportTolerance = 0.01f;
         const float ClimbCenterSpeed = 16f;
         const float ClimbBobSeconds = 0.12f;
-        const float ClimbFrameSeconds = 0.18f;
 
         public Mode Mode { get; private set; }
         public float FeetY => transform.position.y;
@@ -256,28 +255,13 @@ namespace Bubblewright
         void ApplyFlash(bool on)
         {
             var sprites = PlaceholderArt.I.SpritesFor(Character);
-            flashOn = on;
-            ApplyBackSprite(sprites);
+            bodyBack.sprite = on ? sprites.BackFlash : sprites.Back;
             clingBack.sprite = on ? sprites.ClingFlash : sprites.Cling;
             bodyFront.sprite = on ? sprites.FrontFlash : sprites.Front;
             launcherBack.sprite = launcherFront.sprite = on ? heldFlash ?? sprites.LauncherFlash : held ?? sprites.Launcher;
         }
 
         Sprite held, heldFlash;
-        bool flashOn;
-        int climbFrame = -1; // -1 standing view, 0 and 1 the ladder frames
-
-        /// <summary>Back body sprite: the ladder frames while he climbs a moving rung, otherwise the standing view.</summary>
-        void ApplyBackSprite(PlaceholderArt.CharacterSprites sprites)
-        {
-            Sprite s = climbFrame < 0 ? (flashOn ? sprites.BackFlash : sprites.Back)
-                : climbFrame == 0 ? (flashOn ? sprites.ClimbAFlash : sprites.ClimbA)
-                : (flashOn ? sprites.ClimbBFlash : sprites.ClimbB);
-            bodyBack.sprite = s;
-        }
-
-        /// <summary>The ladder frame showing now (0 or 1), or -1 when the standing view is. Public for tests.</summary>
-        public int ClimbFrame => climbFrame;
 
         /// <summary>
         /// Shows a weapon in his raised hand in place of the launcher (null puts the launcher back). Its sprite is pivoted
@@ -1134,13 +1118,6 @@ namespace Bubblewright
 
         Vector2 Feet(int pixelsX) => new Vector2(transform.position.x + pixelsX * Px, FeetY);
 
-        void SetClimbFrame(int frame)
-        {
-            if (frame == climbFrame) return;
-            climbFrame = frame;
-            ApplyBackSprite(PlaceholderArt.I.SpritesFor(Character));
-        }
-
         void Animate(float dt)
         {
             Vector3 scale = Vector3.one;
@@ -1156,30 +1133,25 @@ namespace Bubblewright
                 {
                     climbClock += dt;
                     offsetY = (Mathf.FloorToInt(climbClock / ClimbBobSeconds) % 2) * Px;
-                    SetClimbFrame(Mathf.FloorToInt(climbClock / ClimbFrameSeconds) % 2);
                 }
                 else
                 {
                     climbClock = 0f;
-                    // Stopped mid-ladder: hold whichever frame he is on, standing view until he first moves.
                 }
             }
             else if (Mode == Mode.Fall)
             {
                 stepClock = 0f;
                 climbClock = 0f;
-                SetClimbFrame(-1);
             }
             else if (Mathf.Abs(speed01) > 0.1f)
             {
-                SetClimbFrame(-1);
                 climbClock = 0f;
                 stepClock += dt * 8f;
                 offsetY = (Mathf.FloorToInt(stepClock) % 2) * Px;
             }
             else
             {
-                SetClimbFrame(-1);
                 climbClock = 0f;
                 stepClock = 0f;
                 idleClock += dt;
