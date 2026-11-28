@@ -67,7 +67,7 @@ namespace Bubblewright
                     Bubbles[k, tier] = BuildBubble((BubbleKind)k, t.Kind((BubbleKind)k).color, d);
                 var disc = new PixelCanvas(d, d);
                 disc.Circle(d * 0.5f, d * 0.5f, d * 0.5f, Palette.Cream);
-                BubbleFlash[tier] = disc.ToSprite($"BubbleFlash_{d}px", new Vector2(d * 0.5f, d * 0.5f), ppu);
+                BubbleFlash[tier] = disc.ToSprite($"BubbleFlash_{d}px", new Vector2(d * 0.5f, d * 0.5f + SinkPx(d)), ppu);
                 PopRings[tier] = BuildRing(Mathf.RoundToInt(d * 1.35f));
             }
 
@@ -378,6 +378,13 @@ namespace Bubblewright
             return c.ToSprite("Flame", new Vector2(4.5f, 1f), ppu);
         }
 
+        /// <summary>
+        /// Pixels a round sprite is drawn below its collision circle. The ink outline of a disc is only a few pixels wide at
+        /// its lowest point, so a body sitting exactly on the circle reads as floating. Only the picture moves: the hit
+        /// circle, Position and every contact are unchanged.
+        /// </summary>
+        public static int SinkPx(int diameterPx) => diameterPx < 4 ? 0 : Mathf.Max(1, Mathf.RoundToInt(diameterPx * Tuning.I.bubbleSinkFraction));
+
         // ---------------------------------------------------------------- Bubbles (no eyes: colour + centre mark)
 
         Sprite[,,] ceramicBubbles; // [kind, tier, 0 whole / 1 cracked], built on first use
@@ -487,7 +494,7 @@ namespace Bubblewright
                     }
                     c.Set(x, y, body);
                 }
-            return c.ToSprite($"Bubble_Ghost_{d}px_faded{(strong ? "_strong" : "")}", new Vector2(cx, cy), ppu);
+            return c.ToSprite($"Bubble_Ghost_{d}px_faded{(strong ? "_strong" : "")}", new Vector2(cx, cy + SinkPx(d)), ppu);
         }
 
         static Color32 Alpha(Color32 c, float a) => new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
@@ -626,7 +633,7 @@ namespace Bubblewright
             }
             c.Outline(Palette.Ink);
             string markSuffix = markDx < 0 || markDy < 0 ? "_mark" + markDx + markDy : "";
-            return c.ToSprite($"Bubble_{kind}_{d}px{(ceramic ? (cracked ? "_cracked" : "_ceramic") : "")}{markSuffix}", new Vector2(cx, cy), ppu);
+            return c.ToSprite($"Bubble_{kind}_{d}px{(ceramic ? (cracked ? "_cracked" : "_ceramic") : "")}{markSuffix}", new Vector2(cx, cy + SinkPx(d)), ppu);
         }
 
         // ---------------------------------------------------------------- Rolling balloons (no face: pearl + crossing bands)
@@ -699,7 +706,7 @@ namespace Bubblewright
             if (look == 2) AddCracks(c, cx, cy, r, Palette.Shade(Palette.PearlShade, 0.6f));
             c.Set(Mathf.FloorToInt(cx - r * 0.5f), Mathf.FloorToInt(cy + r * 0.5f), steel ? Palette.SteelLight : Palette.Cream);
             c.Outline(Palette.Ink);
-            return c.ToSprite($"Roller_{d}px_{frame}_{look}", new Vector2(cx, cy), ppu);
+            return c.ToSprite($"Roller_{d}px_{frame}_{look}", new Vector2(cx, cy + SinkPx(d)), ppu);
         }
 
         /// <summary>A 1 px lilac ring just inside the edge: the glaze line that tells ceramic from an ordinary ball.</summary>
@@ -746,7 +753,7 @@ namespace Bubblewright
                     if (Mathf.FloorToInt((a + Mathf.PI) / (Mathf.PI * 2f) * 16f) % 2 == 0)
                         c.Set(x, y, Palette.Cream);
                 }
-            return c.ToSprite($"PopRing_{d}px", new Vector2(cx, cy), ppu);
+            return c.ToSprite($"PopRing_{d}px", new Vector2(cx, cy + SinkPx(d)), ppu);
         }
 
         // ---------------------------------------------------------------- Harpoon: barbed steel tip + 1 px twisted cable

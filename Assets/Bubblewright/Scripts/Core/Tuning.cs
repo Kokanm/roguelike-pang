@@ -96,6 +96,8 @@ namespace Bubblewright
         public float childKickHeight = 2f;
         [Tooltip("Extra kick for the middle child of a Trigloop, so the three separate.")]
         public float trigloopMiddleKick = 1.6f;
+        [Tooltip("How far a round bubble or rolling balloon is drawn below its collision circle, as a fraction of its diameter (at least 1 px), so it visibly touches the floor. Picture only.")]
+        public float bubbleSinkFraction = 0.05f;
         public float childStartScale = 0.7f;
         public float childGrowTime = 0.25f;
 
