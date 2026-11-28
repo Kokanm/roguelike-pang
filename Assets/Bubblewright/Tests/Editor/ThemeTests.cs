@@ -62,6 +62,14 @@ namespace Bubblewright.Tests
         }
 
         [TestCaseSource(nameof(AllThemes))]
+        public void PlatformSideEdgesCanBeSeenAgainstEveryBackgroundLayer(Theme t)
+        {
+            // The lit rim along a platform's side edges and underside is tileCap, so it must stand out from the whole backdrop.
+            foreach (var (label, bg) in new[] { ("skyTop", t.skyTop), ("skyBottom", t.skyBottom), ("far", t.far), ("near", t.near) })
+                Assert.GreaterOrEqual(UiText.Contrast(t.tileCap, bg), MinPlatformContrast, $"{t.name}: tileCap rim on {label}");
+        }
+
+        [TestCaseSource(nameof(AllThemes))]
         public void BreakLineIsTheTileShadeAndNoSceneryUsesReservedColours(Theme t)
         {
             Assert.AreEqual(t.tileShade, t.breakLine);

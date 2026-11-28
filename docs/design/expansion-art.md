@@ -24,6 +24,7 @@ Rules for all art: 480 x 270 game pixels, 15 px per tile, 1 px ink outline (`1A1
 - Ladder: two 1 px rails `9AA4BC` at x = 3 and x = 11, 1 px rungs `DCE2EE` every 4 px. Steel in every world.
 - Breakable block: no cap, `breakFill` with a lighter top row, brick joints in `tileShade`, `tileLine` outline. Cracked state: jagged 1 px ink line top to bottom. Heart drop: the flame sprite in a 1 px mint ring.
 - Spikes: hidden = five 1 px ink holes; warning = five 2 px steel tips; raised = five 7 px tall, 3 px wide steel triangles (`9AA4BC`, left edge `DCE2EE`), ink outline. In Lava tint steel 25% toward `far`.
+- Platform side edges: on every open side of a solid tile (left, right, underside) a 1 px `tileCap` rim sits just inside the `tileLine` outline, so a platform reads as a slab against any backdrop (Rooftops tile fill equals its sky). `tileCap` must keep contrast 2.9 against skyTop, skyBottom, far and near (`ThemeTests`). Breakable blocks keep their own brick look.
 - Gap in the ground: darker pit in the ground strip with a 1 px lit edge (`tileShade`) on each side.
 
 ## Per-world scenery and tile detail
