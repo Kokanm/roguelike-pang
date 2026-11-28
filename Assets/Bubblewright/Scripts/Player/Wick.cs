@@ -109,6 +109,10 @@ namespace Bubblewright
         int wallLockDir;
         float crouchAmount, wallDustClock;
         float wallSurfaceX, kickWallX, kickPoseClock;
+        // The wall surface (side and x) of his last wall jump since he last stood on something. Kicking off it again
+        // needs another wall in between, so one wall cannot be climbed forever but two walls still can.
+        int lastKickSide;
+        float lastKickX;
         int kickSide, clingSide;
         float rigOffsetX;
         float jumpRise = -1f, jumpLand = -1f;
@@ -327,6 +331,7 @@ namespace Bubblewright
         void ResetAirMoves()
         {
             airJumpsLeft = AirJumps;
+            lastKickSide = 0;
             wallLockClock = 0f;
             wallLockDir = 0;
             WallSide = 0;
@@ -521,7 +526,7 @@ namespace Bubblewright
                         StartJump();
                         walkedOff = false;
                     }
-                    else if (Mode == Mode.Fall && WallSide != 0)
+                    else if (Mode == Mode.Fall && WallSide != 0 && !IsLastKickWall(WallSide))
                     {
                         StartWallJump(WallSide);
                     }
@@ -603,6 +608,7 @@ namespace Bubblewright
 
             if (Mode != Mode.Fall)
             {
+                lastKickSide = 0;
                 WallSide = 0;
                 WallSliding = false;
             }
@@ -620,6 +626,12 @@ namespace Bubblewright
             }
         }
 
+        /// <summary>True when this is the very wall surface he last kicked off (nothing else touched since).</summary>
+        bool IsLastKickWall(int side)
+        {
+            return lastKickSide == side && Mathf.Abs(lastKickX - wallSurfaceX) < 0.01f;
+        }
+
         /// <summary>Kick off the wall on side wallSide (-1 left, +1 right): a full jump, pushed away from it.</summary>
         void StartWallJump(int wallSide)
         {
@@ -630,6 +642,8 @@ namespace Bubblewright
             wallLockClock = T.wallJumpLockTime;
             kickSide = wallSide;
             kickWallX = wallSurfaceX;
+            lastKickSide = wallSide;
+            lastKickX = wallSurfaceX;
             kickPoseClock = T.wallKickPoseTime;
             airJumpsLeft = AirJumps; // touching a wall gives the double jump back
             WallSliding = false;
