@@ -127,7 +127,7 @@ Clearances are whole rows and columns, because tiles are 1 unit.
 | 1-tile hole in a deck or roof | A **firing slot**. M and L never fall through; S does, slowly (one slot: 7 of 24 drops in 60 s; three slots: all, median about 26 s). |
 | 2-tile hole | The **M/S sieve**: holds L and XL, lets M and S rain through (three holes: M median about 14 s). |
 | 3-tile hole | Lets L through (median about 5 s), so it filters only XL. |
-| 1-column shaft with walls both sides | Wick climbs it with chained wall jumps, one row per jump, no ladder needed. |
+| 1-column shaft with walls both sides | Wick climbs it with chained wall jumps, one row per jump, no ladder needed. He cannot kick off the same wall twice in a row (he must touch another wall, the ground or a ladder first), so a single wall never climbs. |
 | Step 1 row up | A standing jump. 2 rows up needs a ladder, a wall to kick off, or a shaft. |
 | Ground gap | **2 columns at most, 1 in World 3 or next to sand** (Kokan, 2026-11-17). That is what Moss with Heavy Boots jumps, column centre to column centre; StageValidator rejects anything wider. |
 
