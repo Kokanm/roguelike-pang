@@ -186,8 +186,16 @@ namespace Bubblewright
         public float pathInputDelay = 0.35f;
         [Tooltip("Seconds the screen takes to fade to the ground strip colour once Wick goes through a door.")]
         public float pathFadeTime = 0.3f;
-        [Tooltip("Seconds a door takes to slide open once the stage is clear.")]
-        public float doorOpenTime = 0.5f;
+        [Tooltip("Seconds the leaves of a door take to creak open once it has faded in. Wick cannot use the door before it is open.")]
+        public float doorOpenTime = 2.4f;
+        [Tooltip("Seconds a door takes to fade in from its dim fight look once the stage is clear, before it starts to open.")]
+        public float doorFadeInTime = 1.2f;
+        [Tooltip("Opacity of the road doors while the boss fight runs (1 = solid). They stand behind platforms, so they are dimmed.")]
+        [Range(0f, 1f)] public float doorFightAlpha = 0.35f;
+        [Tooltip("Brightness of the road doors while the boss fight runs (1 = unchanged).")]
+        [Range(0f, 1f)] public float doorFightShade = 0.6f;
+        [Tooltip("Wick must hold UP at a door to go through it (units of Input.Climb; the stick or key counts above this).")]
+        [Range(0.1f, 1f)] public float doorEnterClimb = 0.5f;
         [Tooltip("Wick goes through a door when his hitbox overlaps this much of the door's middle, each side of its centre (units).")]
         public float doorEnterHalfWidth = 0.4f;
 

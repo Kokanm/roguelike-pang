@@ -79,8 +79,22 @@ namespace Bubblewright
             }
         }
 
-        int DoorFrameIndex => !DoorsOpen ? 0
-            : Mathf.Clamp(Mathf.FloorToInt(doorOpenClock / Mathf.Max(0.01f, T.doorOpenTime) * (DoorArt.OpenFrames - 1)), 0, DoorArt.OpenFrames - 1);
+        /// <summary>Raised when a door starts to open and each time its leaves move on a frame: a sound can be plugged in here
+        /// (frame is 0..OpenFrames - 1, progress 0..1). Nothing is subscribed yet; a placeholder creak plays meanwhile.</summary>
+        public static event System.Action<int, float> DoorCreak;
+
+        int DoorFrameIndex => !DoorsOpen ? 0 : DoorAnim.Frame(DoorAnim.OpenAmount(doorOpenClock, T.doorFadeInTime, T.doorOpenTime));
+        bool DoorsFullyOpen => DoorsOpen && DoorAnim.IsOpen(doorOpenClock, T.doorFadeInTime, T.doorOpenTime);
+
+        /// <summary>Road doors are dim and see-through through the fight (they sit behind platforms), an exit door starts invisible.</summary>
+        float DoorStartAlpha => RoadDoors ? T.doorFightAlpha : 0f;
+
+        void OnDoorCreak(int frame)
+        {
+            float progress = frame / (float)(DoorArt.OpenFrames - 1);
+            DoorCreak?.Invoke(frame, progress);
+            Sfx.Play(Sound.Skid, 0.45f, 0.35f + 0.1f * progress); // placeholder creak: slow low scrape
+        }
 
         void RefreshDoorSprites()
         {
@@ -97,6 +111,9 @@ namespace Bubblewright
                 DoorMark mark = !RoadDoors ? DoorMark.Lantern : !DoorsOpen ? DoorMark.None : i == HardSide ? DoorMark.Hard : DoorMark.Lantern;
                 doorRenderers[i].sprite = PlaceholderArt.I.DoorFrame(theme, mark, frame);
                 doorRenderers[i].transform.position = new Vector3(doorFeet[i].x, doorFeet[i].y, 0f);
+                float alpha = DoorAnim.Alpha(doorOpenClock, DoorStartAlpha, T.doorFadeInTime);
+                float shade = Mathf.Lerp(T.doorFightShade, 1f, alpha >= 1f ? 1f : Mathf.InverseLerp(DoorStartAlpha, 1f, alpha));
+                doorRenderers[i].color = new Color(shade, shade, shade, alpha);
             }
         }
 
@@ -115,9 +132,6 @@ namespace Bubblewright
             doorsShown = true;
             doorOpenClock = 0f;
             PopLeftovers();
-            Sfx.Play(Sound.Bounce, 0.5f, 0.7f);
-            for (int i = 0; i < doorCount; i++)
-                fx.Sparkle(doorFeet[i] + new Vector2(0f, DoorArt.Height * 0.85f / T.pixelsPerUnit), i == HardSide && RoadDoors ? Palette.Lemon : Palette.Cream);
             RefreshDoorSprites();
         }
 
@@ -148,10 +162,18 @@ namespace Bubblewright
 
         void TickDoors(float dt)
         {
-            if (!DoorsOpen || doorOpenClock > T.doorOpenTime + 0.1f) return;
+            if (!DoorsOpen || doorOpenClock > DoorAnim.TotalTime(T.doorFadeInTime, T.doorOpenTime) + 0.1f) return;
             int before = DoorFrameIndex;
+            float fadeTime = T.doorFadeInTime;
+            bool wasFading = doorOpenClock < fadeTime;
             doorOpenClock += dt;
-            if (DoorFrameIndex != before) RefreshDoorSprites();
+            if (wasFading && doorOpenClock >= fadeTime) OnDoorCreak(0); // the leaves start to move
+            int after = DoorFrameIndex;
+            if (after != before) OnDoorCreak(after);
+            if (after == DoorArt.OpenFrames - 1 && before != after) // wide open: a sparkle
+                for (int i = 0; i < doorCount; i++)
+                    fx.Sparkle(doorFeet[i] + new Vector2(0f, DoorArt.Height * 0.85f / T.pixelsPerUnit), i == HardSide && RoadDoors ? Palette.Lemon : Palette.Cream);
+            RefreshDoorSprites();
         }
 
         /// <summary>The pick is over: Wick walks to a door. Without doors (only after the final boss, which goes to the title) the next stage starts.</summary>
@@ -176,7 +198,7 @@ namespace Bubblewright
 
         /// <summary>
         /// Wick walks, climbs and jumps as in play, but cannot fire and nothing hurts him. He goes through a door by
-        /// walking into it. A road door can also be picked by a tap or click on it or its card, or with 1 and 2; he then
+        /// standing in it and pressing UP, once the door has opened. A road door can also be picked by a tap or click on it or its card, or with 1 and 2; he then
         /// runs to it by himself.
         /// </summary>
         void TickPath(float dt)
@@ -222,6 +244,7 @@ namespace Bubblewright
                         if (pathCardRects[i].Contains(gui) || pathDoorRects[i].Contains(gui)) { SendToDoor(i); return; }
                 }
             }
+            if (!DoorsFullyOpen || input.Climb < T.doorEnterClimb) return; // a shut door stays shut, and he must press UP at the door
             for (int i = 0; i < doorCount; i++)
                 if (doorArmed[i] && AtDoor(i)) { GoThrough(i); return; }
         }
@@ -254,6 +277,7 @@ namespace Bubblewright
                 wick.Tick(Mathf.Sign(dx), 0f, dt, true);
                 return;
             }
+            if (!DoorsFullyOpen) return; // he waits at the door until it has creaked open
             GoThrough(pathChosen);
         }
 
@@ -283,7 +307,7 @@ namespace Bubblewright
             if (!RoadDoors)
             {
                 if (!touchUi && !pathArrived)
-                    Centered("Walk through the door", WorldToGui(new Vector2(0f, camPanY)).y + 44 * k, 8 * k, UiText.Secondary);
+                    Centered("Press UP at the door", WorldToGui(new Vector2(0f, camPanY)).y + 44 * k, 8 * k, UiText.Secondary);
                 DrawPathFade();
                 return;
             }
@@ -356,7 +380,7 @@ namespace Bubblewright
             if (!touchUi && !pathArrived)
             {
                 float floorY = WorldToGui(Vector2.zero).y;
-                Centered("Walk through a door, press 1-2, or click one", floorY + 44 * k, 8 * k, UiText.Secondary);
+                Centered("Walk to a door and press UP, press 1-2, or click one", floorY + 44 * k, 8 * k, UiText.Secondary);
             }
             DrawPathFade();
         }
