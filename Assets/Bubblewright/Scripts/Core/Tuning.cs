@@ -409,6 +409,70 @@ namespace Bubblewright
         [Tooltip("Seconds a temporary tile blinks (crumbles) before it is gone.")]
         public float tempTileWarn = 0.6f;
 
+        [Header("Boss: Sootjack")]
+        [Tooltip("Units per second Sootjack walks on its stilts in phase 1, before the hard road and the storm.")]
+        public float sootWalkSpeed = 2.6f;
+        [Tooltip("Furthest its centre goes from the middle while it walks (the stilts stay clear of the chimney stacks).")]
+        public float sootWalkLimit = 7f;
+        [Tooltip("Seconds it walks between one stop and the next.")]
+        public float sootWalkTime = 2f;
+        [Tooltip("Dust column on the floor this long before each stomp (never under bossTellMin).")]
+        public float sootStompTell = 0.6f;
+        [Tooltip("Its pipe glows this long before each cough.")]
+        public float sootCoughTell = 0.6f;
+        [Tooltip("Soot bullets in one cough, and the degrees between them.")]
+        public int sootCoughBullets = 3;
+        public float sootCoughSpread = 24f;
+        [Tooltip("Coughs before it tires and its shutter slides back from the grate (phase 1). The hard road needs one fewer.")]
+        public int sootCoughsToOpen = 4;
+        public int sootCoughsToOpenHard = 3;
+        [Tooltip("Seconds it stands panting with the grate open once it has tired (phase 1).")]
+        public float sootGrateGlow = 2.5f;
+        [Tooltip("Seconds the shutter takes to slide back before the grate opens: it sags and pants first.")]
+        public float sootTiredTime = 0.7f;
+        [Tooltip("Hits the grate takes in one opening before the shutter slams shut again, so holding fire cannot finish it in one go.")]
+        public int sootHitsPerOpening = 3;
+        [Tooltip("Seconds between puffs of smoke from its pipe, for life.")]
+        public float sootSmokeEvery = 0.7f;
+        [Tooltip("On the hard road a stomp sends a second pair of waves this many seconds after the first.")]
+        public float sootStompEcho = 0.5f;
+        [Tooltip("Seconds a hop between perches takes, and how high above the straight line it arcs (phase 2).")]
+        public float sootHopTime = 0.9f;
+        public float sootHopPeak = 3f;
+        [Tooltip("Red shadow on the perch it will land on, this long before each hop.")]
+        public float sootHopTell = 0.6f;
+        [Tooltip("Seconds after landing before the lane is lit for the curtain.")]
+        public float sootPerchSettle = 0.4f;
+        [Tooltip("Seconds the grate faces down and is open once the curtain has fallen, and the pause after it closes before the next hop.")]
+        public float sootPerchOpen = 3f;
+        public float sootPerchRest = 0.6f;
+        [Tooltip("Width in columns of the clear lane in the curtain, centred under its grate.")]
+        public int sootLaneCols = 5;
+        [Tooltip("Speed of its curtain's bullets (slower than other bosses' curtains), and a gap left in every this many columns besides the lane.")]
+        public float sootCurtainSpeed = 3.2f;
+        public int sootCurtainGapEvery = 3;
+        [Tooltip("Perches it needs before it tires and opens the grate (phase 2); the others are curtain only.")]
+        public int sootPerchesToTire = 2;
+        [Tooltip("Seconds a chimney's top tile blinks and crumbles after Sootjack jumps off it (the last tempTileWarn of it blinks).")]
+        public float sootChimneyCrumble = 1f;
+        [Tooltip("Tier of the Gloop its pipe at the top middle drops each perch (0 XL to 3 S).")]
+        public int sootPipeTier = 2;
+        [Tooltip("The pot that will have it burst out puffs this long before it does; on the hard road the fake puffs a little shorter.")]
+        public float sootPotPuff = 1.2f;
+        public float sootFakePuff = 0.9f;
+        [Tooltip("Seconds it hangs over its pot with the grate open, and how high its feet are off the floor.")]
+        public float sootHover = 2.2f;
+        public float sootHoverFeet = 1.5f;
+        [Tooltip("Slots in the ring it fires bursting out of a pot, and how many of them are the gap (centred straight down).")]
+        public int sootRingSlots = 24;
+        public int sootRingGap = 3;
+        [Tooltip("Seconds it is out of sight between pops and charges.")]
+        public float sootUnderground = 0.8f;
+        [Tooltip("Edge glow this long before a charge; speed and height of the low charging body (Wick needs a double jump, or a chimney).")]
+        public float sootChargeTell = 0.8f;
+        public float sootChargeSpeed = 11f;
+        public float sootChargeHeight = 2f;
+
         [Header("Clinger")]
         [Tooltip("A stuck Clinger starts to wobble when Wick crosses the lane straight out from the surface it holds, this close to its centre line (units). Under a ceiling, Wick's centre x; on a floor, Wick's centre x; on a wall, the gap between its centre and Wick's box vertically.")]
         public float clingerTriggerX = 1.5f;

@@ -26,6 +26,17 @@ namespace Bubblewright
         /// The validator checks each one is reachable. Cores a boss brings to Wick (it lands next to him) are not listed.
         /// </summary>
         public virtual IReadOnlyList<Vector2> CoreSpots => System.Array.Empty<Vector2>();
+        /// <summary>
+        /// True when Wick is hurt only by the boss's parts, not by its whole Size rectangle: a boss he can walk under
+        /// (Sootjack on its stilts) sets this. The legacy boss hurts by its body.
+        /// </summary>
+        public virtual bool ContactFromParts => false;
+        /// <summary>
+        /// Where the boss's centre is k of the way (0 to 1, eased) through the stage intro, or null for the default slide
+        /// down from above the ceiling. A boss with its own entrance (it bursts out of a chimney) overrides this; at k = 1
+        /// it should return its StartSpot.
+        /// </summary>
+        public virtual Vector2? EntrancePosition(Boss boss, float k) => null;
         /// <summary>The storm clock of the fight in seconds. Tuning.bossTime unless the boss overrides it.</summary>
         public virtual float Clock => Tuning.I.bossTime;
         /// <summary>The clock on the hard road, which scales it like any stage.</summary>

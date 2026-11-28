@@ -19,6 +19,8 @@ namespace Bubblewright
         public bool Open;
         /// <summary>Health of a part with its own bar (arms, bellows, valves); 0 for armour and plain cores.</summary>
         public int MaxHp;
+        /// <summary>True for a part Wick can pass by without being hurt (a stilt he walks past to get under the belly). Weapons still clink off it.</summary>
+        public bool Harmless;
         public int Hp;
 
         public bool HasHealth => MaxHp > 0;

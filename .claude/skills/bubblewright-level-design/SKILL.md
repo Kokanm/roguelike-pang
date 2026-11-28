@@ -290,7 +290,8 @@ placeholders (today's floor). Everything above holds (32 x 14 grid per storey, t
   only `B`. So draw the arena as it starts: what the boss will break is a plan in the boss's file, not `B` tiles.
   Wick must never be left with no way up or out: leave a ladder or a wall-jump shaft that no boss move breaks.
 * **Arena events** (all on `Game.Arena`, an `ArenaEvents`, undone at the next stage because the map is rebuilt):
-  `BreakTile(c, r)`; `AddTempTile(c, r, kind, surface, life)` (an empty, ladder-free cell, never one Wick stands in;
+  `BreakTile(c, r)`; `CrumbleTile(c, r, life)` (a tile already there blinks for the last `tempTileWarn` s, then goes, a
+  ladder in it stays: Sootjack's chimney tops); `AddTempTile(c, r, kind, surface, life)` (an empty, ladder-free cell, never one Wick stands in;
   it blinks for the last `tempTileWarn` s, then goes); `OpenFloorGap(c0, c1)` (ground columns, row -1 is the
   ground); `StartRisingHazard(startY, speed, stopY)` (a lava line that rises and stops; touching it costs a heart and
   throws Wick up `hazardThrowHeight` units); `SetSurface(c, r, Surface)` (r = -1 for the ground);
@@ -298,6 +299,13 @@ placeholders (today's floor). Everything above holds (32 x 14 grid per storey, t
 * **Balloon pipes** sit at `PipeSpot.TopLeft`, `TopRight` or `TopMiddle` (`pipeOffsetX` from the middle), drawn at the
   top of the storey they name. A pipe flashes `pipeFlashTime` (0.5 s), then drops a Gloop of the tier, heading for the
   middle. Keep the pipe's column clear of tiles under the ceiling; the Gloop appears `pipeDropY` under it.
+* **A boss you can walk under** sets `BossDef.ContactFromParts`, so Wick is hurt by its parts and not by its whole box
+  (Sootjack's belly is 2.3 up). A boss that dives out of sight sets `Boss.Hidden`: nothing hits it and it hurts nothing.
+  Phases ask the stage for patterns, tells, shakes and the arena through `Boss.Stage` (`IBossStage`), never `Game`.
+* **Draw perches and pots so the core can be shot.** Wherever a boss stops with its core open (a perch, a pot it hangs
+  over), the core must have open air between it and a floor Wick can stand on, and its column must be clear of tiles: the
+  harpoon goes straight up. List each such core in `CoreSpots`; the validator checks it. Sootjack leans out over the
+  edge of a chimney or platform so its grate hangs over floor (see `W1_SootjackRoof`).
 * **Boss numbers live in the boss's `BossDef`:** `StartSpot` (the boss body's centre when the fight starts) and
   `CoreSpots` (world points of cores Wick must hit from the floor or a platform with the base moves: list the ones
   that stay put; cores that come down to Wick are not listed).

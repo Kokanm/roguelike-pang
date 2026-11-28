@@ -216,10 +216,11 @@ namespace Bubblewright.Tests
             var boss = Make();
             var segments = BossFight.BarSegments(boss, 100f, 2f);
             Assert.AreEqual(3, segments.Count);
-            Assert.AreEqual(2f, segments[1].x - (segments[0].x + segments[0].width), 1e-4f);
-            Assert.AreEqual(2f, segments[2].x - (segments[1].x + segments[1].width), 1e-4f);
-            Assert.AreEqual(0f, segments[0].x, 1e-4f);
-            Assert.AreEqual(100f, segments[2].x + segments[2].width, 1e-3f);
+            // The first phase is the right-most segment, so the bar empties from right to left.
+            Assert.AreEqual(2f, segments[0].x - (segments[1].x + segments[1].width), 1e-4f);
+            Assert.AreEqual(2f, segments[1].x - (segments[2].x + segments[2].width), 1e-4f);
+            Assert.AreEqual(0f, segments[2].x, 1e-4f);
+            Assert.AreEqual(100f, segments[0].x + segments[0].width, 1e-3f);
             Assert.That(segments.Select(s => s.fill), Is.All.EqualTo(1f), "all full at the start");
 
             boss.Damage(1);
@@ -275,7 +276,8 @@ namespace Bubblewright.Tests
                 Assert.AreEqual(BossSpec.HpForWorld(world), boss.Hp);
                 Assert.AreEqual(1, boss.Parts.Count);
                 Assert.IsTrue(boss.Parts[0].IsCore && boss.Parts[0].Open, "the whole body is one open core");
-                Assert.AreEqual(Tuning.I.legacyBossTime, StagePicker.BossTime(world), 1e-4f);
+                if (BossDef.ForWorld(world) is LegacyBoss) // a world with a new boss has its own clock
+                    Assert.AreEqual(Tuning.I.legacyBossTime, StagePicker.BossTime(world), 1e-4f);
             }
         }
 

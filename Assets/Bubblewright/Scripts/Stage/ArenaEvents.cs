@@ -92,7 +92,39 @@ namespace Bubblewright
             return true;
         }
 
+        /// <summary>
+        /// Makes a tile that is already there crumble: it blinks for the last Tuning.tempTileWarn seconds of life, then is
+        /// gone (a ladder in it stays). A tile that is already crumbling keeps the sooner end. False for an empty cell.
+        /// </summary>
+        public bool CrumbleTile(int c, int r, float life)
+        {
+            if (map == null || life <= 0f) return false;
+            if (c < 0 || c >= StageMap.Cols || r < 0 || r >= map.Rows) return false;
+            if (map.Get(c, r).kind == TileKind.Empty) return false;
+            for (int i = 0; i < temps.Count; i++)
+            {
+                if (temps[i].col != c || temps[i].row != r) continue;
+                var t = temps[i];
+                t.timeLeft = Mathf.Min(t.timeLeft, life);
+                temps[i] = t;
+                return true;
+            }
+            temps.Add(new TempTile { col = c, row = r, timeLeft = life });
+            return true;
+        }
+
         public int TempTileCount => temps.Count;
+
+        /// <summary>How many temporary or crumbling tiles are in their blinking last seconds (the view repaints while any are).</summary>
+        public int CrumblingCount
+        {
+            get
+            {
+                int n = 0;
+                foreach (var t in temps) if (t.timeLeft <= Tuning.I.tempTileWarn) n++;
+                return n;
+            }
+        }
 
         /// <summary>True while the temporary tile at c, r is in its last Tuning.tempTileWarn seconds: the view blinks it.</summary>
         public bool IsCrumbling(int c, int r)
@@ -212,7 +244,8 @@ namespace Bubblewright
                 t.timeLeft -= dt;
                 if (t.timeLeft > 0f) { temps[i] = t; continue; }
                 temps.RemoveAt(i);
-                if (map.Get(t.col, t.row).kind != TileKind.Empty) map.Set(t.col, t.row, new Cell());
+                var gone = map.Get(t.col, t.row);
+                if (gone.kind != TileKind.Empty) map.Set(t.col, t.row, new Cell { ladder = gone.ladder });
                 OnTempExpire?.Invoke(t.col, t.row);
             }
 

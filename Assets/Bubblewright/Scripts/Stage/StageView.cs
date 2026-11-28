@@ -22,6 +22,8 @@ namespace Bubblewright
         Sprite sprite, groundSprite;
         StageMap paintedMap;
         int paintedVersion = -1;
+        int paintedBlink = -1;
+        const float BlinkRate = 8f; // blink steps per second for a crumbling tile
         Theme paintedTheme, theme;
 
         public static StageView Create(Transform parent)
@@ -72,7 +74,11 @@ namespace Bubblewright
             StageMap map = Game.Map;
             if (map == null) return;
             theme = Game.CurrentTheme;
-            if (map == paintedMap && map.Version == paintedVersion && theme == paintedTheme) return;
+            // A tile in its last blinking seconds (a crumbling chimney top, a melting block) is drawn on odd steps only.
+            var events = Game.Arena;
+            int blink = events != null && events.CrumblingCount > 0 ? (Mathf.FloorToInt(Time.unscaledTime * BlinkRate) & 1) : -1;
+            if (map == paintedMap && map.Version == paintedVersion && theme == paintedTheme && blink == paintedBlink) return;
+            paintedBlink = blink;
 
             EnsureArena(map.Rows);
             System.Array.Clear(pixels, 0, pixels.Length);
@@ -82,7 +88,8 @@ namespace Bubblewright
                 for (int c = 0; c < StageMap.Cols; c++)
                 {
                     Cell cell = map.Get(c, r);
-                    if (cell.kind != TileKind.Empty) PaintTile(map, c, r, cell);
+                    bool hiddenByBlink = blink == 1 && events.IsCrumbling(c, r);
+                    if (cell.kind != TileKind.Empty && !hiddenByBlink) PaintTile(map, c, r, cell);
                     if (map.ShutHatch(c, r)) PaintHatch(c, r);
                     else if (cell.ladder) PaintLadder(c, r);
                 }
