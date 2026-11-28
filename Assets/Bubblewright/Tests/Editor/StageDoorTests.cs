@@ -174,5 +174,53 @@ namespace Bubblewright.Tests
                             }
                     }
         }
+
+        [Test]
+        public void ADoorFadesInFirstAndOnlyThenStartsToOpen()
+        {
+            Assert.AreEqual(0.35f, DoorAnim.Alpha(-1f, 0.35f, 1.2f), 0.001f, "waiting through the fight: dim");
+            Assert.AreEqual(0.35f, DoorAnim.Alpha(0f, 0.35f, 1.2f), 0.001f);
+            float mid = DoorAnim.Alpha(0.6f, 0.35f, 1.2f);
+            Assert.Greater(mid, 0.35f);
+            Assert.Less(mid, 1f);
+            Assert.AreEqual(1f, DoorAnim.Alpha(1.2f, 0.35f, 1.2f), 0.001f);
+            Assert.AreEqual(0f, DoorAnim.OpenAmount(1.19f, 1.2f, 2.4f), "the leaves do not move while it fades in");
+            Assert.Greater(DoorAnim.OpenAmount(2.4f, 1.2f, 2.4f), 0f);
+            Assert.AreEqual(1f, DoorAnim.OpenAmount(3.6f, 1.2f, 2.4f), 0.001f);
+        }
+
+        [Test]
+        public void TheOpeningIsSlowAndSteppedThroughEveryFrame()
+        {
+            var t = Tuning.I;
+            Assert.GreaterOrEqual(t.doorOpenTime, 2f, "slow and visible");
+            Assert.Greater(t.doorFadeInTime, 0.5f);
+            Assert.Less(t.doorFightAlpha, 1f, "dimmed during the fight");
+            int last = -1;
+            for (float c = 0f; c <= DoorAnim.TotalTime(t.doorFadeInTime, t.doorOpenTime) + 0.01f; c += 0.02f)
+            {
+                int f = DoorAnim.Frame(DoorAnim.OpenAmount(c, t.doorFadeInTime, t.doorOpenTime));
+                Assert.GreaterOrEqual(f, last, "frames never go back");
+                Assert.LessOrEqual(f - last, 1, "no frame is skipped");
+                last = f;
+            }
+            Assert.AreEqual(DoorArt.OpenFrames - 1, last);
+        }
+
+        [Test]
+        public void ADoorCanBeUsedOnlyOnceWideOpen()
+        {
+            var t = Tuning.I;
+            Assert.IsFalse(DoorAnim.IsOpen(-1f, t.doorFadeInTime, t.doorOpenTime));
+            Assert.IsFalse(DoorAnim.IsOpen(t.doorFadeInTime, t.doorFadeInTime, t.doorOpenTime));
+            Assert.IsTrue(DoorAnim.IsOpen(DoorAnim.TotalTime(t.doorFadeInTime, t.doorOpenTime), t.doorFadeInTime, t.doorOpenTime));
+        }
+
+        [Test]
+        public void GoingThroughADoorNeedsUpHeld()
+        {
+            Assert.Greater(Tuning.I.doorEnterClimb, 0f);
+            Assert.LessOrEqual(Tuning.I.doorEnterClimb, 1f, "a full key press or stick push must count");
+        }
     }
 }

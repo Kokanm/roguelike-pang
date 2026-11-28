@@ -122,4 +122,38 @@ namespace Bubblewright
             return c;
         }
     }
+
+    /// <summary>
+    /// The timing of a door coming alive after the boss falls, as pure functions of one clock (seconds since the clear):
+    /// first it fades in from its dim, see-through fight look over fadeTime, then the leaves slide apart over openTime.
+    /// Game.Path drives it; the maths lives here so tests can check it without a scene.
+    /// </summary>
+    public static class DoorAnim
+    {
+        /// <summary>Opacity: startAlpha while shut and waiting (clock &lt; 0), rising to 1 over fadeTime.</summary>
+        public static float Alpha(float clock, float startAlpha, float fadeTime)
+        {
+            if (clock < 0f) return startAlpha;
+            float k = fadeTime <= 0f ? 1f : Mathf.Clamp01(clock / fadeTime);
+            return Mathf.Lerp(startAlpha, 1f, k * k * (3f - 2f * k));
+        }
+
+        /// <summary>How open the leaves are, 0 shut to 1 wide open. Nothing moves until the fade is done; eased so it creaks off slowly.</summary>
+        public static float OpenAmount(float clock, float fadeTime, float openTime)
+        {
+            if (clock <= fadeTime) return 0f;
+            float k = openTime <= 0f ? 1f : Mathf.Clamp01((clock - fadeTime) / openTime);
+            return k * k * (3f - 2f * k);
+        }
+
+        /// <summary>The art frame for an opening amount: 0 is shut, DoorArt.OpenFrames - 1 is wide open.</summary>
+        public static int Frame(float openAmount) =>
+            Mathf.Clamp(Mathf.RoundToInt(openAmount * (DoorArt.OpenFrames - 1)), 0, DoorArt.OpenFrames - 1);
+
+        /// <summary>Seconds from the clear until the door is wide open.</summary>
+        public static float TotalTime(float fadeTime, float openTime) => fadeTime + openTime;
+
+        /// <summary>The door can be used only once it is wide open.</summary>
+        public static bool IsOpen(float clock, float fadeTime, float openTime) => clock >= TotalTime(fadeTime, openTime);
+    }
 }
