@@ -197,6 +197,49 @@ namespace Bubblewright.Tests
             Assert.Greater(wick.FeetY, 4.5f, "wall jumps let him climb higher than a jump alone");
         }
 
+        [Test]
+        public void OneWallCannotBeChainedForever()
+        {
+            // Kicking off the same wall again and again, never touching anything else, stops after the first kick.
+            wick.ResetForStage(RightWallX, 0f, 3);
+            Step(0.1f, move: 1f);
+            Tick(1f, jump: true);
+            StepToApex(1f);
+            Step(0.1f, move: 1f);
+            Assert.AreEqual(1, wick.WallSide);
+            Tick(1f, jump: true); // first kick works
+            float topY = wick.FeetY;
+            int kicks = 0;
+            for (int i = 0; i < 900 && wick.Mode == Mode.Fall; i++)
+            {
+                bool wasJumping = wick.Jumping;
+                if (wick.WallSide != 0) Tick(1f, jump: true); else Tick(1f);
+                if (!wasJumping && wick.Jumping) kicks++;
+                topY = Mathf.Max(topY, wick.FeetY);
+            }
+            Assert.AreEqual(0, kicks, "the second kick off the same wall is refused");
+            Assert.AreEqual(Mode.Ground, wick.Mode, "he falls back down");
+        }
+
+        [Test]
+        public void LandingGivesTheSameWallBack()
+        {
+            wick.ResetForStage(RightWallX, 0f, 3);
+            for (int round = 0; round < 2; round++)
+            {
+                Step(0.1f, move: 1f);
+                Tick(1f, jump: true);
+                StepToApex(1f);
+                Step(0.1f, move: 1f);
+                Assert.AreEqual(1, wick.WallSide);
+                Tick(1f, jump: true);
+                Assert.Greater(wick.VelocityY, 0f, "round " + round + ": the wall kick works after standing on the ground");
+                for (int i = 0; i < 900 && wick.Mode == Mode.Fall; i++) Tick(0f);
+                Assert.AreEqual(Mode.Ground, wick.Mode);
+                for (int i = 0; i < 300 && wick.transform.position.x < RightWallX - 0.01f; i++) Tick(1f);
+            }
+        }
+
         // ---------------------------------------------------------------- Wall pose
 
         [Test]
